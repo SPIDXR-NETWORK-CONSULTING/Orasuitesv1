@@ -8,6 +8,7 @@ import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
+  { href: "/korean-head-spa", label: "Head Spa" },
   { href: "/room-rentals", label: "Room Rentals" },
   { href: "/about", label: "About" },
   { href: "/results", label: "Results" },

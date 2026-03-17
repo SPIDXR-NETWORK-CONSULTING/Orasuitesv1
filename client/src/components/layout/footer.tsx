@@ -11,6 +11,7 @@ const quickLinks = [
 ];
 
 const services = [
+  { href: "/korean-head-spa", label: "Korean Head Spa" },
   { href: "/services#aesthetics", label: "Aesthetics" },
   { href: "/services#nails", label: "Nails & Pedicure" },
   { href: "/services#hair", label: "Hair Services" },
