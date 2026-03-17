@@ -82,11 +82,15 @@ export default {
           fog: "hsl(var(--ora-fog) / <alpha-value>)",
           greige: "hsl(var(--ora-greige) / <alpha-value>)",
           taupe: "hsl(var(--ora-taupe) / <alpha-value>)",
+          bronze: "var(--ora-bronze)",
+          deep: "var(--ora-deep)",
+          void: "var(--ora-void)",
         },
       },
       fontFamily: {
         sans: ["Inter", "var(--font-sans)", "sans-serif"],
         serif: ["Playfair Display", "var(--font-serif)", "Georgia", "serif"],
+        display: ["Cormorant Garamond", "Playfair Display", "Georgia", "serif"],
         mono: ["var(--font-mono)", "monospace"],
       },
       fontSize: {
@@ -128,6 +132,31 @@ export default {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(8px)" },
         },
+        "parallax-drift": {
+          "0%": { transform: "translateY(0px)" },
+          "100%": { transform: "translateY(-60px)" },
+        },
+        "glass-reveal": {
+          "0%": { opacity: "0", filter: "blur(20px)", transform: "translateY(24px)" },
+          "100%": { opacity: "1", filter: "blur(0px)", transform: "translateY(0)" },
+        },
+        "split-char": {
+          "0%": { opacity: "0", transform: "translateY(100%)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        "line-grow": {
+          "0%": { width: "0%", opacity: "0" },
+          "20%": { opacity: "1" },
+          "100%": { width: "100%", opacity: "1" },
+        },
+        "bronze-pulse": {
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(185, 136, 103, 0)" },
+          "50%": { boxShadow: "0 0 24px 6px rgba(185, 136, 103, 0.35)" },
+        },
+        "float": {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-12px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -138,6 +167,11 @@ export default {
         "slide-in-right": "slide-in-right 0.8s ease-out forwards",
         "scale-in": "scale-in 0.6s ease-out forwards",
         "scroll-hint": "scroll-hint 2s ease-in-out infinite",
+        "glass-reveal": "glass-reveal 1.1s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "split-char": "split-char 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+        "line-grow": "line-grow 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards",
+        "bronze-pulse": "bronze-pulse 2.5s ease-in-out infinite",
+        "float": "float 4s ease-in-out infinite",
       },
     },
   },
