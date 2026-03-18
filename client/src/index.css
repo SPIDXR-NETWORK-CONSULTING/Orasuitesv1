@@ -242,6 +242,11 @@
   html {
     scroll-behavior: smooth;
   }
+
+  /* Anchor offset — accounts for fixed header (~70px) + a little breathing room */
+  [id] {
+    scroll-margin-top: 80px;
+  }
 }
 
 @layer utilities {
