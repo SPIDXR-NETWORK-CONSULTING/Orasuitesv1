@@ -4,7 +4,7 @@ import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213
 
 const quickLinks = [
   { href: "/services", label: "Services" },
-  { href: "/room-rentals", label: "Room Rentals" },
+  { href: "/korean-head-spa", label: "Head Spa" },
   { href: "/about", label: "About Us" },
   { href: "/results", label: "Results" },
   { href: "/contact", label: "Contact" },
@@ -122,10 +122,10 @@ export function Footer() {
               <li className="flex items-center gap-3">
                 <Mail size={18} className="text-ora-taupe flex-shrink-0" />
                 <a
-                  href="mailto:hello@orasuites.com"
+                  href="mailto:admin@orasuites.com"
                   className="text-ora-fog hover:text-ora-taupe transition-colors text-sm"
                 >
-                  hello@orasuites.com
+                  admin@orasuites.com
                 </a>
               </li>
             </ul>
