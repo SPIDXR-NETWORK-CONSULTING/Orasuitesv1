@@ -3,28 +3,40 @@ import { useRef } from "react";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
+import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
+import hairImage from "@assets/service-hair_1770213665902.png";
 
+// Each result has a category-specific overlay tint and copy
 const results = [
   {
     id: 1,
     treatment: "Skin Rejuvenation",
     category: "Aesthetics",
     description: "Profhilo treatment — 2 sessions",
-    image: beforeAfterImage,
+    result: "Visibly plumper, hydrated skin with restored elasticity and tone.",
+    tint: "rgba(180,120,80,0.35)", // warm bronze tint — skin/face
+    image: aestheticsImage,
+    tag: "Before → After",
   },
   {
     id: 2,
     treatment: "Anti-Aging",
     category: "Aesthetics",
     description: "Polynucleotide therapy transformation",
+    result: "Reduced fine lines, improved skin texture and cellular renewal.",
+    tint: "rgba(100,90,120,0.3)", // cool lavender — anti-aging
     image: beforeAfterImage,
+    tag: "Before → After",
   },
   {
     id: 3,
     treatment: "Facial Enhancement",
     category: "Aesthetics",
     description: "Natural enhancement with dermal fillers",
+    result: "Symmetry restored with zero-overfill technique for a natural lift.",
+    tint: "rgba(80,120,100,0.3)", // soft green — natural/herbal
     image: beforeAfterImage,
+    tag: "Before → After",
   },
 ];
 
@@ -45,35 +57,54 @@ function ResultCard({ result, index }: ResultCardProps) {
       transition={{ duration: 0.9, delay: index * 0.12, ease: [0.16, 1, 0.3, 1] }}
       className="group relative flex-shrink-0 w-72 sm:w-80"
     >
-      {/* Card container */}
       <div className="relative overflow-hidden rounded-xl img-zoom">
-        <div className="aspect-square overflow-hidden">
+        <div className="aspect-square overflow-hidden relative">
+          {/* Image */}
           <img
             src={result.image}
             alt={`${result.treatment} before and after result`}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-106"
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             loading="lazy"
+          />
+          {/* Category-specific colour tint — unique per result */}
+          <div
+            className="absolute inset-0 transition-opacity duration-500 group-hover:opacity-70"
+            style={{ background: result.tint, mixBlendMode: "overlay" }}
           />
         </div>
 
-        {/* Dark gradient */}
+        {/* Dark gradient to bottom */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to top, rgba(18,12,8,0.85) 0%, transparent 60%)",
+              "linear-gradient(to top, rgba(18,12,8,0.9) 0%, rgba(18,12,8,0.2) 50%, transparent 100%)",
           }}
         />
 
-        {/* Category badge — top left */}
+        {/* Before/After label — top left */}
         <div className="absolute top-4 left-4">
-          <span className="glass-card-sm px-3 py-1 text-[10px] tracking-widest uppercase font-light text-white/80">
+          <span className="glass-card-sm px-3 py-1 text-[9px] tracking-[0.25em] uppercase font-light text-white/80">
+            {result.tag}
+          </span>
+        </div>
+
+        {/* Category badge — top right */}
+        <div className="absolute top-4 right-4">
+          <span
+            className="text-[9px] tracking-[0.2em] uppercase font-light px-2.5 py-1 rounded-full"
+            style={{
+              background: "rgba(185,136,103,0.15)",
+              border: "1px solid rgba(185,136,103,0.25)",
+              color: "var(--ora-bronze)",
+            }}
+          >
             {result.category}
           </span>
         </div>
 
-        {/* Content — bottom */}
-        <div className="absolute bottom-0 left-0 right-0 p-5">
+        {/* Content — bottom glass panel */}
+        <div className="absolute bottom-0 left-0 right-0 p-4">
           <div className="glass-card p-4">
             <h3
               className="font-display text-lg text-white mb-1"
@@ -81,14 +112,13 @@ function ResultCard({ result, index }: ResultCardProps) {
             >
               {result.treatment}
             </h3>
-            <p className="text-white/50 text-xs font-light mb-3">
-              {result.description}
-            </p>
+            <p className="text-white/45 text-xs font-light mb-1">{result.description}</p>
+            <p className="text-white/30 text-[10px] font-light leading-relaxed mb-3">{result.result}</p>
             <span
               className="text-[10px] tracking-widest uppercase font-light flex items-center gap-1.5 transition-all duration-300 group-hover:gap-2.5"
               style={{ color: "var(--ora-bronze)" }}
             >
-              View gallery <ArrowRight size={10} />
+              View gallery <ArrowRight size={9} />
             </span>
           </div>
         </div>
@@ -145,19 +175,14 @@ export function ResultsShowcaseSection() {
 
       {/* Horizontal scroll strip */}
       <div className="relative">
-        {/* Left fade */}
+        {/* Fade edges */}
         <div
           className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none hidden sm:block"
-          style={{
-            background: "linear-gradient(to right, hsl(var(--ora-milk)), transparent)",
-          }}
+          style={{ background: "linear-gradient(to right, hsl(var(--ora-milk)), transparent)" }}
         />
-        {/* Right fade */}
         <div
           className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none hidden sm:block"
-          style={{
-            background: "linear-gradient(to left, hsl(var(--ora-milk)), transparent)",
-          }}
+          style={{ background: "linear-gradient(to left, hsl(var(--ora-milk)), transparent)" }}
         />
 
         <div

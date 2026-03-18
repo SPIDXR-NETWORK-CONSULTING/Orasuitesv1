@@ -1,19 +1,28 @@
 import { Layout } from "@/components/layout/layout";
-import { motion, useInView } from "framer-motion";
-import { useRef, useState } from "react";
+import { motion, AnimatePresence, useInView } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
 import { Link } from "wouter";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown, Clock } from "lucide-react";
 import { useSEO } from "@/hooks/use-seo";
-import { AestheticsIcon, NailPolishIcon, HairIcon, LaserIcon, WellnessIcon, KoreanWaveIcon } from "@/components/icons/OraIcons";
+import {
+  AestheticsIcon,
+  NailPolishIcon,
+  HairIcon,
+  LaserIcon,
+  WellnessIcon,
+  KoreanWaveIcon,
+} from "@/components/icons/OraIcons";
 
 import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
-import nailsImage from "@assets/service-nails_1770213665903.png";
 import nailsStationImage from "@assets/service-nails-station_1770215234347.png";
 import hairImage from "@assets/service-hair_1770213665902.png";
 import roomRentalImage from "@assets/room-rental_1770213665899.png";
 import productImage from "@assets/product-display_1770215241478.png";
 import heroImage from "@assets/hero-image_1770213665902.png";
 
+/* ─────────────────────────────────────────────────────────────
+   Types
+───────────────────────────────────────────────────────────── */
 interface Treatment {
   name: string;
   duration: string;
@@ -29,8 +38,13 @@ interface ServiceCategory {
   image: string;
   Icon: React.ComponentType<{ size?: number; strokeWidth?: number; color?: string; className?: string }>;
   treatments: Treatment[];
+  featured?: boolean;
+  featuredStats?: string[];
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Data
+───────────────────────────────────────────────────────────── */
 const serviceCategories: ServiceCategory[] = [
   {
     id: "korean-head-spa",
@@ -40,18 +54,45 @@ const serviceCategories: ServiceCategory[] = [
       "The most advanced scalp ritual in the city. 18 precision steps designed to reset, restore and transform your scalp health from the root.",
     image: heroImage,
     Icon: KoreanWaveIcon,
+    featured: true,
+    featuredStats: ["18 Steps", "90–120 min", "From £160"],
     treatments: [
-      { name: "Scalp Diagnostic Assessment", duration: "20 min", price: "£45", description: "Microscopic 200x scalp analysis" },
-      { name: "Signature Korean Head Spa", duration: "90 min", price: "From £160", description: "15-step complete scalp reset" },
-      { name: "Luxury Ritual (18-step)", duration: "120 min", price: "From £220", description: "Full protocol with oil infusion & steam therapy" },
-      { name: "Korean Head Spa + Scalp Combo", duration: "120 min", price: "From £240", description: "Ritual + targeted scalp treatment" },
-      { name: "Monthly Scalp Membership", duration: "Monthly", price: "£599 / mo", description: "Priority booking + exclusive member benefits" },
+      {
+        name: "Scalp Diagnostic Assessment",
+        duration: "20 min",
+        price: "£45",
+        description: "Microscopic 200× scalp analysis with personalised report",
+      },
+      {
+        name: "Signature Korean Head Spa",
+        duration: "90 min",
+        price: "From £160",
+        description: "15-step complete scalp reset — deep cleanse, exfoliation & masque",
+      },
+      {
+        name: "Luxury Ritual — 18 Steps",
+        duration: "120 min",
+        price: "From £220",
+        description: "Full protocol with hot oil infusion, steam therapy & scalp massage",
+      },
+      {
+        name: "Korean Head Spa + Scalp Combo",
+        duration: "120 min",
+        price: "From £240",
+        description: "Ritual combined with targeted scalp treatment for maximum results",
+      },
+      {
+        name: "Monthly Scalp Membership",
+        duration: "Monthly",
+        price: "£599 / mo",
+        description: "Priority booking, exclusive member benefits & 20% off retail",
+      },
     ],
   },
   {
     id: "aesthetics",
     label: "Aesthetics",
-    title: "Aesthetics & Cosmetic Procedures",
+    title: "Aesthetics & Cosmetics",
     description:
       "Regenerative. Intentional. Transformative. Our aesthetic treatments are designed to enhance your natural beauty from the inside out.",
     image: aestheticsImage,
@@ -91,19 +132,17 @@ const serviceCategories: ServiceCategory[] = [
   {
     id: "nails",
     label: "Nails",
-    title: "Nails & Pedicures",
+    title: "Nails & Pedicure",
     description:
-      "Luxurious nail care designed to pamper and perfect. Every manicure is a moment of self-care.",
+      "Luxurious nail care designed to pamper and perfect. Every treatment is a moment of deliberate self-care.",
     image: nailsStationImage,
     Icon: NailPolishIcon,
     treatments: [
       { name: "Classic Manicure", duration: "45 min", price: "From £28" },
       { name: "Gel Manicure", duration: "60 min", price: "From £38" },
-      { name: "Classic Pedicure", duration: "45 min", price: "From £32" },
       { name: "Luxury Pedicure", duration: "60 min", price: "From £45" },
       { name: "Nail Art & Extensions", duration: "90 min", price: "From £55" },
-      { name: "Cuticle Care Treatment", duration: "30 min", price: "From £22" },
-      { name: "Paraffin Hand Treatment", duration: "30 min", price: "From £28" },
+      { name: "Classic Pedicure", duration: "45 min", price: "From £32" },
     ],
   },
   {
@@ -121,15 +160,14 @@ const serviceCategories: ServiceCategory[] = [
       { name: "Bikini Line", duration: "20 min", price: "From £55" },
       { name: "Full Legs", duration: "45 min", price: "From £120" },
       { name: "Arms", duration: "30 min", price: "From £75" },
-      { name: "Back & Shoulders", duration: "45 min", price: "From £95" },
     ],
   },
   {
     id: "wellness",
     label: "Wellness",
-    title: "Massage & Wellness",
+    title: "Wellness & Massage",
     description:
-      "Restorative treatments for body and mind. Release tension, restore balance, and reconnect with yourself.",
+      "Restorative treatments for body and mind. Release tension, restore balance and reconnect with yourself.",
     image: productImage,
     Icon: WellnessIcon,
     treatments: [
@@ -137,176 +175,455 @@ const serviceCategories: ServiceCategory[] = [
       { name: "Deep Tissue Massage", duration: "60 min", price: "From £80" },
       { name: "Hot Stone Massage", duration: "75 min", price: "From £95" },
       { name: "Aromatherapy Massage", duration: "60 min", price: "From £75" },
-      { name: "Pregnancy Massage", duration: "60 min", price: "From £75" },
-      { name: "Reflexology", duration: "50 min", price: "From £55" },
-      { name: "Body Wrap Treatment", duration: "75 min", price: "From £85" },
     ],
   },
 ];
 
-function TreatmentRow({ treatment, delay }: { treatment: Treatment; delay: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-20px" });
+/* ─────────────────────────────────────────────────────────────
+   Treatment Row
+───────────────────────────────────────────────────────────── */
+function TreatmentRow({
+  treatment,
+  index,
+  categoryId,
+}: {
+  treatment: Treatment;
+  index: number;
+  categoryId: string;
+}) {
+  const bookHref = categoryId === "korean-head-spa" ? "/korean-head-spa" : "/contact";
 
   return (
     <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 12 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay, ease: [0.16, 1, 0.3, 1] }}
-      className="flex items-start justify-between py-3.5 border-b border-ora-greige/50 last:border-0 group cursor-default"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.5,
+        delay: index * 0.055,
+        ease: [0.16, 1, 0.3, 1],
+      }}
+      className="group flex items-start justify-between gap-4 py-4 border-b last:border-0"
+      style={{ borderColor: "var(--glass-border-warm)" }}
     >
-      <div className="flex-1 pr-6">
-        <p className="text-foreground text-sm font-light group-hover:text-ora-taupe transition-colors duration-300">
+      {/* Left: name + description */}
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-sm font-light leading-snug transition-colors duration-300"
+          style={{ color: "hsl(var(--foreground))" }}
+        >
           {treatment.name}
         </p>
         {treatment.description && (
-          <p className="text-ora-fog/60 text-xs mt-0.5 font-light">{treatment.description}</p>
+          <p
+            className="mt-0.5 text-xs font-light leading-relaxed"
+            style={{ color: "hsl(var(--ora-fog))" }}
+          >
+            {treatment.description}
+          </p>
         )}
       </div>
-      <div className="text-right flex-shrink-0">
-        <p
-          className="text-sm font-medium"
+
+      {/* Middle: duration badge */}
+      <div className="flex-shrink-0 flex items-center gap-1.5 mt-0.5">
+        <Clock size={10} style={{ color: "var(--ora-bronze)", opacity: 0.7 }} />
+        <span
+          className="text-xs font-light tracking-wide whitespace-nowrap"
+          style={{ color: "hsl(var(--ora-smoke))" }}
+        >
+          {treatment.duration}
+        </span>
+      </div>
+
+      {/* Right: price + book arrow */}
+      <div className="flex-shrink-0 flex items-center gap-3">
+        <span
+          className="text-sm font-medium whitespace-nowrap"
           style={{ color: "var(--ora-bronze)" }}
         >
           {treatment.price}
-        </p>
-        {treatment.duration && (
-          <p className="text-ora-fog/50 text-xs mt-0.5 font-light">{treatment.duration}</p>
-        )}
+        </span>
+        <Link href={bookHref}>
+          <span
+            className="inline-flex items-center justify-center w-7 h-7 rounded-full border opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
+            style={{
+              borderColor: "var(--ora-bronze)",
+              color: "var(--ora-bronze)",
+              background: "var(--glass-warm)",
+            }}
+          >
+            <ArrowRight size={11} />
+          </span>
+        </Link>
       </div>
     </motion.div>
   );
 }
 
-function ServiceSection({ category, index }: { category: ServiceCategory; index: number }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
-  const isReversed = index % 2 === 1;
-  const { Icon } = category;
-
+/* ─────────────────────────────────────────────────────────────
+   Accordion Panel — glass-card-warm expanded treatments list
+───────────────────────────────────────────────────────────── */
+function TreatmentPanel({
+  category,
+  isOpen,
+}: {
+  category: ServiceCategory;
+  isOpen: boolean;
+}) {
   return (
-    <div
-      ref={ref}
-      id={category.id}
-      className="scroll-mt-28"
-    >
-      <div
-        className={`grid lg:grid-cols-2 gap-10 lg:gap-16 items-start ${
-          isReversed ? "lg:flex-row-reverse" : ""
-        }`}
-      >
-        {/* Image */}
+    <AnimatePresence initial={false}>
+      {isOpen && (
         <motion.div
-          initial={{ opacity: 0, x: isReversed ? 48 : -48 }}
-          animate={isInView ? { opacity: 1, x: 0 } : {}}
-          transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-          className={`relative overflow-hidden rounded-xl img-zoom ${isReversed ? "lg:order-2" : ""}`}
+          key="panel"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+          style={{ overflow: "hidden" }}
         >
-          <div className="aspect-[4/3] overflow-hidden rounded-xl">
-            <img
-              src={category.image}
-              alt={category.title}
-              className="w-full h-full object-cover transition-transform duration-700"
-              loading="lazy"
-            />
-            <div
-              className="absolute inset-0"
-              style={{ background: "var(--overlay-subtle)" }}
-            />
-          </div>
-
-          {/* Category badge on image */}
-          <div className="absolute top-5 left-5">
-            <div className="glass-card-sm px-4 py-2 flex items-center gap-2">
-              <Icon size={14} color="var(--ora-bronze)" strokeWidth={1.5} />
-              <span
-                className="text-xs tracking-widest uppercase font-light"
+          <div className="glass-card-warm mx-0 mt-0 rounded-t-none rounded-b-2xl p-6 md:p-8">
+            {/* Header row inside panel */}
+            <div className="flex items-center justify-between mb-6">
+              <p
+                className="text-xs tracking-[0.22em] uppercase font-light"
                 style={{ color: "var(--ora-bronze)" }}
               >
-                {category.label}
-              </span>
+                Treatments & Pricing
+              </p>
+              <Link
+                href={
+                  category.id === "korean-head-spa"
+                    ? "/korean-head-spa"
+                    : "/contact"
+                }
+              >
+                <button
+                  className="glass-pill px-5 py-2 text-xs font-light inline-flex items-center gap-1.5 transition-all"
+                  style={{ color: "hsl(var(--ora-fog))", letterSpacing: "0.06em" }}
+                >
+                  {category.id === "korean-head-spa"
+                    ? "Reserve Ritual"
+                    : "Book Now"}
+                  <ArrowRight size={11} />
+                </button>
+              </Link>
             </div>
-          </div>
-        </motion.div>
 
-        {/* Content */}
-        <motion.div
-          initial={{ opacity: 0, x: isReversed ? -48 : 48 }}
-          animate={isInView ? { opacity: 1, x: 0 } : {}}
-          transition={{ duration: 1, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-          className={isReversed ? "lg:order-1" : ""}
-        >
-          <h2
-            className="font-display text-3xl sm:text-4xl text-foreground mb-4 leading-tight"
-            style={{ fontWeight: 300, letterSpacing: "0.02em" }}
-          >
-            {category.title}
-          </h2>
-          <p className="text-ora-fog text-sm font-light leading-relaxed mb-8">
-            {category.description}
-          </p>
-
-          {/* Pricing table */}
-          <div className="glass-card-warm p-6 mb-6">
-            <p
-              className="text-xs tracking-[0.2em] uppercase mb-5 font-light"
-              style={{ color: "var(--ora-bronze)" }}
-            >
-              Treatments & Pricing
-            </p>
+            {/* Treatment rows */}
             <div>
-              {category.treatments.map((t, i) => (
+              {category.treatments.map((treatment, i) => (
                 <TreatmentRow
-                  key={t.name}
-                  treatment={t}
-                  delay={0.3 + i * 0.05}
+                  key={treatment.name}
+                  treatment={treatment}
+                  index={i}
+                  categoryId={category.id}
                 />
               ))}
             </div>
           </div>
-
-          <Link href={category.id === "korean-head-spa" ? "/korean-head-spa" : "/contact"}>
-            <button
-              data-testid={`button-book-${category.id}`}
-              className="glass-pill px-7 py-3 text-sm font-medium hover-bronze transition-all inline-flex items-center gap-2"
-              style={{ color: "hsl(var(--ora-fog))", letterSpacing: "0.04em" }}
-            >
-              {category.id === "korean-head-spa" ? "Reserve Your Ritual" : "Book This Treatment"}
-              <ArrowRight size={13} />
-            </button>
-          </Link>
         </motion.div>
-      </div>
-    </div>
+      )}
+    </AnimatePresence>
   );
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Category Card — the clickable collapsed header
+───────────────────────────────────────────────────────────── */
+function CategoryCard({
+  category,
+  isOpen,
+  onToggle,
+  revealDelay,
+}: {
+  category: ServiceCategory;
+  isOpen: boolean;
+  onToggle: () => void;
+  revealDelay: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-60px" });
+  const { Icon } = category;
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.9, delay: revealDelay, ease: [0.16, 1, 0.3, 1] }}
+      id={category.id}
+      className="scroll-mt-32"
+    >
+      {/* Clickable card */}
+      <button
+        onClick={onToggle}
+        aria-expanded={isOpen}
+        data-testid={`button-category-${category.id}`}
+        className={`group w-full text-left focus:outline-none ${
+          category.featured ? "rounded-2xl" : "rounded-2xl"
+        } ${isOpen ? "rounded-b-none" : ""} overflow-hidden`}
+        style={{ display: "block" }}
+      >
+        {/* Image container */}
+        <div
+          className={`relative overflow-hidden ${
+            category.featured ? "aspect-[21/9] md:aspect-[3/1]" : "aspect-[16/7] md:aspect-[4/1]"
+          }`}
+        >
+          <img
+            src={category.image}
+            alt={category.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.025]"
+            loading="lazy"
+          />
+
+          {/* Dark gradient overlay */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background: isOpen
+                ? "linear-gradient(160deg, rgba(10,7,4,0.82) 0%, rgba(30,18,10,0.62) 100%)"
+                : "linear-gradient(160deg, rgba(10,7,4,0.68) 0%, rgba(30,18,10,0.44) 100%)",
+              transition: "background 0.5s ease",
+            }}
+          />
+
+          {/* Korean Head Spa: gradient shimmer accent */}
+          {category.featured && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background:
+                  "radial-gradient(ellipse 60% 80% at 80% 50%, rgba(185,136,103,0.18) 0%, transparent 70%)",
+              }}
+            />
+          )}
+
+          {/* Card content overlay */}
+          <div className="absolute inset-0 flex flex-col justify-between p-6 md:p-8">
+            {/* Top row: icon + label */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="glass-card-sm flex items-center justify-center"
+                  style={{ width: 34, height: 34 }}
+                >
+                  <Icon size={15} color="var(--ora-bronze)" strokeWidth={1.5} />
+                </div>
+                <span
+                  className="text-xs tracking-[0.22em] uppercase font-light"
+                  style={{ color: "var(--ora-bronze)" }}
+                >
+                  {category.label}
+                </span>
+              </div>
+
+              {/* Chevron toggle indicator */}
+              <div
+                className="glass-card-sm flex items-center justify-center flex-shrink-0"
+                style={{ width: 32, height: 32 }}
+              >
+                <motion.div
+                  animate={{ rotate: isOpen ? 180 : 0 }}
+                  transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                >
+                  <ChevronDown
+                    size={14}
+                    style={{ color: isOpen ? "var(--ora-bronze)" : "rgba(255,255,255,0.6)" }}
+                  />
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Bottom row: title + featured stat pills */}
+            <div>
+              {/* Stat pills for Korean Head Spa */}
+              {category.featured && category.featuredStats && (
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {category.featuredStats.map((stat) => (
+                    <span
+                      key={stat}
+                      className="glass-card-sm px-3 py-1 text-xs font-light tracking-wide"
+                      style={{ color: "var(--ora-bronze)", borderRadius: 999 }}
+                    >
+                      {stat}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <h2
+                className={`font-display text-white leading-tight ${
+                  category.featured
+                    ? "text-3xl sm:text-4xl md:text-5xl"
+                    : "text-2xl sm:text-3xl md:text-4xl"
+                }`}
+                style={{ fontWeight: 300, letterSpacing: "0.02em" }}
+              >
+                {category.title}
+              </h2>
+              <p
+                className={`mt-2 text-sm font-light leading-relaxed max-w-xl ${
+                  isOpen ? "opacity-70" : "opacity-60"
+                } transition-opacity duration-300`}
+                style={{ color: "rgba(255,255,255,0.85)" }}
+              >
+                {category.description}
+              </p>
+
+              {/* "View treatments" hint when closed */}
+              {!isOpen && (
+                <p
+                  className="mt-3 text-xs tracking-widest uppercase font-light"
+                  style={{ color: "var(--ora-bronze)", opacity: 0.8 }}
+                >
+                  View treatments
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </button>
+
+      {/* Accordion panel */}
+      <TreatmentPanel category={category} isOpen={isOpen} />
+    </motion.div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Sticky Tab Strip
+───────────────────────────────────────────────────────────── */
+function StickyTabStrip({
+  categories,
+  activeId,
+  onSelect,
+}: {
+  categories: ServiceCategory[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <nav
+      className="sticky top-0 z-40 border-b"
+      style={{
+        background: "hsl(var(--ora-sand))",
+        borderColor: "hsl(var(--ora-greige))",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-14">
+        <div className="flex gap-0.5 overflow-x-auto py-2.5 hide-scrollbar">
+          {categories.map((cat) => {
+            const isActive = activeId === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => onSelect(cat.id)}
+                data-testid={`link-category-${cat.id}`}
+                className="relative flex-shrink-0 px-4 py-2 rounded-full text-xs font-light tracking-widest uppercase transition-all duration-300 focus:outline-none"
+                style={{
+                  color: isActive ? "var(--ora-bronze)" : "hsl(var(--ora-fog))",
+                  letterSpacing: "0.08em",
+                  background: isActive
+                    ? "var(--glass-warm)"
+                    : "transparent",
+                  border: isActive
+                    ? "1px solid var(--glass-border-warm)"
+                    : "1px solid transparent",
+                }}
+              >
+                {cat.label}
+                {isActive && (
+                  <motion.span
+                    layoutId="tab-underline"
+                    className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full"
+                    style={{ background: "var(--ora-bronze)" }}
+                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Page
+───────────────────────────────────────────────────────────── */
 export default function ServicesPage() {
   useSEO({
     title: "Treatments & Pricing | Ora Suites Manchester",
-    description: "From Profhilo to Korean Head Spa — explore Ora's full treatment menu with transparent pricing. Women-only wellness sanctuary in Manchester.",
+    description:
+      "From Profhilo to Korean Head Spa — explore Ora's full treatment menu with transparent pricing. Women-only wellness sanctuary in Manchester.",
   });
+
+  const [activeCategory, setActiveCategory] = useState<string | null>("korean-head-spa");
+
+  /* Scroll to category section and open it */
+  function handleTabSelect(id: string) {
+    setActiveCategory((prev) => (prev === id ? null : id));
+    const el = document.getElementById(id);
+    if (el) {
+      const yOffset = -120;
+      const y = el.getBoundingClientRect().top + window.scrollY + yOffset;
+      window.scrollTo({ top: y, behavior: "smooth" });
+    }
+  }
+
+  /* Update active tab as user scrolls */
+  useEffect(() => {
+    function onScroll() {
+      for (const cat of [...serviceCategories].reverse()) {
+        const el = document.getElementById(cat.id);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= 160) {
+            setActiveCategory((prev) => (prev !== cat.id ? cat.id : prev));
+            break;
+          }
+        }
+      }
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  function toggleCategory(id: string) {
+    setActiveCategory((prev) => (prev === id ? null : id));
+  }
 
   return (
     <Layout>
       {/* ── Hero ── */}
       <section
-        className="relative pt-36 pb-20 overflow-hidden"
+        className="relative pt-36 pb-16 overflow-hidden"
         style={{ background: "hsl(var(--ora-milk))" }}
       >
+        {/* Dot grid texture */}
+        <div className="absolute inset-0 dot-grid-bg opacity-40" aria-hidden="true" />
+
+        {/* Bronze radial glow */}
         <div
-          className="absolute inset-0 dot-grid-bg opacity-40"
+          className="absolute right-0 top-0 w-1/2 h-full pointer-events-none"
           aria-hidden="true"
+          style={{
+            background:
+              "radial-gradient(ellipse 70% 60% at 85% 30%, rgba(185,136,103,0.1) 0%, transparent 65%)",
+          }}
         />
+
         <div className="relative max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
           <motion.div
-            initial={{ opacity: 0, y: 32 }}
+            initial={{ opacity: 0, y: 36 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           >
             <p
-              className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
+              className="text-xs tracking-[0.28em] uppercase mb-5 font-light"
               style={{ color: "var(--ora-bronze)" }}
             >
               Our Treatments
@@ -319,7 +636,10 @@ export default function ServicesPage() {
               <br />
               <span style={{ fontStyle: "italic" }}>a ritual.</span>
             </h1>
-            <p className="text-ora-fog text-lg font-light max-w-2xl">
+            <p
+              className="text-lg font-light max-w-xl leading-relaxed"
+              style={{ color: "hsl(var(--ora-fog))" }}
+            >
               Tailored to your unique beauty and wellness goals. Transparent pricing,
               expert practitioners, intentional care.
             </p>
@@ -327,71 +647,79 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      {/* ── Sticky anchor nav ── */}
-      <nav
-        className="sticky top-0 z-40 border-b"
-        style={{
-          background: "hsl(var(--ora-sand))",
-          borderColor: "hsl(var(--ora-greige))",
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          <div className="flex gap-1 overflow-x-auto py-3 hide-scrollbar">
-            {serviceCategories.map((cat) => (
-              <a
-                key={cat.id}
-                href={`#${cat.id}`}
-                data-testid={`link-category-${cat.id}`}
-                className="flex-shrink-0 px-4 py-2 rounded-full text-xs font-light tracking-widest uppercase transition-all duration-300 hover-bronze"
-                style={{ color: "hsl(var(--ora-fog))", letterSpacing: "0.08em" }}
-              >
-                {cat.label}
-              </a>
-            ))}
-          </div>
-        </div>
-      </nav>
+      {/* ── Sticky tab strip ── */}
+      <StickyTabStrip
+        categories={serviceCategories}
+        activeId={activeCategory}
+        onSelect={handleTabSelect}
+      />
 
-      {/* ── Service sections ── */}
-      <section className="py-16 md:py-24" style={{ background: "hsl(var(--ora-milk))" }}>
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 space-y-24 md:space-y-32">
+      {/* ── Category accordion cards ── */}
+      <section
+        className="py-12 md:py-16"
+        style={{ background: "hsl(var(--ora-milk))" }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-8 lg:px-14 space-y-4">
           {serviceCategories.map((category, index) => (
-            <ServiceSection key={category.id} category={category} index={index} />
+            <CategoryCard
+              key={category.id}
+              category={category}
+              isOpen={activeCategory === category.id}
+              onToggle={() => toggleCategory(category.id)}
+              revealDelay={Math.min(index * 0.07, 0.3)}
+            />
           ))}
         </div>
       </section>
 
       {/* ── Bottom CTA ── */}
       <section
-        className="py-20"
+        className="py-24"
         style={{ background: "hsl(var(--ora-bone))" }}
       >
         <div className="max-w-2xl mx-auto px-6 text-center">
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 28 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
           >
+            {/* Decorative line */}
+            <div className="flex items-center justify-center gap-4 mb-8">
+              <div
+                className="h-px w-16 opacity-40"
+                style={{ background: "var(--ora-bronze)" }}
+              />
+              <KoreanWaveIcon size={18} color="var(--ora-bronze)" strokeWidth={1.3} />
+              <div
+                className="h-px w-16 opacity-40"
+                style={{ background: "var(--ora-bronze)" }}
+              />
+            </div>
+
             <h2
-              className="font-display text-3xl sm:text-4xl text-foreground mb-4"
+              className="font-display text-3xl sm:text-4xl text-foreground mb-4 leading-tight"
               style={{ fontWeight: 300, fontStyle: "italic" }}
             >
               Not sure where to start?
             </h2>
-            <p className="text-ora-fog text-sm font-light mb-8 leading-relaxed">
+            <p
+              className="text-sm font-light mb-9 leading-relaxed"
+              style={{ color: "hsl(var(--ora-fog))" }}
+            >
               Book a complimentary consultation with one of our experts. We'll help
               you create a personalised treatment plan tailored to your goals.
             </p>
             <Link href="/contact">
               <button
                 data-testid="button-services-consultation"
-                className="px-9 py-4 text-sm font-medium transition-all"
+                className="px-10 py-4 text-sm font-medium transition-all hover:opacity-90 active:scale-[0.98]"
                 style={{
                   background: "var(--ora-bronze)",
                   color: "white",
                   borderRadius: "9999px",
-                  letterSpacing: "0.06em",
+                  letterSpacing: "0.07em",
+                  boxShadow: "0 8px 32px var(--ora-bronze-muted)",
                 }}
               >
                 Book a Free Consultation
