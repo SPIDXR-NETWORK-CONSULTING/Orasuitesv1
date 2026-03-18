@@ -9,7 +9,6 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
   { href: "/korean-head-spa", label: "Head Spa" },
-  { href: "/room-rentals", label: "Room Rentals" },
   { href: "/about", label: "About" },
   { href: "/results", label: "Results" },
   { href: "/contact", label: "Contact" },

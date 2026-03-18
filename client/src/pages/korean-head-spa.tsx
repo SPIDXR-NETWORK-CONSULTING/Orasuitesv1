@@ -12,6 +12,7 @@ import {
   StarClusterIcon,
   FeatherIcon,
   DiamondLeafIcon,
+  ScalpIcon,
 } from "@/components/icons/OraIcons";
 import { useSEO } from "@/hooks/use-seo";
 import heroImage from "@assets/hero-image_1770213665902.png";
@@ -19,168 +20,177 @@ import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
 import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
 import productImage from "@assets/product-display_1770215241478.png";
 
-// ─── 18-step protocol data ──────────────────────────────────────────────────
-const steps = [
-  { n: "01", name: "Scalp Consultation & Analysis", desc: "A detailed diagnostic to map your scalp's needs, pH balance, and sebum levels." },
-  { n: "02", name: "Pre-Cleanse Brush Technique", desc: "Dry brushing to loosen debris and stimulate initial circulation." },
-  { n: "03", name: "Herbal Oil Infusion", desc: "Warm Korean botanical oil is worked into the scalp to nourish at the root." },
-  { n: "04", name: "Scalp Steam Treatment", desc: "Gentle steam opens follicles and prepares the scalp for deep cleansing." },
-  { n: "05", name: "First Clarifying Shampoo", desc: "A pH-balanced Korean formula dissolves buildup without stripping moisture." },
-  { n: "06", name: "Scalp Exfoliation", desc: "Enzyme-based exfoliant removes dead skin and unclogs follicles." },
-  { n: "07", name: "Second Purifying Shampoo", desc: "A deeper cleanse targeting the sebaceous glands for true clarity." },
-  { n: "08", name: "High-Frequency Stimulation", desc: "A gentle electrical current accelerates cell turnover and kills bacteria." },
-  { n: "09", name: "Scalp Massage — Pressure Points", desc: "Traditional Korean pressure-point massage for tension release and lymph flow." },
-  { n: "10", name: "Gua Sha Scalp Lift", desc: "Jade gua sha along the nape, temples, and brow lifts the fascia and reduces puffiness." },
-  { n: "11", name: "Ampoule Serum Injection", desc: "A concentrated growth factor serum is pressed into the scalp via micro-pressure." },
-  { n: "12", name: "Hyaluronic Acid Scalp Mask", desc: "A hydration sheet mask is applied to lock moisture into the scalp's surface layer." },
-  { n: "13", name: "LED Light Therapy", desc: "Red and near-infrared light stimulate collagen, reduce inflammation and boost growth." },
-  { n: "14", name: "Cooling Serum Application", desc: "A menthol-based Korean tonic soothes the scalp and closes the follicle." },
-  { n: "15", name: "Hair & Scalp Conditioning", desc: "A bond-building conditioner is applied from root to tip for complete restoration." },
-  { n: "16", name: "Blow Dry Technique", desc: "A professional Korean low-heat blow dry to preserve moisture and add volume." },
-  { n: "17", name: "Scalp Tonic Finish", desc: "A final protective tonic is spritzed to seal in treatment and add shine." },
-  { n: "18", name: "Post-Ritual Consultation", desc: "Personalised aftercare advice and next-step ritual recommendations." },
-];
-
-// ─── Benefits data ───────────────────────────────────────────────────────────
-const benefits = [
-  { icon: <DiamondLeafIcon />, title: "Hair Growth Activation", desc: "Stimulated follicles produce thicker, faster-growing hair from session one." },
-  { icon: <WaterDropIcon />, title: "Scalp Health & Balance", desc: "Rebalanced sebum, cleared follicles, and restored scalp microbiome." },
-  { icon: <FeatherIcon />, title: "Stress & Tension Relief", desc: "Korean pressure-point massage dissolves built-up muscular and mental tension." },
-  { icon: <LotusIcon />, title: "Facial Lift Effect", desc: "Gua sha and fascia work visibly lifts the brows, temples, and jaw." },
-  { icon: <InfinityLoopIcon />, title: "Sebum Regulation", desc: "Oily roots and dry ends corrected through enzyme exfoliation and serum therapy." },
-  { icon: <StarClusterIcon />, title: "Circulation Boost", desc: "Increased blood flow delivers nutrients to dormant follicles and boosts scalp vitality." },
+// ─── Phase data ──────────────────────────────────────────────────────────────
+const phases = [
+  {
+    n: "01",
+    phase: "Prepare",
+    label: "Diagnostic & Priming",
+    steps: [
+      { n: "01", name: "Scalp Consultation & Analysis" },
+      { n: "02", name: "Pre-Cleanse Brush Technique" },
+      { n: "03", name: "Herbal Oil Infusion" },
+    ],
+    icon: ScalpIcon,
+    color: "rgba(185,136,103,0.9)",
+    desc: "Every ritual begins with understanding your scalp. We map pH balance, sebum levels, and hair density before a single product is applied.",
+  },
+  {
+    n: "02",
+    phase: "Cleanse",
+    label: "Deep Purification",
+    steps: [
+      { n: "04", name: "Scalp Steam Treatment" },
+      { n: "05", name: "First Clarifying Shampoo" },
+      { n: "06", name: "Scalp Exfoliation" },
+    ],
+    icon: WaterDropIcon,
+    color: "rgba(140,160,185,0.9)",
+    desc: "Steam opens the follicle. Korean enzyme exfoliation clears years of buildup that standard shampoos can't reach. The scalp breathes — sometimes for the first time.",
+  },
+  {
+    n: "03",
+    phase: "Activate",
+    label: "Stimulation & Clarity",
+    steps: [
+      { n: "07", name: "Second Purifying Shampoo" },
+      { n: "08", name: "High-Frequency Stimulation" },
+      { n: "09", name: "Scalp Massage — Pressure Points" },
+    ],
+    icon: StarClusterIcon,
+    color: "rgba(185,160,103,0.9)",
+    desc: "A gentle electrical current accelerates cell turnover. Then Korean pressure-point massage — not relaxation, but restoration — stimulates lymphatic flow and releases fascia tension.",
+  },
+  {
+    n: "04",
+    phase: "Restore",
+    label: "Lifting & Infusion",
+    steps: [
+      { n: "10", name: "Gua Sha Scalp Lift" },
+      { n: "11", name: "Ampoule Serum Injection" },
+      { n: "12", name: "Hyaluronic Acid Scalp Mask" },
+    ],
+    icon: LotusIcon,
+    color: "rgba(160,130,185,0.9)",
+    desc: "Jade gua sha lifts the brow, temples, and jaw. Then concentrated growth serums are pressed deep into the scalp. A hydration mask locks moisture where it's needed most.",
+  },
+  {
+    n: "05",
+    phase: "Heal",
+    label: "Light & Recovery",
+    steps: [
+      { n: "13", name: "LED Light Therapy" },
+      { n: "14", name: "Cooling Serum Application" },
+      { n: "15", name: "Hair & Scalp Conditioning" },
+    ],
+    icon: FeatherIcon,
+    color: "rgba(185,200,140,0.9)",
+    desc: "Red and near-infrared light stimulate collagen and reduce inflammation. A cooling tonic closes the follicle. Bond-building conditioner restores from root to tip.",
+  },
+  {
+    n: "06",
+    phase: "Complete",
+    label: "Finish & Aftercare",
+    steps: [
+      { n: "16", name: "Blow Dry Technique" },
+      { n: "17", name: "Scalp Tonic Finish" },
+      { n: "18", name: "Post-Ritual Consultation" },
+    ],
+    icon: KoreanWaveIcon,
+    color: "rgba(185,136,103,0.9)",
+    desc: "A Korean low-heat blow dry preserves moisture. A protective tonic seals every step in. Finally, personalised aftercare advice ensures your results last — and grow.",
+  },
 ];
 
 // ─── Pricing data ────────────────────────────────────────────────────────────
 const pricing = [
   { name: "Scalp Diagnostic Assessment", duration: "20 min", price: "£45" },
-  { name: "Signature Korean Head Spa (15-step)", duration: "90 min", price: "from £160" },
+  { name: "Signature Korean Head Spa", duration: "90 min", price: "from £160" },
   { name: "Luxury Ritual (18-step full protocol)", duration: "120 min", price: "from £220" },
-  { name: "Korean Head Spa + Scalp Treatment Combo", duration: "120 min", price: "from £240" },
+  { name: "KHS + Scalp Treatment Combo", duration: "120 min", price: "from £240" },
   { name: "Monthly Scalp Membership", duration: "Monthly", price: "£599/mo" },
 ];
 
-// ─── Sub-components ──────────────────────────────────────────────────────────
-
-function RippleAnimation() {
-  return (
-    <div className="relative flex items-center justify-center w-full h-full min-h-[420px]">
-      {[1, 2, 3, 4].map((i) => (
-        <motion.div
-          key={i}
-          className="absolute rounded-full border"
-          style={{
-            borderColor: `rgba(185,136,103,${0.35 - i * 0.07})`,
-            width: `${i * 22}%`,
-            height: `${i * 22}%`,
-          }}
-          animate={{ scale: [1, 1.08, 1], opacity: [0.6, 0.25, 0.6] }}
-          transition={{
-            duration: 3.5,
-            delay: i * 0.6,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-        />
-      ))}
-      {/* Centre icon */}
-      <motion.div
-        animate={{ scale: [1, 1.06, 1] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="relative z-10 flex flex-col items-center gap-4"
-      >
-        <div style={{ color: "var(--ora-bronze)" }}>
-          <KoreanWaveIcon />
-        </div>
-        <span
-          className="font-display text-7xl sm:text-8xl leading-none"
-          style={{ color: "rgba(185,136,103,0.12)", fontWeight: 300, letterSpacing: "-0.02em" }}
-        >
-          18
-        </span>
-        <div
-          className="glass-card px-5 py-2 text-xs tracking-widest uppercase font-light"
-          style={{ color: "var(--ora-bronze)" }}
-        >
-          90 min ritual
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-interface StepCardProps {
-  step: (typeof steps)[0];
-  index: number;
-}
-
-function StepCard({ step, index }: StepCardProps) {
+// ─── Phase Card — horizontal scroll item ─────────────────────────────────────
+function PhaseCard({ phase, index }: { phase: (typeof phases)[0]; index: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-40px" });
+  const { icon: Icon } = phase;
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 32 }}
+      initial={{ opacity: 0, y: 48 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.7, delay: (index % 3) * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      className="glass-card p-5 flex gap-4 items-start"
+      transition={{ duration: 0.9, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
+      className="flex-shrink-0 w-[85vw] sm:w-[420px] lg:w-[380px]"
+      style={{ scrollSnapAlign: "start" }}
     >
-      <span
-        className="font-display text-3xl leading-none flex-shrink-0 mt-0.5"
-        style={{ color: "rgba(185,136,103,0.35)", fontWeight: 300 }}
-      >
-        {step.n}
-      </span>
-      <div>
-        <h4
-          className="font-display text-base text-white mb-1"
-          style={{ fontWeight: 400, letterSpacing: "0.02em" }}
-        >
-          {step.name}
-        </h4>
-        <p className="text-white/45 text-xs font-light leading-relaxed">{step.desc}</p>
+      <div className="glass-card h-full p-7 flex flex-col gap-5 hover:border-[rgba(185,136,103,0.3)] transition-colors duration-500">
+        {/* Phase number + icon */}
+        <div className="flex items-start justify-between">
+          <div>
+            <span
+              className="font-display text-6xl leading-none"
+              style={{ color: "rgba(185,136,103,0.18)", fontWeight: 300 }}
+            >
+              {phase.n}
+            </span>
+          </div>
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center"
+            style={{ background: "rgba(185,136,103,0.12)", border: "1px solid rgba(185,136,103,0.2)" }}
+          >
+            <span style={{ color: "var(--ora-bronze)" }}>
+              <Icon size={20} strokeWidth={1.5} />
+            </span>
+          </div>
+        </div>
+
+        {/* Phase name */}
+        <div>
+          <p className="text-[10px] tracking-[0.25em] uppercase font-light mb-1" style={{ color: "rgba(185,136,103,0.6)" }}>
+            Phase {phase.n}
+          </p>
+          <h3 className="font-display text-2xl text-white mb-1" style={{ fontWeight: 300, letterSpacing: "0.02em" }}>
+            {phase.phase}
+          </h3>
+          <p className="text-white/35 text-xs font-light tracking-wide">{phase.label}</p>
+        </div>
+
+        {/* Description */}
+        <p className="text-white/55 text-sm font-light leading-relaxed flex-1">{phase.desc}</p>
+
+        {/* Steps */}
+        <div className="space-y-2 pt-2" style={{ borderTop: "1px solid rgba(185,136,103,0.12)" }}>
+          {phase.steps.map((step) => (
+            <div key={step.n} className="flex items-center gap-3">
+              <span
+                className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-medium"
+                style={{ background: "rgba(185,136,103,0.12)", color: "var(--ora-bronze)" }}
+              >
+                {step.n}
+              </span>
+              <span className="text-white/60 text-xs font-light">{step.name}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </motion.div>
   );
 }
 
-interface BenefitCardProps {
-  benefit: (typeof benefits)[0];
-  index: number;
-}
-
-function BenefitCard({ benefit, index }: BenefitCardProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-40px" });
-
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 24 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.8, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      className="glass-card p-6 group hover:border-[rgba(185,136,103,0.25)] transition-colors duration-500"
-    >
-      <div
-        className="w-10 h-10 rounded-full flex items-center justify-center mb-4"
-        style={{ background: "var(--ora-bronze-muted)" }}
-      >
-        <span style={{ color: "var(--ora-bronze)" }}>{benefit.icon}</span>
-      </div>
-      <h4
-        className="font-display text-base text-white mb-2"
-        style={{ fontWeight: 400, letterSpacing: "0.02em" }}
-      >
-        {benefit.title}
-      </h4>
-      <p className="text-white/45 text-sm font-light leading-relaxed">{benefit.desc}</p>
-    </motion.div>
-  );
-}
+// ─── Benefit bar — editorial horizontal layout ────────────────────────────────
+const benefits = [
+  { icon: DiamondLeafIcon, label: "Hair Growth", value: "Stimulated from session one" },
+  { icon: WaterDropIcon, label: "Scalp Health", value: "Rebalanced microbiome" },
+  { icon: FeatherIcon, label: "Stress Relief", value: "Pressure-point deep release" },
+  { icon: LotusIcon, label: "Facial Lift", value: "Visible in 90 minutes" },
+  { icon: InfinityLoopIcon, label: "Sebum Control", value: "Enzymes restore balance" },
+  { icon: StarClusterIcon, label: "Circulation", value: "Dormant follicles revived" },
+];
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function KoreanHeadSpaPage() {
   useSEO({
     title: "Korean Head Spa Manchester | 18-Step Luxury Scalp Ritual | ORÁ.",
@@ -196,10 +206,8 @@ export default function KoreanHeadSpaPage() {
   // Section refs
   const introRef = useRef<HTMLDivElement>(null);
   const isIntroInView = useInView(introRef, { once: true, margin: "-80px" });
-  const stepsRef = useRef<HTMLDivElement>(null);
-  const isStepsInView = useInView(stepsRef, { once: true, margin: "-60px" });
-  const whoRef = useRef<HTMLDivElement>(null);
-  const isWhoInView = useInView(whoRef, { once: true, margin: "-80px" });
+  const benefitsRef = useRef<HTMLDivElement>(null);
+  const isBenefitsInView = useInView(benefitsRef, { once: true, margin: "-60px" });
   const pricingRef = useRef<HTMLDivElement>(null);
   const isPricingInView = useInView(pricingRef, { once: true, margin: "-80px" });
   const ctaRef = useRef<HTMLDivElement>(null);
@@ -211,7 +219,7 @@ export default function KoreanHeadSpaPage() {
       <section
         ref={heroRef}
         className="relative min-h-screen flex items-end pb-20 overflow-hidden"
-        style={{ background: "var(--ora-void, #0f0908)" }}
+        style={{ background: "#0f0908" }}
       >
         {/* Parallax image */}
         <motion.div className="absolute inset-0" style={{ y: heroY }}>
@@ -227,7 +235,7 @@ export default function KoreanHeadSpaPage() {
           className="absolute inset-0"
           style={{
             background:
-              "linear-gradient(to bottom, rgba(10,7,4,0.65) 0%, rgba(15,9,8,0.88) 60%, rgba(15,9,8,0.97) 100%)",
+              "linear-gradient(to bottom, rgba(10,7,4,0.55) 0%, rgba(15,9,8,0.85) 55%, rgba(15,9,8,0.97) 100%)",
           }}
         />
 
@@ -253,7 +261,7 @@ export default function KoreanHeadSpaPage() {
             Ora Suites · Manchester
           </motion.p>
 
-          {/* Headline — character split */}
+          {/* Headline */}
           <div className="overflow-hidden mb-4">
             {"The Ritual.".split("").map((char, i) => (
               <motion.span
@@ -299,7 +307,6 @@ export default function KoreanHeadSpaPage() {
                   color: "white",
                   borderRadius: "9999px",
                   letterSpacing: "0.06em",
-                  border: "1px solid var(--ora-bronze)",
                 }}
               >
                 Reserve Your Ritual
@@ -312,7 +319,7 @@ export default function KoreanHeadSpaPage() {
               className="glass-pill px-8 py-4 text-sm font-medium hover-bronze transition-all inline-flex items-center gap-2"
               style={{ color: "white", letterSpacing: "0.06em" }}
             >
-              See the 18 Steps <ArrowRight size={14} />
+              The 18 Steps <ArrowRight size={14} />
             </button>
           </motion.div>
 
@@ -323,10 +330,7 @@ export default function KoreanHeadSpaPage() {
             transition={{ delay: 1.6 }}
             className="mt-16 flex items-center gap-3"
           >
-            <div
-              className="w-px h-10 origin-top"
-              style={{ background: "rgba(185,136,103,0.4)" }}
-            />
+            <div className="w-px h-10 origin-top" style={{ background: "rgba(185,136,103,0.4)" }} />
             <span className="text-[10px] tracking-[0.3em] uppercase font-light" style={{ color: "rgba(185,136,103,0.5)" }}>
               Scroll to discover
             </span>
@@ -335,10 +339,7 @@ export default function KoreanHeadSpaPage() {
       </section>
 
       {/* ── WHAT IS IT? ──────────────────────────────────────────────────── */}
-      <section
-        className="py-24 md:py-36"
-        style={{ background: "hsl(var(--ora-bone))" }}
-      >
+      <section className="py-24 md:py-36" style={{ background: "hsl(var(--ora-bone))" }}>
         <div
           ref={introRef}
           className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 grid lg:grid-cols-2 gap-16 lg:gap-24 items-center"
@@ -356,11 +357,7 @@ export default function KoreanHeadSpaPage() {
               className="w-full h-auto rounded-xl"
               loading="lazy"
             />
-            <div
-              className="absolute inset-0 rounded-xl"
-              style={{ background: "var(--overlay-subtle)" }}
-            />
-            {/* Badge */}
+            <div className="absolute inset-0 rounded-xl" style={{ background: "var(--overlay-subtle)" }} />
             <div className="absolute bottom-6 left-6">
               <div className="glass-card-warm px-5 py-3">
                 <p className="text-xs tracking-widest uppercase font-light" style={{ color: "var(--ora-bronze)" }}>
@@ -379,10 +376,7 @@ export default function KoreanHeadSpaPage() {
             animate={isIntroInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 1.1, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
           >
-            <p
-              className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-              style={{ color: "var(--ora-bronze)" }}
-            >
+            <p className="text-xs tracking-[0.25em] uppercase mb-4 font-light" style={{ color: "var(--ora-bronze)" }}>
               The Method
             </p>
             <h2
@@ -393,7 +387,6 @@ export default function KoreanHeadSpaPage() {
               <span style={{ fontStyle: "italic" }}>A restoration.</span>
             </h2>
 
-            {/* Animated rule */}
             <motion.div
               initial={{ scaleX: 0 }}
               animate={isIntroInView ? { scaleX: 1 } : {}}
@@ -402,24 +395,17 @@ export default function KoreanHeadSpaPage() {
               style={{ background: "var(--ora-bronze-muted)", transformOrigin: "left" }}
             />
 
-            <p className="text-ora-fog text-base font-light leading-relaxed mb-6">
+            <p className="text-ora-fog text-base font-light leading-relaxed mb-8">
               The Korean Head Spa is not a treatment — it's a philosophy. Rooted in the belief
               that true beauty begins at the scalp, the 18-step protocol combines ancient Korean
-              scalp wisdom with modern clinical-grade ingredients.
-            </p>
-            <p className="text-ora-fog text-base font-light leading-relaxed mb-8">
-              Unlike a standard scalp massage or wash, each step builds on the last: diagnostic
-              analysis, layered cleansing, serum infusion, pressure-point massage, LED therapy,
-              and a personalised aftercare protocol. The result is not just beautiful hair —
-              it's a recalibrated scalp, reduced inflammation, and a genuinely calm nervous system.
+              scalp wisdom with modern clinical-grade ingredients for results you feel from the first session.
             </p>
 
-            {/* Differentiators */}
             <div className="space-y-3">
               {[
                 "Clinical-grade Korean botanicals & growth serums",
                 "High-frequency and LED light therapy integrated",
-                "Gua sha fascia lifting — visible results in one session",
+                "Gua sha fascia lifting — visible in one session",
               ].map((point, i) => (
                 <motion.div
                   key={point}
@@ -442,201 +428,235 @@ export default function KoreanHeadSpaPage() {
         </div>
       </section>
 
-      {/* ── 18-STEP PROTOCOL ────────────────────────────────────────────── */}
+      {/* ── 18 STEPS — PHASE HORIZONTAL SCROLL ──────────────────────────── */}
       <section
         id="protocol"
         className="py-24 md:py-36 overflow-hidden"
         style={{ background: "var(--ora-deep, #1a1008)" }}
       >
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          {/* Header */}
-          <div ref={stepsRef} className="mb-16">
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={isStepsInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-              style={{ color: "var(--ora-bronze)" }}
-            >
-              The Protocol
-            </motion.p>
-            <motion.h2
-              initial={{ opacity: 0, y: 24 }}
-              animate={isStepsInView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.9, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 mb-12">
+          <p className="text-xs tracking-[0.25em] uppercase mb-4 font-light" style={{ color: "var(--ora-bronze)" }}>
+            The Protocol
+          </p>
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+            <h2
               className="font-display text-4xl sm:text-5xl text-white leading-tight"
               style={{ fontWeight: 300, letterSpacing: "0.02em" }}
             >
-              18 steps.{" "}
-              <span style={{ fontStyle: "italic" }}>Zero compromises.</span>
-            </motion.h2>
+              6 phases.{" "}
+              <span style={{ fontStyle: "italic" }}>18 steps.</span>
+            </h2>
+            <p className="text-white/35 text-sm font-light sm:text-right max-w-xs sm:max-w-[220px]">
+              Swipe to explore each phase of the ritual.
+            </p>
           </div>
+        </div>
 
-          {/* Steps grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {steps.map((step, i) => (
-              <StepCard key={step.n} step={step} index={i} />
+        {/* Fade edges */}
+        <div className="relative">
+          <div
+            className="absolute left-0 top-0 bottom-4 w-8 sm:w-16 z-10 pointer-events-none"
+            style={{ background: "linear-gradient(to right, var(--ora-deep, #1a1008), transparent)" }}
+          />
+          <div
+            className="absolute right-0 top-0 bottom-4 w-8 sm:w-16 z-10 pointer-events-none"
+            style={{ background: "linear-gradient(to left, var(--ora-deep, #1a1008), transparent)" }}
+          />
+
+          <div
+            className="flex gap-4 px-6 sm:px-10 lg:px-16 overflow-x-auto pb-6"
+            style={{
+              scrollSnapType: "x mandatory",
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "none",
+            }}
+          >
+            {phases.map((phase, i) => (
+              <PhaseCard key={phase.n} phase={phase} index={i} />
+            ))}
+          </div>
+        </div>
+
+        {/* Step counter strip */}
+        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 mt-10">
+          <div
+            className="flex items-center justify-between py-6"
+            style={{ borderTop: "1px solid rgba(185,136,103,0.12)" }}
+          >
+            {[
+              { val: "18", label: "Steps" },
+              { val: "90–120", label: "Minutes" },
+              { val: "£160+", label: "From" },
+              { val: "6", label: "Phases" },
+            ].map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="text-center"
+              >
+                <p className="font-display text-2xl sm:text-3xl text-white" style={{ fontWeight: 300, color: "var(--ora-bronze)" }}>
+                  {stat.val}
+                </p>
+                <p className="text-[9px] tracking-widest uppercase font-light mt-1" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  {stat.label}
+                </p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── BENEFITS ─────────────────────────────────────────────────────── */}
+      {/* ── BENEFITS — EDITORIAL HORIZONTAL BAR ──────────────────────────── */}
       <section
-        className="py-24 md:py-36"
+        className="relative py-24 md:py-36 overflow-hidden"
         style={{ background: "hsl(var(--ora-milk))" }}
       >
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          {/* Header */}
-          <div className="mb-14 max-w-2xl">
-            <p
-              className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-              style={{ color: "var(--ora-bronze)" }}
-            >
+        <div ref={benefitsRef} className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={isBenefitsInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+            className="mb-16"
+          >
+            <p className="text-xs tracking-[0.25em] uppercase mb-4 font-light" style={{ color: "var(--ora-bronze)" }}>
               What You'll Experience
             </p>
             <h2
-              className="font-display text-4xl sm:text-5xl text-foreground leading-tight"
+              className="font-display text-4xl sm:text-5xl text-foreground leading-tight max-w-xl"
               style={{ fontWeight: 300, letterSpacing: "0.02em" }}
             >
               Every session.{" "}
               <span style={{ fontStyle: "italic" }}>Every benefit.</span>
             </h2>
-          </div>
+          </motion.div>
 
-          {/* Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {benefits.map((benefit, i) => (
-              <BenefitCard key={benefit.title} benefit={benefit} index={i} />
+          {/* Benefits — 2-col grid, large editorial style */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px" style={{ background: "rgba(185,136,103,0.1)" }}>
+            {benefits.map(({ icon: Icon, label, value }, i) => (
+              <motion.div
+                key={label}
+                initial={{ opacity: 0 }}
+                animate={isBenefitsInView ? { opacity: 1 } : {}}
+                transition={{ delay: i * 0.08, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="group relative p-8 flex flex-col gap-3 hover:bg-[rgba(185,136,103,0.04)] transition-colors duration-500"
+                style={{ background: "hsl(var(--ora-milk))" }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: "var(--ora-bronze-muted)" }}
+                >
+                  <span style={{ color: "var(--ora-bronze)" }}>
+                    <Icon size={18} strokeWidth={1.5} />
+                  </span>
+                </div>
+                <h3
+                  className="font-display text-xl text-foreground"
+                  style={{ fontWeight: 300, letterSpacing: "0.02em" }}
+                >
+                  {label}
+                </h3>
+                <p className="text-ora-fog text-sm font-light leading-relaxed">{value}</p>
+                {/* Bronze accent line on hover */}
+                <div
+                  className="absolute bottom-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  style={{ background: "var(--ora-bronze-muted)" }}
+                />
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── WHO IS IT FOR? ───────────────────────────────────────────────── */}
+      {/* ── WHO IS IT FOR? — minimal editorial ────────────────────────────── */}
       <section
         className="relative py-24 md:py-36 overflow-hidden"
         style={{ background: "hsl(var(--ora-bone))" }}
       >
-        <div className="absolute inset-0 dot-grid-bg opacity-40" aria-hidden="true" />
+        {/* Full-bleed ambient image */}
+        <div className="absolute inset-0">
+          <img
+            src={aestheticsImage}
+            alt=""
+            aria-hidden="true"
+            className="w-full h-full object-cover opacity-[0.08]"
+          />
+        </div>
 
-        <div
-          ref={whoRef}
-          className="relative max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 grid lg:grid-cols-2 gap-16 items-center"
-        >
-          {/* Copy */}
-          <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            animate={isWhoInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 1.1, ease: [0.16, 1, 0.3, 1] }}
+        <div className="relative max-w-4xl mx-auto px-6 sm:px-10 lg:px-16 text-center">
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="text-xs tracking-[0.25em] uppercase mb-6 font-light"
+            style={{ color: "var(--ora-bronze)" }}
           >
-            <p
-              className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-              style={{ color: "var(--ora-bronze)" }}
-            >
-              Who It's For
-            </p>
-            <h2
-              className="font-display text-4xl sm:text-5xl text-foreground mb-6 leading-tight"
-              style={{ fontWeight: 300, letterSpacing: "0.02em" }}
-            >
-              For the woman who{" "}
-              <span style={{ fontStyle: "italic" }}>
-                doesn't compromise.
+            Who It's For
+          </motion.p>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 32 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+            className="font-display text-4xl sm:text-5xl md:text-6xl text-foreground leading-tight mb-8"
+            style={{ fontWeight: 300, letterSpacing: "0.02em" }}
+          >
+            For the woman who{" "}
+            <br />
+            <span style={{ fontStyle: "italic" }}>doesn't compromise.</span>
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
+            className="text-foreground/60 text-xl font-light leading-relaxed mb-12 max-w-2xl mx-auto"
+            style={{ fontFamily: "Cormorant Garamond, serif", fontStyle: "italic" }}
+          >
+            "Designed for the woman who invests in what lasts — her health, her hair, her time."
+          </motion.p>
+
+          {/* 4 tags — horizontal pill row */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.9, delay: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="flex flex-wrap justify-center gap-3"
+          >
+            {[
+              "Hair thinning & shedding",
+              "Scalp sensitivity",
+              "Stress & tension",
+              "Genuine transformation",
+            ].map((tag) => (
+              <span
+                key={tag}
+                className="glass-card-warm px-5 py-2.5 text-xs font-light tracking-wide"
+                style={{ color: "var(--ora-bronze)" }}
+              >
+                {tag}
               </span>
-            </h2>
-
-            <motion.div
-              initial={{ scaleX: 0 }}
-              animate={isWhoInView ? { scaleX: 1 } : {}}
-              transition={{ duration: 1.2, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="origin-left h-px mb-8"
-              style={{ background: "var(--ora-bronze-muted)" }}
-            />
-
-            <p
-              className="text-foreground/70 text-xl font-light leading-relaxed mb-6"
-              style={{ fontFamily: "Cormorant Garamond, serif", fontStyle: "italic" }}
-            >
-              "Designed for the woman who invests in what lasts — her health, her hair,
-              her time."
-            </p>
-
-            <p className="text-ora-fog text-base font-light leading-relaxed mb-8">
-              Whether you're in Manchester or travelling from London, the Ora Korean Head Spa
-              is built for discerning women who understand that great hair starts at the scalp.
-              It's for the executive who carries stress in her neck. The new mother experiencing
-              post-partum hair loss. The woman who simply refuses to settle for a basic blowout.
-            </p>
-
-            <div className="space-y-3">
-              {[
-                "Experiencing hair thinning or shedding",
-                "Struggling with scalp sensitivity or excess oiliness",
-                "Seeking a genuinely transformative wellness ritual",
-                "Wanting visible results from their first session",
-              ].map((point, i) => (
-                <motion.div
-                  key={point}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={isWhoInView ? { opacity: 1, x: 0 } : {}}
-                  transition={{ delay: 0.6 + i * 0.1, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex items-center gap-3"
-                >
-                  <span
-                    className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center"
-                    style={{ background: "var(--ora-bronze-muted)" }}
-                  >
-                    <CrescentIcon />
-                  </span>
-                  <span className="text-ora-fog text-sm font-light">{point}</span>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Right — visual panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 40 }}
-            animate={isWhoInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 1.1, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="relative"
-          >
-            <div className="glass-card-warm p-10 text-center">
-              <RippleAnimation />
-              <div className="mt-6">
-                <p className="text-xs tracking-widest uppercase font-light mb-2" style={{ color: "var(--ora-bronze)" }}>
-                  Manchester · London
-                </p>
-                <p className="font-display text-2xl text-foreground" style={{ fontWeight: 300, fontStyle: "italic" }}>
-                  Exclusively at ORÁ.
-                </p>
-              </div>
-            </div>
+            ))}
           </motion.div>
         </div>
       </section>
 
       {/* ── PRICING ──────────────────────────────────────────────────────── */}
-      <section
-        className="py-24 md:py-36"
-        style={{ background: "var(--ora-deep, #1a1008)" }}
-      >
-        <div
-          ref={pricingRef}
-          className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-16"
-        >
-          {/* Header */}
+      <section className="py-24 md:py-36" style={{ background: "var(--ora-deep, #1a1008)" }}>
+        <div ref={pricingRef} className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-16">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={isPricingInView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
             className="mb-12 text-center"
           >
-            <p
-              className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-              style={{ color: "var(--ora-bronze)" }}
-            >
+            <p className="text-xs tracking-[0.25em] uppercase mb-4 font-light" style={{ color: "var(--ora-bronze)" }}>
               Ritual Pricing
             </p>
             <h2
@@ -648,7 +668,6 @@ export default function KoreanHeadSpaPage() {
             </h2>
           </motion.div>
 
-          {/* Pricing table */}
           <motion.div
             initial={{ opacity: 0, y: 32 }}
             animate={isPricingInView ? { opacity: 1, y: 0 } : {}}
@@ -669,10 +688,7 @@ export default function KoreanHeadSpaPage() {
                   </p>
                   <p className="text-white/35 text-xs font-light mt-0.5">{item.duration}</p>
                 </div>
-                <p
-                  className="font-display text-lg flex-shrink-0 ml-8"
-                  style={{ color: "var(--ora-bronze)", fontWeight: 400 }}
-                >
+                <p className="font-display text-lg flex-shrink-0 ml-8" style={{ color: "var(--ora-bronze)", fontWeight: 400 }}>
                   {item.price}
                 </p>
               </div>
@@ -691,15 +707,9 @@ export default function KoreanHeadSpaPage() {
       </section>
 
       {/* ── BEFORE & AFTER ───────────────────────────────────────────────── */}
-      <section
-        className="py-24 md:py-28 overflow-hidden"
-        style={{ background: "hsl(var(--ora-milk))" }}
-      >
+      <section className="py-24 md:py-28 overflow-hidden" style={{ background: "hsl(var(--ora-milk))" }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 mb-12">
-          <p
-            className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-            style={{ color: "var(--ora-bronze)" }}
-          >
+          <p className="text-xs tracking-[0.25em] uppercase mb-4 font-light" style={{ color: "var(--ora-bronze)" }}>
             Client Results
           </p>
           <h2
@@ -711,14 +721,13 @@ export default function KoreanHeadSpaPage() {
           </h2>
         </div>
 
-        {/* Horizontal scroll strip */}
         <div className="relative">
           <div
-            className="absolute left-0 top-0 bottom-0 w-16 z-10 pointer-events-none hidden sm:block"
+            className="absolute left-0 top-0 bottom-4 w-16 z-10 pointer-events-none hidden sm:block"
             style={{ background: "linear-gradient(to right, hsl(var(--ora-milk)), transparent)" }}
           />
           <div
-            className="absolute right-0 top-0 bottom-0 w-16 z-10 pointer-events-none hidden sm:block"
+            className="absolute right-0 top-0 bottom-4 w-16 z-10 pointer-events-none hidden sm:block"
             style={{ background: "linear-gradient(to left, hsl(var(--ora-milk)), transparent)" }}
           />
           <div
@@ -754,9 +763,7 @@ export default function KoreanHeadSpaPage() {
                   </div>
                   <div
                     className="absolute inset-0"
-                    style={{
-                      background: "linear-gradient(to top, rgba(18,12,8,0.85) 0%, transparent 60%)",
-                    }}
+                    style={{ background: "linear-gradient(to top, rgba(18,12,8,0.85) 0%, transparent 60%)" }}
                   />
                   <div className="absolute top-4 left-4">
                     <span className="glass-card-sm px-3 py-1 text-[10px] tracking-widest uppercase font-light text-white/80">
@@ -782,13 +789,13 @@ export default function KoreanHeadSpaPage() {
       <section
         ref={ctaRef}
         className="relative py-24 md:py-36 overflow-hidden"
-        style={{ background: "var(--ora-void, #0f0908)" }}
+        style={{ background: "#0f0908" }}
       >
-        {/* Background */}
         <div className="absolute inset-0">
           <img
             src={aestheticsImage}
-            alt="Ora Suites treatment room"
+            alt=""
+            aria-hidden="true"
             className="w-full h-full object-cover opacity-25"
             loading="lazy"
           />
@@ -801,7 +808,6 @@ export default function KoreanHeadSpaPage() {
           />
         </div>
 
-        {/* Content */}
         <div className="relative z-10 max-w-3xl mx-auto px-6 sm:px-10 text-center">
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -813,7 +819,6 @@ export default function KoreanHeadSpaPage() {
             Begin Your Ritual
           </motion.p>
 
-          {/* Word reveal */}
           <div className="mb-6 overflow-hidden">
             <div className="flex flex-wrap justify-center gap-x-4">
               {"Reserve Your Ritual.".split(" ").map((word, i) => (
@@ -856,13 +861,11 @@ export default function KoreanHeadSpaPage() {
                   color: "white",
                   borderRadius: "9999px",
                   letterSpacing: "0.06em",
-                  border: "1px solid var(--ora-bronze)",
                 }}
               >
                 Book My Ritual
               </button>
             </Link>
-
             <Link href="/services">
               <button
                 className="glass-pill px-9 py-4 text-sm font-medium hover-bronze transition-all"
@@ -879,10 +882,7 @@ export default function KoreanHeadSpaPage() {
             transition={{ duration: 1, delay: 0.9 }}
             className="mt-14"
           >
-            <p
-              className="font-display text-sm tracking-[0.15em] uppercase"
-              style={{ color: "rgba(185,136,103,0.5)" }}
-            >
+            <p className="font-display text-sm tracking-[0.15em] uppercase" style={{ color: "rgba(185,136,103,0.5)" }}>
               ORÁ. · Manchester
             </p>
           </motion.div>
