@@ -202,7 +202,7 @@ function TreatmentRow({
         delay: index * 0.055,
         ease: [0.16, 1, 0.3, 1],
       }}
-      className="group flex items-start justify-between gap-4 py-4 border-b last:border-0"
+      className="group flex items-start justify-between gap-3 py-4 border-b last:border-0"
       style={{ borderColor: "var(--glass-border-warm)" }}
     >
       {/* Left: name + description */}
@@ -223,8 +223,8 @@ function TreatmentRow({
         )}
       </div>
 
-      {/* Middle: duration badge */}
-      <div className="flex-shrink-0 flex items-center gap-1.5 mt-0.5">
+      {/* Middle: duration badge — hidden on smallest screens, shown sm+ */}
+      <div className="flex-shrink-0 hidden sm:flex items-center gap-1.5 mt-0.5">
         <Clock size={10} style={{ color: "var(--ora-bronze)", opacity: 0.7 }} />
         <span
           className="text-xs font-light tracking-wide whitespace-nowrap"
@@ -280,7 +280,7 @@ function TreatmentPanel({
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
           style={{ overflow: "hidden" }}
         >
-          <div className="glass-card-warm mx-0 mt-0 rounded-t-none rounded-b-2xl p-6 md:p-8">
+          <div className="glass-card-warm mx-0 mt-0 rounded-t-none rounded-b-2xl p-4 sm:p-6 md:p-8">
             {/* Header row inside panel */}
             <div className="flex items-center justify-between mb-6">
               <p
@@ -504,7 +504,7 @@ function StickyTabStrip({
 }) {
   return (
     <nav
-      className="sticky top-0 z-40 border-b"
+      className="sticky top-[68px] sm:top-[72px] z-40 border-b"
       style={{
         background: "hsl(var(--ora-sand))",
         borderColor: "hsl(var(--ora-greige))",
@@ -600,7 +600,7 @@ export default function ServicesPage() {
     <Layout>
       {/* ── Hero ── */}
       <section
-        className="relative pt-36 pb-16 overflow-hidden"
+        className="relative pt-28 sm:pt-36 pb-12 sm:pb-16 overflow-hidden"
         style={{ background: "hsl(var(--ora-milk))" }}
       >
         {/* Dot grid texture */}

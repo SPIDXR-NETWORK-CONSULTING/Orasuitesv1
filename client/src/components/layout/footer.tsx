@@ -23,7 +23,7 @@ export function Footer() {
   return (
     <footer data-testid="footer" className="bg-ora-sand border-t border-ora-greige">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 lg:gap-8">
           <div className="lg:col-span-1">
             <Link href="/">
               <img

@@ -81,7 +81,7 @@ export function HeroSection() {
                     delay: 0.2 + i * 0.08,
                     ease: [0.16, 1, 0.3, 1],
                   }}
-                  className="inline-block font-display text-6xl sm:text-7xl md:text-8xl text-white"
+                  className="inline-block font-display text-5xl sm:text-6xl md:text-8xl text-white"
                   style={{
                     fontWeight: 300,
                     letterSpacing: "0.05em",

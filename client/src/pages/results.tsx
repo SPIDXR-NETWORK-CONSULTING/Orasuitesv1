@@ -178,7 +178,7 @@ export default function ResultsPage() {
                 key={cat}
                 data-testid={`button-filter-${cat.toLowerCase().replace(/\s+/g, "-")}`}
                 onClick={() => setActiveCategory(cat)}
-                className="px-5 py-2 text-xs font-light tracking-widest uppercase transition-all duration-300 rounded-full"
+                className="px-3 sm:px-5 py-1.5 sm:py-2 text-xs font-light tracking-widest uppercase transition-all duration-300 rounded-full"
                 style={{
                   background: activeCategory === cat ? "var(--ora-bronze)" : "transparent",
                   color: activeCategory === cat ? "white" : "hsl(var(--ora-fog))",

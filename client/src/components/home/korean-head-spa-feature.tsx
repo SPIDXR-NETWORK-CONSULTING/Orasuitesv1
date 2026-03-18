@@ -138,7 +138,7 @@ export function KoreanHeadSpaFeature() {
             initial={{ opacity: 0, x: 20 }}
             animate={isInView ? { opacity: 1, x: 0 } : {}}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="flex gap-3 lg:pb-2"
+            className="flex flex-wrap gap-3 lg:pb-2"
           >
             <Link href="/korean-head-spa">
               <button

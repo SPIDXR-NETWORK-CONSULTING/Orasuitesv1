@@ -275,7 +275,7 @@ export default function KoreanHeadSpaPage() {
                   delay: 0.3 + i * 0.05,
                   ease: [0.16, 1, 0.3, 1],
                 }}
-                className="inline-block font-display text-6xl sm:text-7xl md:text-8xl text-white"
+                className="inline-block font-display text-5xl sm:text-7xl md:text-8xl text-white"
                 style={{ fontWeight: 300, letterSpacing: char === " " ? "0.3em" : "0.01em" }}
               >
                 {char === " " ? "\u00A0" : char}
@@ -543,7 +543,7 @@ export default function KoreanHeadSpaPage() {
                 initial={{ opacity: 0 }}
                 animate={isBenefitsInView ? { opacity: 1 } : {}}
                 transition={{ delay: i * 0.08, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                className="group relative p-8 flex flex-col gap-3 hover:bg-[rgba(185,136,103,0.04)] transition-colors duration-500"
+                className="group relative p-5 sm:p-8 flex flex-col gap-3 hover:bg-[rgba(185,136,103,0.04)] transition-colors duration-500"
                 style={{ background: "hsl(var(--ora-milk))" }}
               >
                 <div
@@ -604,7 +604,7 @@ export default function KoreanHeadSpaPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 1, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="font-display text-4xl sm:text-5xl md:text-6xl text-foreground leading-tight mb-8"
+            className="font-display text-3xl sm:text-5xl md:text-6xl text-foreground leading-tight mb-8"
             style={{ fontWeight: 300, letterSpacing: "0.02em" }}
           >
             For the woman who{" "}
@@ -617,7 +617,7 @@ export default function KoreanHeadSpaPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.9, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="text-foreground/60 text-xl font-light leading-relaxed mb-12 max-w-2xl mx-auto"
+            className="text-foreground/60 text-base sm:text-xl font-light leading-relaxed mb-12 max-w-2xl mx-auto"
             style={{ fontFamily: "Cormorant Garamond, serif", fontStyle: "italic" }}
           >
             "Designed for the woman who invests in what lasts — her health, her hair, her time."
@@ -679,7 +679,7 @@ export default function KoreanHeadSpaPage() {
             {pricing.map((item, i) => (
               <div
                 key={item.name}
-                className="flex items-center justify-between px-6 py-5 transition-colors duration-300 hover:bg-[rgba(185,136,103,0.06)]"
+                className="flex items-start sm:items-center justify-between px-4 sm:px-6 py-4 sm:py-5 gap-4 transition-colors duration-300 hover:bg-[rgba(185,136,103,0.06)]"
                 style={{
                   borderBottom: i < pricing.length - 1 ? "1px solid rgba(185,136,103,0.15)" : "none",
                 }}
@@ -690,7 +690,7 @@ export default function KoreanHeadSpaPage() {
                   </p>
                   <p className="text-white/35 text-xs font-light mt-0.5">{item.duration}</p>
                 </div>
-                <p className="font-display text-lg flex-shrink-0 ml-8" style={{ color: "var(--ora-bronze)", fontWeight: 400 }}>
+                <p className="font-display text-base sm:text-lg flex-shrink-0" style={{ color: "var(--ora-bronze)", fontWeight: 400 }}>
                   {item.price}
                 </p>
               </div>

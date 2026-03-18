@@ -160,7 +160,7 @@ export function IntroductionSection() {
 
       {/* ── Stat counters ── */}
       <div className="bg-ora-sand border-t border-ora-greige">
-        <div className="max-w-4xl mx-auto px-8 py-10 grid grid-cols-3 gap-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8 sm:py-10 grid grid-cols-3 gap-3 sm:gap-8">
           <StatCounter target={12} suffix="+" label="Treatments" delay={0.1} />
           <StatCounter target={1} suffix="" label="Sanctuary" delay={0.2} />
           <StatCounter target={100} suffix="%" label="Women-Only" delay={0.3} />
