@@ -2,9 +2,9 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
-import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
-import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
-import hairImage from "@assets/service-hair_1770213665902.png";
+import profhiloImg from "@assets/result-profhilo-skin_ora.png";
+import polyImg from "@assets/result-polynucleotide-antiaging_ora.png";
+import fillersImg from "@assets/result-dermal-fillers_ora.png";
 
 // Each result has a category-specific overlay tint and copy
 const results = [
@@ -14,8 +14,8 @@ const results = [
     category: "Aesthetics",
     description: "Profhilo treatment — 2 sessions",
     result: "Visibly plumper, hydrated skin with restored elasticity and tone.",
-    tint: "rgba(180,120,80,0.35)", // warm bronze tint — skin/face
-    image: aestheticsImage,
+    tint: "rgba(180,120,80,0.35)",
+    image: profhiloImg,
     tag: "Before → After",
   },
   {
@@ -24,8 +24,8 @@ const results = [
     category: "Aesthetics",
     description: "Polynucleotide therapy transformation",
     result: "Reduced fine lines, improved skin texture and cellular renewal.",
-    tint: "rgba(100,90,120,0.3)", // cool lavender — anti-aging
-    image: beforeAfterImage,
+    tint: "rgba(100,90,120,0.3)",
+    image: polyImg,
     tag: "Before → After",
   },
   {
@@ -34,8 +34,8 @@ const results = [
     category: "Aesthetics",
     description: "Natural enhancement with dermal fillers",
     result: "Symmetry restored with zero-overfill technique for a natural lift.",
-    tint: "rgba(80,120,100,0.3)", // soft green — natural/herbal
-    image: beforeAfterImage,
+    tint: "rgba(80,120,100,0.3)",
+    image: fillersImg,
     tag: "Before → After",
   },
 ];

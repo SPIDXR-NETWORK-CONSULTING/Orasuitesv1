@@ -17,8 +17,10 @@ import {
 import { useSEO } from "@/hooks/use-seo";
 import heroImage from "@assets/hero-image_1770213665902.png";
 import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
-import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
 import productImage from "@assets/product-display_1770215241478.png";
+import scalpImg from "@assets/result-scalp-health_ora.png";
+import hairGrowthImg from "@assets/result-hair-growth_ora.png";
+import densityImg from "@assets/result-hair-density_ora.png";
 
 // ─── Phase data ──────────────────────────────────────────────────────────────
 const phases = [
@@ -739,9 +741,9 @@ export default function KoreanHeadSpaPage() {
             }}
           >
             {[
-              { label: "Scalp Health", desc: "Before & after 3 sessions" },
-              { label: "Hair Growth", desc: "4-week protocol results" },
-              { label: "Density & Shine", desc: "Monthly membership client" },
+              { label: "Scalp Health", desc: "Before & after 3 sessions", image: scalpImg },
+              { label: "Hair Growth", desc: "4-week protocol results", image: hairGrowthImg },
+              { label: "Density & Shine", desc: "Monthly membership client", image: densityImg },
             ].map((card, i) => (
               <motion.div
                 key={card.label}
@@ -755,7 +757,7 @@ export default function KoreanHeadSpaPage() {
                 <div className="relative overflow-hidden rounded-xl img-zoom">
                   <div className="aspect-square overflow-hidden">
                     <img
-                      src={beforeAfterImage}
+                      src={card.image}
                       alt={`${card.label} before and after`}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                       loading="lazy"

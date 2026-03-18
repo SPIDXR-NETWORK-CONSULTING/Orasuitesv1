@@ -4,27 +4,31 @@ import { motion, AnimatePresence, useInView } from "framer-motion";
 import { Link } from "wouter";
 import { ArrowRight } from "lucide-react";
 import { useSEO } from "@/hooks/use-seo";
-import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
-import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
-import hairImage from "@assets/service-hair_1770213665902.png";
-import heroImage from "@assets/hero-image_1770213665902.png";
 
-// Different images + aspect ratios for visual variety
+import profhiloImg from "@assets/result-profhilo-skin_ora.png";
+import polyImg from "@assets/result-polynucleotide-antiaging_ora.png";
+import fillersImg from "@assets/result-dermal-fillers_ora.png";
+import scalpImg from "@assets/result-scalp-health_ora.png";
+import hairGrowthImg from "@assets/result-hair-growth_ora.png";
+import balayageImg from "@assets/result-balayage-hair_ora.png";
+import laserImg from "@assets/result-laser-removal_ora.png";
+import antiAgingImg from "@assets/result-anti-aging_ora.png";
+import densityImg from "@assets/result-hair-density_ora.png";
+
 const results = [
-  { id: 1, treatment: "Profhilo Treatment", description: "Visible improvement in skin hydration and firmness after 2 sessions", category: "Aesthetics", image: aestheticsImage, tall: true },
-  { id: 2, treatment: "Polynucleotide Therapy", description: "Enhanced skin quality and reduced fine lines over 6 weeks", category: "Aesthetics", image: beforeAfterImage, tall: false },
-  { id: 3, treatment: "Scalp Health Restoration", description: "Rebalanced scalp microbiome and visibly reduced flaking", category: "Korean Head Spa", image: heroImage, tall: false },
-  { id: 4, treatment: "Dermal Fillers", description: "Natural enhancement maintaining full facial harmony", category: "Aesthetics", image: beforeAfterImage, tall: false },
-  { id: 5, treatment: "Hair Growth Protocol", description: "Measurable density improvement over 4-week ritual programme", category: "Korean Head Spa", image: heroImage, tall: true },
-  { id: 6, treatment: "Balayage & Colour", description: "Seamless colour melt with zero brassy tones", category: "Hair", image: hairImage, tall: false },
-  { id: 7, treatment: "Laser Hair Removal", description: "Smooth, lasting results after a 6-session course", category: "Laser", image: aestheticsImage, tall: false },
-  { id: 8, treatment: "Anti-Aging Treatment", description: "Reduced wrinkles and improved skin elasticity", category: "Aesthetics", image: beforeAfterImage, tall: true },
-  { id: 9, treatment: "Density & Shine", description: "Monthly membership client — 3-month transformation", category: "Korean Head Spa", image: heroImage, tall: false },
+  { id: 1, treatment: "Profhilo Treatment", description: "Visibly plumper, hydrated skin with restored elasticity after 2 sessions", category: "Aesthetics", image: profhiloImg, tall: true },
+  { id: 2, treatment: "Polynucleotide Therapy", description: "Reduced fine lines and improved skin texture over 6 weeks", category: "Aesthetics", image: polyImg, tall: false },
+  { id: 3, treatment: "Scalp Health Restoration", description: "Rebalanced scalp microbiome and visibly reduced flaking", category: "Korean Head Spa", image: scalpImg, tall: false },
+  { id: 4, treatment: "Dermal Fillers", description: "Natural enhancement — symmetry restored with zero-overfill technique", category: "Aesthetics", image: fillersImg, tall: false },
+  { id: 5, treatment: "Hair Growth Protocol", description: "Measurable density improvement over 4-week ritual programme", category: "Korean Head Spa", image: hairGrowthImg, tall: true },
+  { id: 6, treatment: "Balayage & Colour", description: "Seamless colour melt with zero brassy tones", category: "Hair", image: balayageImg, tall: false },
+  { id: 7, treatment: "Laser Hair Removal", description: "Smooth, lasting results after a 6-session course", category: "Laser", image: laserImg, tall: false },
+  { id: 8, treatment: "Anti-Aging Treatment", description: "Reduced wrinkles and improved skin elasticity after rejuvenation protocol", category: "Aesthetics", image: antiAgingImg, tall: true },
+  { id: 9, treatment: "Density & Shine", description: "Monthly membership client — 3-month hair transformation", category: "Korean Head Spa", image: densityImg, tall: false },
 ];
 
 const categories = ["All", "Aesthetics", "Korean Head Spa", "Hair", "Laser"];
 
-// Tints per category for visual distinction
 const categoryTints: Record<string, string> = {
   Aesthetics: "rgba(180,120,80,0.3)",
   "Korean Head Spa": "rgba(100,130,160,0.3)",
@@ -52,28 +56,24 @@ function ResultCard({ result, index }: ResultCardProps) {
       className="group break-inside-avoid mb-5"
     >
       <div className="relative overflow-hidden rounded-xl img-zoom">
-        {/* Aspect ratio varies: tall cards use 3/4, others use square */}
         <div className={`overflow-hidden ${result.tall ? "aspect-[3/4]" : "aspect-square"}`}>
           <img
             src={result.image}
-            alt={`${result.treatment} before and after`}
+            alt={`${result.treatment} result`}
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             loading="lazy"
           />
-          {/* Category tint overlay */}
           <div
             className="absolute inset-0 transition-opacity duration-500 group-hover:opacity-60"
             style={{ background: tint, mixBlendMode: "overlay" }}
           />
         </div>
 
-        {/* Gradient overlay */}
         <div
           className="absolute inset-0"
           style={{ background: "linear-gradient(to top, rgba(18,12,8,0.88) 0%, rgba(18,12,8,0.15) 50%, transparent 100%)" }}
         />
 
-        {/* Before/After + Category badges */}
         <div className="absolute top-4 left-4 flex flex-col gap-1.5">
           <span className="glass-card-sm px-3 py-1 text-[9px] tracking-[0.25em] uppercase font-light text-white/75">
             Before → After
@@ -90,7 +90,6 @@ function ResultCard({ result, index }: ResultCardProps) {
           </span>
         </div>
 
-        {/* Info panel */}
         <div className="absolute bottom-0 left-0 right-0 p-4">
           <div className="glass-card p-4">
             <h3
@@ -135,7 +134,6 @@ export default function ResultsPage() {
 
   return (
     <Layout>
-      {/* Hero */}
       <section className="pt-32 pb-16 relative overflow-hidden" style={{ background: "hsl(var(--ora-bone))" }}>
         <div className="absolute inset-0 dot-grid-bg opacity-40" aria-hidden="true" />
         <div ref={heroRef} className="relative max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
@@ -169,7 +167,6 @@ export default function ResultsPage() {
         </div>
       </section>
 
-      {/* Sticky filter bar */}
       <section
         className="py-5 sticky top-[60px] z-30"
         style={{ background: "hsl(var(--ora-milk))", borderBottom: "1px solid rgba(185,136,103,0.12)" }}
@@ -198,7 +195,6 @@ export default function ResultsPage() {
         </div>
       </section>
 
-      {/* Masonry results grid */}
       <section className="py-16 md:py-24" style={{ background: "hsl(var(--ora-milk))" }}>
         <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
           <AnimatePresence mode="wait">
@@ -224,7 +220,6 @@ export default function ResultsPage() {
         </div>
       </section>
 
-      {/* Disclaimer */}
       <section className="py-12" style={{ background: "hsl(var(--ora-bone))" }}>
         <div className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-16">
           <div
@@ -234,7 +229,7 @@ export default function ResultsPage() {
           >
             <p>
               <span className="text-foreground font-normal">Individual Results May Vary:</span>{" "}
-              Results shown are examples of what our treatments can achieve. Individual outcomes depend on skin type, age, lifestyle, and aftercare adherence.
+              Results shown are representative of outcomes our treatments can achieve. Individual results depend on skin type, age, lifestyle, and aftercare adherence.
             </p>
             <p>
               <span className="text-foreground font-normal">Consultation Required:</span>{" "}
@@ -242,13 +237,12 @@ export default function ResultsPage() {
             </p>
             <p>
               <span className="text-foreground font-normal">Client Consent:</span>{" "}
-              All before and after images are shared with express written permission from our clients.
+              All images are shared with express written permission from our clients.
             </p>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
       <section ref={ctaRef} className="py-24" style={{ background: "hsl(var(--ora-milk))" }}>
         <div className="max-w-2xl mx-auto px-6 sm:px-10 text-center">
           <motion.p
