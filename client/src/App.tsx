@@ -1,70 +1,64 @@
-import { Switch, Route, useLocation } from "wouter";
-import { useEffect } from "react";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { AnimatePresence, motion } from "framer-motion";
-import NotFound from "@/pages/not-found";
-import HomePage from "@/pages/home";
-import ServicesPage from "@/pages/services";
-import AboutPage from "@/pages/about";
-import ResultsPage from "@/pages/results";
-import ContactPage from "@/pages/contact";
-import KoreanHeadSpaPage from "@/pages/korean-head-spa";
-import PrivacyPage from "@/pages/privacy";
-import TermsPage from "@/pages/terms";
+import { motion } from "framer-motion";
+import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213670965.jpeg";
 
-const pageTransition = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -8 },
-  transition: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-};
-
-function AnimatedRoute({ component: Component }: { component: React.ComponentType }) {
-  useEffect(() => {
-    if (!window.location.hash) {
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    }
-  }, []);
-
+export default function App() {
   return (
-    <motion.div {...pageTransition}>
-      <Component />
-    </motion.div>
+    <div
+      style={{
+        minHeight: "100dvh",
+        backgroundColor: "#0e0c0a",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+        fontFamily: "Georgia, 'Times New Roman', serif",
+      }}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        style={{ textAlign: "center" }}
+      >
+        <img
+          src={logoImage}
+          alt="ORÁ Suites"
+          style={{
+            width: "clamp(120px, 30vw, 220px)",
+            height: "auto",
+            marginBottom: "2.5rem",
+            opacity: 0.95,
+          }}
+        />
+
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.5 }}
+          style={{
+            width: "40px",
+            height: "1px",
+            backgroundColor: "#c5a882",
+            margin: "0 auto 2rem",
+          }}
+        />
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
+          style={{
+            color: "#c5a882",
+            fontSize: "clamp(0.65rem, 2vw, 0.75rem)",
+            letterSpacing: "0.25em",
+            textTransform: "uppercase",
+            fontFamily: "Georgia, serif",
+          }}
+        >
+          Coming Soon
+        </motion.p>
+      </motion.div>
+    </div>
   );
 }
-
-function Router() {
-  const [location] = useLocation();
-
-  return (
-    <AnimatePresence mode="wait">
-      <Switch key={location}>
-        <Route path="/" component={() => <AnimatedRoute component={HomePage} />} />
-        <Route path="/services" component={() => <AnimatedRoute component={ServicesPage} />} />
-        <Route path="/about" component={() => <AnimatedRoute component={AboutPage} />} />
-        <Route path="/results" component={() => <AnimatedRoute component={ResultsPage} />} />
-        <Route path="/contact" component={() => <AnimatedRoute component={ContactPage} />} />
-        <Route path="/korean-head-spa" component={() => <AnimatedRoute component={KoreanHeadSpaPage} />} />
-        <Route path="/privacy" component={() => <AnimatedRoute component={PrivacyPage} />} />
-        <Route path="/terms" component={() => <AnimatedRoute component={TermsPage} />} />
-        <Route component={NotFound} />
-      </Switch>
-    </AnimatePresence>
-  );
-}
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
-
-export default App;
