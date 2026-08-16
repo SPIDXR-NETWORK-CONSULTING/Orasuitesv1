@@ -139,8 +139,12 @@
   --duration-stagger: 0.08s;
 
   /* ── Type rhythm ── */
-  --tracking-display: -0.02em;
-  --tracking-eyebrow: 0.25em;
+  --tracking-display: -0.01em;
+  --tracking-eyebrow: 0.22em;
+
+  /* ── Section rhythm v2 ── */
+  --section-pad: clamp(3.5rem, 6.5vw, 6rem);       /* 56px mobile → 96px desktop */
+  --section-pad-sm: clamp(3rem, 5vw, 4.5rem);      /* 48px → 72px */
 }
 
 .dark {
@@ -253,15 +257,15 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    font-size: 1rem;
-    line-height: 1.6;
+    font-size: 0.9375rem;
+    line-height: 1.55;
     font-feature-settings: "kern" 1, "liga" 1;
     text-rendering: optimizeLegibility;
   }
 
   @media (min-width: 1024px) {
     body {
-      font-size: 1.0625rem;
+      font-size: 1rem;
     }
   }
 
@@ -373,41 +377,45 @@
     font-family: var(--font-display);
   }
 
-  /* ── Fluid display scale (Playfair) ── */
+  /* ── Display scale v2 (Playfair 400/500, upright only, restrained) ── */
   .text-display-xl {
     font-family: var(--font-display);
-    font-size: clamp(2.75rem, 7vw, 6.5rem);
-    line-height: 1.02;
+    font-size: clamp(1.9rem, 3.2vw, 2.75rem);
+    line-height: 1.15;
     letter-spacing: var(--tracking-display);
     font-weight: 400;
   }
   .text-display-lg {
     font-family: var(--font-display);
-    font-size: clamp(2.5rem, 5.5vw, 5rem);
-    line-height: 1.04;
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    line-height: 1.15;
     letter-spacing: var(--tracking-display);
     font-weight: 400;
   }
   .text-display-md {
     font-family: var(--font-display);
-    font-size: clamp(2rem, 4vw, 3.5rem);
-    line-height: 1.08;
+    font-size: clamp(1.25rem, 1.8vw, 1.35rem);
+    line-height: 1.15;
     letter-spacing: var(--tracking-display);
     font-weight: 400;
   }
   .text-display-sm {
     font-family: var(--font-display);
-    font-size: clamp(1.5rem, 2.6vw, 2.25rem);
-    line-height: 1.1;
-    letter-spacing: -0.015em;
-    font-weight: 400;
+    font-size: clamp(1.05rem, 1.4vw, 1.15rem);
+    line-height: 1.15;
+    letter-spacing: var(--tracking-display);
+    font-weight: 500;
   }
   /* legacy alias kept for older pages */
   .text-display {
     font-family: var(--font-display);
-    font-size: clamp(2rem, 4vw, 3.5rem);
-    line-height: 1.08;
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    line-height: 1.15;
     letter-spacing: var(--tracking-display);
+  }
+  .text-display-xl em, .text-display-lg em, .text-display-md em, .text-display-sm em, .text-display em {
+    font-style: normal;
+    font-weight: 500;
   }
 
   .eyebrow {
@@ -420,8 +428,8 @@
   }
 
   .lede {
-    font-size: clamp(1.0625rem, 1.4vw, 1.25rem);
-    line-height: 1.6;
+    font-size: clamp(0.9375rem, 1.1vw, 1.0625rem);
+    line-height: 1.55;
     color: hsl(var(--ora-fog));
   }
 

@@ -1,10 +1,9 @@
 /**
  * Booking flow — shared types + step model.
  * State lives in <BookingFlow/>; steps are pure-ish presentational components.
+ * Steps: Service → Time → Details → Confirm (+ done).
  */
-import type { ResolvedService, TeamKey } from "@/lib/catalogue";
-
-export type PractitionerChoice = "first" | TeamKey;
+import type { ResolvedService } from "@/lib/catalogue";
 
 export interface BookingDetails {
   name: string;
@@ -16,7 +15,6 @@ export interface BookingDetails {
 
 export interface BookingState {
   service?: ResolvedService;
-  practitioner: PractitionerChoice;
   /** YYYY-MM-DD (Europe/London) */
   date?: string;
   /** ISO start time as returned by GHL free-slots */
@@ -28,19 +26,17 @@ export const EMPTY_DETAILS: BookingDetails = { name: "", email: "", phone: "", n
 
 export const STEPS = [
   { key: "service", label: "Service" },
-  { key: "practitioner", label: "Practitioner" },
-  { key: "datetime", label: "Date & time" },
-  { key: "details", label: "Your details" },
-  { key: "deposit", label: "Confirm" },
+  { key: "datetime", label: "Time" },
+  { key: "details", label: "Details" },
+  { key: "confirm", label: "Confirm" },
 ] as const;
 
 export type StepKey = (typeof STEPS)[number]["key"] | "done";
 export const STEP_INDEX: Record<(typeof STEPS)[number]["key"], number> = {
   service: 0,
-  practitioner: 1,
-  datetime: 2,
-  details: 3,
-  deposit: 4,
+  datetime: 1,
+  details: 2,
+  confirm: 3,
 };
 
 /* ── API shapes (mirror server/routes.ts + api/ghl/*) ────── */

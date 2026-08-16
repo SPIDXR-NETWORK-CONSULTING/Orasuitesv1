@@ -1,5 +1,5 @@
 /**
- * Step 4 — your details. Floating-label glass fields, zod validation, inline errors.
+ * Step 3 — your details. Floating-label glass fields, zod validation, inline errors.
  */
 import * as React from "react";
 import { z } from "zod";
@@ -74,7 +74,7 @@ export function DetailsStep({ value, onChange, onBack, onNext }: Props) {
 
   return (
     <form onSubmit={submit} noValidate>
-      <StepHeader step={3} title="A few details" lede="So we can confirm your appointment and send a reminder." />
+      <StepHeader step={2} title="A few details" lede="So we can confirm and send a reminder." />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <FloatingField id="bk-name" label="Full name" autoComplete="name" value={value.name} onChange={set("name")} onBlur={blur("name")} error={show("name") || undefined} className="sm:col-span-2" />

@@ -1,5 +1,5 @@
 /**
- * Step 3 — date & time.
+ * Step 2 — date & time.
  * 14-day horizontal strip (Sundays closed) → GHL free-slots for the chosen day,
  * grouped Morning / Afternoon / Evening. Skeleton shimmer while loading.
  */
@@ -53,7 +53,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
 
   return (
     <div>
-      <StepHeader step={2} title="When suits you?" lede="Times shown are Manchester time. Sundays we're closed." />
+      <StepHeader step={1} title="When suits you?" lede="Manchester time. Closed Sundays." />
 
       {/* Date strip */}
       <div className="relative">
@@ -86,7 +86,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
                 disabled={d.closed}
                 onClick={() => onChange({ date: d.ymd, slot: undefined })}
                 className={cn(
-                  "focus-ring relative flex w-[4.25rem] shrink-0 snap-start flex-col items-center rounded-2xl border px-2 py-3 font-sans transition-[border-color,background-color,color] duration-450 ease-luxury",
+                  "focus-ring relative flex w-[3.75rem] shrink-0 snap-start flex-col items-center rounded-xl border px-2 py-2.5 font-sans transition-[border-color,background-color,color] duration-450 ease-luxury",
                   d.closed
                     ? "cursor-not-allowed border-ora-greige/60 text-ora-smoke/70 line-through decoration-ora-smoke/50"
                     : active
@@ -98,12 +98,12 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
                   <motion.span
                     layoutId="book-day-pill"
                     aria-hidden
-                    className="absolute inset-0 rounded-2xl bg-ora-taupe shadow-luxury"
+                    className="absolute inset-0 rounded-xl bg-ora-taupe shadow-luxury"
                     transition={m.reduced ? { duration: 0 } : spring.snappy}
                   />
                 )}
                 <span className="relative z-[1] text-[0.625rem] uppercase tracking-[0.18em] opacity-80">{d.isToday ? "Today" : d.weekdayShort}</span>
-                <span className="relative z-[1] mt-1 font-display text-[1.375rem] leading-none">{d.dayNum}</span>
+                <span className="relative z-[1] mt-1 font-display text-[1.25rem] leading-none">{d.dayNum}</span>
                 <span className="relative z-[1] mt-1 text-[0.625rem] uppercase tracking-[0.12em] opacity-70">{d.monthShort}</span>
               </button>
             );
@@ -112,9 +112,9 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
       </div>
 
       {/* Slots */}
-      <div className="mt-8 min-h-[12rem]" aria-live="polite" aria-busy={slots.isFetching || undefined}>
+      <div className="mt-6 min-h-[10rem]" aria-live="polite" aria-busy={slots.isFetching || undefined}>
         {date && (
-          <p className="mb-5 font-display text-[1.25rem] text-foreground">
+          <p className="mb-4 font-sans text-[0.9375rem] text-foreground">
             {formatLongDate(date)}
             {slot && (
               <span className="text-ora-bronze"> · {formatTime(slot)}</span>
@@ -142,7 +142,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
               animate={{ opacity: 1, y: 0 }}
               exit={m.reduced ? undefined : { opacity: 0 }}
               transition={{ duration: 0.35, ease: easeLuxury }}
-              className="space-y-7"
+              className="space-y-5"
               role="radiogroup"
               aria-label="Choose a time"
             >
@@ -166,7 +166,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
                           whileHover={m.reduced ? undefined : { y: -2, transition: spring.snappy }}
                           whileTap={m.reduced ? undefined : { scale: 0.97 }}
                           className={cn(
-                            "focus-ring relative min-w-[5rem] rounded-full border px-4 py-2.5 font-sans text-[0.875rem] tabular-nums transition-[border-color,color,background-color] duration-450 ease-luxury",
+                            "focus-ring relative min-w-[4.5rem] rounded-full border px-3.5 py-2 font-sans text-[0.875rem] tabular-nums transition-[border-color,color,background-color] duration-450 ease-luxury",
                             active ? "border-ora-bronze text-ora-cream" : "border-glass-border-warm bg-ora-cream/45 text-foreground hover:border-ora-bronze/70",
                           )}
                         >

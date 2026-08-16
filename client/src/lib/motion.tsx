@@ -29,10 +29,10 @@ export const spring = {
 export const duration = {
   fast: 0.25,
   hover: 0.45,
-  reveal: 0.9,
-  slow: 1.2,
+  reveal: 0.7,
+  slow: 1.0,
   page: 0.35,
-  stagger: 0.08,
+  stagger: 0.06,
 } as const;
 
 /* ── Viewport presets ───────────────────────────────────── */
@@ -41,7 +41,7 @@ export const viewportOnceSoft = { once: true, margin: "-40px" } as const;
 
 /* ── Variants ───────────────────────────────────────────── */
 export const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 0, y: 16 },
   show: { opacity: 1, y: 0, transition: { duration: duration.reveal, ease: easeLuxury } },
 };
 
@@ -51,17 +51,17 @@ export const fadeIn: Variants = {
 };
 
 export const fadeLeft: Variants = {
-  hidden: { opacity: 0, x: -32 },
+  hidden: { opacity: 0, x: -16 },
   show: { opacity: 1, x: 0, transition: { duration: duration.reveal, ease: easeLuxury } },
 };
 
 export const fadeRight: Variants = {
-  hidden: { opacity: 0, x: 32 },
+  hidden: { opacity: 0, x: 16 },
   show: { opacity: 1, x: 0, transition: { duration: duration.reveal, ease: easeLuxury } },
 };
 
 export const scaleIn: Variants = {
-  hidden: { opacity: 0, scale: 0.96 },
+  hidden: { opacity: 0, scale: 0.98 },
   show: { opacity: 1, scale: 1, transition: { duration: duration.reveal, ease: easeLuxury } },
 };
 
@@ -100,8 +100,8 @@ export const pageTransition = {
 } as const;
 
 /* ── Hover presets ──────────────────────────────────────── */
-export const hoverLift = { y: -6, scale: 1.02, transition: spring.soft } as const;
-export const hoverButton = { scale: 1.03, transition: spring.snappy } as const;
+export const hoverLift = { y: -3, transition: spring.soft } as const;
+export const hoverButton = { scale: 1.02, transition: spring.snappy } as const;
 export const tapButton = { scale: 0.98 } as const;
 
 /* ── Reduced motion ─────────────────────────────────────── */
@@ -178,7 +178,7 @@ export interface RevealProps extends Omit<HTMLMotionProps<"div">, "variants"> {
   /** extra delay in seconds */
   delay?: number;
   /** render as a different tag */
-  as?: "div" | "section" | "article" | "li" | "span" | "p" | "figure" | "header" | "footer";
+  as?: "div" | "section" | "article" | "li" | "span" | "p" | "figure" | "header" | "footer" | "nav" | "ul";
   /** if true, animates on mount rather than in view */
   onMount?: boolean;
   /** if true, inherits orchestration from a parent <Stagger>/variants container (no own initial/whileInView) */

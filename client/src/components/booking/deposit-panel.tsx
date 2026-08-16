@@ -32,7 +32,7 @@ export function DepositPanel({ mode, price, className, children }: DepositPanelP
     <section
       aria-label="Deposit"
       className={cn(
-        "relative overflow-hidden rounded-3xl border border-glass-border-warm bg-ora-cream/55 p-6 shadow-glass backdrop-blur-glass sm:p-8",
+        "relative overflow-hidden rounded-2xl border border-glass-border-warm bg-ora-cream/55 p-5 shadow-glass backdrop-blur-glass sm:p-6",
         className,
       )}
     >
@@ -43,18 +43,16 @@ export function DepositPanel({ mode, price, className, children }: DepositPanelP
       />
 
       <div className="relative">
-        <Eyebrow as="p" rule className="mb-4">
+        <Eyebrow as="p" rule className="mb-3">
           {free ? "Complimentary" : `${DEPOSIT_PERCENT}% deposit`}
         </Eyebrow>
 
         {free ? (
-          <p className="max-w-md font-display text-[1.375rem] leading-snug text-foreground">
-            Your consultation is complimentary — <em className="italic text-ora-bronze">no deposit needed.</em>
-          </p>
+          <p className="max-w-md font-sans text-[0.9375rem] leading-snug text-foreground">Your consultation is complimentary — no deposit needed.</p>
         ) : (
           <div className="flex flex-wrap items-end justify-between gap-6">
             <div>
-              <p className="font-display text-[2.25rem] leading-none text-foreground">{formatPrice(deposit)}</p>
+              <p className="font-display text-[1.75rem] leading-none text-foreground">{formatPrice(deposit)}</p>
               <p className="mt-2 font-sans text-[0.875rem] text-ora-fog">
                 {DEPOSIT_PERCENT}% deposit secures your booking · balance{" "}
                 <span className="text-foreground">{formatPrice(balance)}</span> at the clinic
@@ -72,7 +70,7 @@ export function DepositPanel({ mode, price, className, children }: DepositPanelP
         )}
 
         {!free && (
-          <div className="mt-7">
+          <div className="mt-5">
             {mode === "live" ? (
               <div className="rounded-2xl border border-glass-border-warm bg-ora-cream/70 p-4">{children}</div>
             ) : (

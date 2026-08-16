@@ -193,7 +193,13 @@ export function servicesFor(categoryId: CategoryId): ResolvedService[] {
 
 /** Lowest non-zero price in a category — for "from £X" cards. */
 export function fromPrice(categoryId: CategoryId): number | undefined {
-  const prices = servicesFor(categoryId).map((s) => s.price).filter((p) => p > 0);
+  // "From £X" should reflect a real treatment — skip consultations, top-ups,
+  // removals and single-injection add-ons so the figure isn't misleading.
+  const SKIP = /consultation|top-up|removal|b12/i;
+  const prices = servicesFor(categoryId)
+    .filter((s) => !SKIP.test(s.name))
+    .map((s) => s.price)
+    .filter((p) => p > 0);
   return prices.length ? Math.min(...prices) : undefined;
 }
 

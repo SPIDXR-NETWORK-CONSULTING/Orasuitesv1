@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Music2, ArrowUpRight, Pause, Play } from "lucide-react";
 import { Section } from "@/components/ui/section";
-import { Eyebrow, DisplayHeading, IconOrb, GlassPill } from "@/components/ui/glass";
-import { useMotionSafe, viewportOnce, easeLuxury } from "@/lib/motion";
+import { DisplayHeading, IconOrb, GlassPill } from "@/components/ui/glass";
+import { useMotionSafe, viewportOnce } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 const VIDEOS = [
   { src: "/tiktok/tiktok-1.mp4", caption: "Nurse-led, natural results — the ORÁ way." },
-  { src: "/tiktok/tiktok-2.mp4", caption: "Inside the sanctuary at 45 Deansgate." },
+  { src: "/tiktok/tiktok-2.mp4", caption: "Inside ORÁ at 45 Deansgate." },
   { src: "/tiktok/tiktok-3.mp4", caption: "Fresh sets from ORÁ Nails." },
   { src: "/tiktok/tiktok-4.mp4", caption: "Skin boosters, softly done." },
   { src: "/tiktok/tiktok-5.mp4", caption: "Real clients. Real glow." },
@@ -64,8 +64,8 @@ function TikTokFrame({ src, caption, paused }: { src: string; caption: string; p
 }
 
 /**
- * TikTok carousel — 40/60 asymmetric: display headline column + phone.
- * Slides pause on hover/focus, respect reduced motion (no auto-advance, no slide-x).
+ * TikTok feed (v2) — compact, centred: heading + one phone + dots. Pauses on hover/focus,
+ * respects reduced motion (no auto-advance, no slide-x). Only ONE dark band on the page = this.
  */
 export function TikTokCarouselSection() {
   const m = useMotionSafe();
@@ -96,74 +96,43 @@ export function TikTokCarouselSection() {
   const current = VIDEOS[index];
 
   return (
-    <Section id="feed" tone="chocolate" mesh grain className="overflow-hidden">
-      <div className="grid items-center gap-12 lg:grid-cols-10 lg:gap-8">
-        {/* Headline column — 40% */}
-        <div className="lg:col-span-4">
-          <Eyebrow reveal as="p" rule className="mb-6">
-            As seen on our feed
-          </Eyebrow>
-          <DisplayHeading as="h2" size="lg" tone="cream" inherit>
-            {"The glow\nis real."}
-          </DisplayHeading>
-          <motion.p variants={m.fadeUp} className="lede mt-6 max-w-md text-ora-smoke">
-            Unfiltered moments from the treatment room and the nail bar — follow along.
-          </motion.p>
-          <motion.div variants={m.fadeUp} className="mt-8 flex flex-wrap items-center gap-3">
-            <a
-              href={HANDLE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="focus-ring inline-flex rounded-full"
-              data-testid="link-follow-instagram"
-            >
-              <GlassPill className="!py-2.5 !text-ora-cream" icon={<ArrowUpRight />}>
-                Follow {HANDLE}
-              </GlassPill>
-            </a>
-          </motion.div>
+    <Section id="feed" tone="dark" mesh grain className="overflow-hidden">
+      <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
+        <DisplayHeading as="h2" size="lg" tone="cream" inherit>
+          {"From our feed"}
+        </DisplayHeading>
+        <motion.div variants={m.fadeUp} className="mt-3">
+          <a
+            href={HANDLE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="focus-ring inline-flex rounded-full"
+            data-testid="link-follow-instagram"
+          >
+            <GlassPill size="sm" className="!text-ora-cream" icon={<ArrowUpRight />}>
+              {HANDLE}
+            </GlassPill>
+          </a>
+        </motion.div>
 
-          {/* Caption + controls (desktop) */}
-          <motion.div variants={m.fadeUp} className="mt-10 hidden lg:block">
-            <div className="rule-bronze mb-5 max-w-xs" />
-            <AnimatePresence mode="wait">
-              <motion.p
-                key={index}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                transition={{ duration: 0.4, ease: easeLuxury }}
-                className="font-display text-[1.25rem] italic leading-snug text-ora-cream/90"
-              >
-                {current.caption}
-              </motion.p>
-            </AnimatePresence>
-          </motion.div>
-        </div>
-
-        {/* Phone column — 60% */}
         <motion.div
           variants={m.scaleIn}
           initial="hidden"
           whileInView="show"
           viewport={viewportOnce}
-          className="flex flex-col items-center lg:col-span-6"
+          className="mt-8 flex flex-col items-center"
         >
           <div
             className="relative"
-            style={{ width: "min(260px, 64vw)", height: "min(560px, 138vw)" }}
+            style={{ width: "min(220px, 58vw)", height: "min(474px, 125vw)" }}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
             onFocus={() => setHovering(true)}
             onBlur={() => setHovering(false)}
           >
-            {/* soft bronze glow behind the phone */}
-            <span aria-hidden className="pointer-events-none absolute -inset-10 -z-10 rounded-full bg-ora-bronze/15 blur-3xl" />
-
-            {/* Shell */}
             <div
-              className="absolute inset-0 overflow-hidden rounded-[14%] bg-ora-void shadow-glow-bronze-lg"
-              style={{ border: "min(8px, 2vw) solid #2a2320" }}
+              className="absolute inset-0 overflow-hidden rounded-[14%] bg-ora-void shadow-luxury"
+              style={{ border: "min(7px, 2vw) solid #2a2320" }}
             >
               <div
                 className="absolute left-1/2 top-0 z-30 -translate-x-1/2 bg-black"
@@ -183,23 +152,12 @@ export function TikTokCarouselSection() {
                   </motion.div>
                 </AnimatePresence>
               </div>
-              <div
-                className="pointer-events-none absolute inset-0 z-20"
-                style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.07) 0%, transparent 50%)" }}
-              />
               <div className="absolute bottom-2 left-1/2 z-30 -translate-x-1/2 rounded-full bg-white/30" style={{ width: "30%", height: 4 }} />
             </div>
-
-            {/* Side buttons */}
-            <div className="absolute -right-[3px] top-[22%] rounded-r-sm bg-[#2a2320]" style={{ width: 3, height: "8%" }} />
-            <div className="absolute -left-[3px] top-[18%] rounded-l-sm bg-[#2a2320]" style={{ width: 3, height: "6%" }} />
-            <div className="absolute -left-[3px] top-[28%] rounded-l-sm bg-[#2a2320]" style={{ width: 3, height: "10%" }} />
-            <div className="absolute -left-[3px] top-[40%] rounded-l-sm bg-[#2a2320]" style={{ width: 3, height: "10%" }} />
-
           </div>
 
           {/* Dots + pause */}
-          <div className="mt-8 flex items-center gap-4">
+          <div className="mt-6 flex items-center gap-4">
             <div className="flex items-center gap-2" role="tablist" aria-label="Feed videos">
               {VIDEOS.map((v, i) => (
                 <button
@@ -228,9 +186,6 @@ export function TikTokCarouselSection() {
               </IconOrb>
             </button>
           </div>
-
-          {/* Caption (mobile) */}
-          <p className="mt-5 max-w-xs text-center font-display text-[1.0625rem] italic text-ora-cream/85 lg:hidden">{current.caption}</p>
         </motion.div>
       </div>
     </Section>

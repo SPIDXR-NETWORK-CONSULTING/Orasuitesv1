@@ -65,7 +65,7 @@ export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(functi
         padClass[padding],
         radiusClass[radius],
         "relative overflow-hidden will-change-transform",
-        hover && "transition-shadow duration-450 ease-luxury hover:shadow-glow-bronze",
+        hover && "transition-shadow duration-450 ease-luxury hover:shadow-luxury",
         className,
       )}
       whileHover={hover ? m.hoverLift : undefined}
@@ -204,7 +204,6 @@ export interface DisplayHeadingProps extends Omit<React.HTMLAttributes<HTMLHeadi
   size?: DisplaySize;
   /** string with \n line breaks, or nodes (one per line) */
   children: string | React.ReactNode[];
-  /** italic Playfair accent — wrap parts of a line in <em> yourself; this sets italic weight styling */
   onMount?: boolean;
   gap?: number;
   delay?: number;
@@ -223,8 +222,8 @@ const sizeClass: Record<DisplaySize, string> = {
 
 /**
  * Playfair display heading with split-line reveal. `\n` = new line.
- *   <DisplayHeading as="h1" size="xl">{"Manchester's women-only\nsanctuary for beauty & wellness."}</DisplayHeading>
- * Use `[&_em]:italic [&_em]:text-ora-bronze` via className to style <em> accents when passing nodes.
+ *   <DisplayHeading as="h1" size="xl">{"Nurse-led aesthetics\nand luxury nails."}</DisplayHeading>
+ * <em> renders upright (weight 500) — v2 has no italics.
  */
 export function DisplayHeading({
   as = "h2",
@@ -241,7 +240,7 @@ export function DisplayHeading({
 }: DisplayHeadingProps) {
   const Tag = as as React.ElementType;
   const toneCls = tone === "cream" ? "text-ora-cream" : tone === "bronze" ? "text-ora-bronze" : "text-foreground";
-  const classes = cn(sizeClass[size], toneCls, "font-display [&_em]:italic [&_em]:font-normal", className);
+  const classes = cn(sizeClass[size], toneCls, "font-display [&_em]:not-italic [&_em]:font-medium", className);
   if (plain) {
     const lines = typeof children === "string" ? children.split("\n") : children;
     return (
@@ -298,10 +297,10 @@ export function SectionIntro({
       initial="hidden"
       whileInView="show"
       viewport={viewportOnce}
-      className={cn("mb-12 md:mb-16 lg:mb-20 max-w-3xl", align === "center" && "mx-auto text-center", className)}
+      className={cn("mb-8 md:mb-10 max-w-3xl", align === "center" && "mx-auto text-center", className)}
     >
       {eyebrow && (
-        <Eyebrow reveal as="p" rule={align === "left"} className="mb-5">
+        <Eyebrow reveal as="p" rule={align === "left"} className="mb-3">
           {eyebrow}
         </Eyebrow>
       )}
@@ -309,12 +308,12 @@ export function SectionIntro({
         {heading}
       </DisplayHeading>
       {lede && (
-        <motion.p variants={m.fadeUp} className={cn("lede mt-6 max-w-2xl", align === "center" && "mx-auto", ledeClassName)}>
+        <motion.p variants={m.fadeUp} className={cn("lede mt-3 max-w-2xl", align === "center" && "mx-auto", ledeClassName)}>
           {lede}
         </motion.p>
       )}
       {children && (
-        <motion.div variants={m.fadeUp} className="mt-8">
+        <motion.div variants={m.fadeUp} className="mt-5">
           {children}
         </motion.div>
       )}

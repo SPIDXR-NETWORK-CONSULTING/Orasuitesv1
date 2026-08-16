@@ -1,9 +1,9 @@
 /**
- * Step 5 — review + deposit (preview) + confirm. Fires POST /api/ghl/booking.
+ * Step 4 — review + deposit (preview) + confirm. Fires POST /api/ghl/booking.
  */
 import * as React from "react";
 import { AlertCircle, Clock, Pencil } from "lucide-react";
-import { formatDuration, formatPrice, teamMember, type ResolvedService } from "@/lib/catalogue";
+import { formatDuration, formatPrice, type ResolvedService } from "@/lib/catalogue";
 import { Button } from "@/components/ui/button";
 import { DepositPanel } from "../deposit-panel";
 import { StepHeader, StepNav } from "../step-shell";
@@ -22,32 +22,27 @@ interface Props {
 export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }: Props) {
   const s = state.service;
   const free = s.price === 0;
-  const practitioner = state.practitioner === "first" ? "First available" : teamMember(state.practitioner).name;
 
   return (
     <div>
-      <StepHeader step={4} title={free ? "Confirm your consultation" : "Review & confirm"} lede="Check everything looks right. You can still change any part before you confirm." />
+      <StepHeader step={3} title={free ? "Confirm your consultation" : "Review & confirm"} />
 
       {/* Review card */}
-      <dl className="overflow-hidden rounded-3xl border border-glass-border-warm bg-ora-cream/50 backdrop-blur-glass-sm">
+      <dl className="overflow-hidden rounded-2xl border border-glass-border-warm bg-ora-cream/50 backdrop-blur-glass-sm">
         <ReviewRow label="Treatment" onEdit={() => onEdit(0)}>
-          <span className="font-display text-[1.25rem] leading-tight text-foreground">{s.name}</span>
+          <span className="font-display text-[1.125rem] leading-tight text-foreground">{s.name}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-[0.8125rem] text-ora-fog">
             <span>{s.categoryTitle} · {s.groupName}</span>
             <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-ora-bronze" aria-hidden />{formatDuration(s.duration)}</span>
             <span className="text-foreground">{free ? "Complimentary" : formatPrice(s.price)}</span>
           </span>
         </ReviewRow>
-        <ReviewRow label="Practitioner" onEdit={() => onEdit(1)}>
-          <span className="font-sans text-[0.9375rem] text-foreground">{practitioner}</span>
-          {state.practitioner !== "first" && <span className="mt-0.5 block font-sans text-[0.75rem] text-ora-fog">Preference — confirmed by the clinic</span>}
-        </ReviewRow>
-        <ReviewRow label="When" onEdit={() => onEdit(2)}>
+        <ReviewRow label="When" onEdit={() => onEdit(1)}>
           <span className="font-sans text-[0.9375rem] text-foreground">
             {formatLongDate(state.date)} · <span className="text-ora-bronze">{formatTime(state.slot)}</span>
           </span>
         </ReviewRow>
-        <ReviewRow label="Your details" onEdit={() => onEdit(3)}>
+        <ReviewRow label="Your details" onEdit={() => onEdit(2)}>
           <span className="font-sans text-[0.9375rem] text-foreground">{state.details.name}</span>
           <span className="mt-0.5 block font-sans text-[0.8125rem] text-ora-fog">{state.details.email} · {state.details.phone}</span>
           {state.details.notes && <span className="mt-1 block font-sans text-[0.8125rem] italic text-ora-fog">“{state.details.notes}”</span>}

@@ -6,17 +6,17 @@ import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronUp, Clock, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GlassCard, Eyebrow, IconOrb } from "@/components/ui/glass";
-import { depositFor, formatDuration, formatPrice, teamMember, DEPOSIT_PERCENT } from "@/lib/catalogue";
+import { GlassCard } from "@/components/ui/glass";
+import { depositFor, formatDuration, formatPrice, DEPOSIT_PERCENT } from "@/lib/catalogue";
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import { formatLongDate, formatTime } from "./time";
 import type { BookingState } from "./types";
 
 function Row({ label, value, muted }: { label: string; value: React.ReactNode; muted?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5">
+    <div className="flex items-baseline justify-between gap-4 py-2">
       <dt className="shrink-0 font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-fog">{label}</dt>
-      <dd className={cn("text-right font-sans text-[0.9375rem]", muted ? "text-ora-smoke" : "text-foreground")}>{value}</dd>
+      <dd className={cn("text-right font-sans text-[0.875rem]", muted ? "text-ora-smoke" : "text-foreground")}>{value}</dd>
     </div>
   );
 }
@@ -25,17 +25,13 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
   const s = state.service;
   const isFree = s ? s.price === 0 : false;
   const deposit = s ? depositFor(s.price) : 0;
-  const practitioner = state.practitioner === "first" ? "First available" : teamMember(state.practitioner).name;
 
   return (
     <div>
       {s ? (
-        <div className={cn("flex items-start gap-4", compact ? "mb-2" : "mb-4")}>
-          <IconOrb size="md" tone="warm" initials={s.categoryTitle.slice(0, 1)} aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-bronze">{s.categoryTitle} · {s.groupName}</p>
-            <p className="mt-1 font-display text-[1.25rem] leading-tight text-foreground">{s.name}</p>
-          </div>
+        <div className={cn("min-w-0", compact ? "mb-2" : "mb-3")}>
+          <p className="font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-fog">{s.categoryTitle} · {s.groupName}</p>
+          <p className="mt-1 font-display text-[1.125rem] leading-tight text-foreground">{s.name}</p>
         </div>
       ) : (
         <p className="font-sans text-[0.9375rem] text-ora-fog">Choose a treatment to begin.</p>
@@ -45,7 +41,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
         <dl className="divide-y divide-ora-greige/70 border-t border-ora-greige/70">
           <Row
             label="Price"
-            value={<span className="font-display text-[1.25rem]">{isFree ? "Complimentary" : formatPrice(s.price)}</span>}
+            value={<span className="font-medium">{isFree ? "Complimentary" : formatPrice(s.price)}</span>}
           />
           <Row
             label="Duration"
@@ -56,7 +52,6 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
               </span>
             }
           />
-          <Row label="Practitioner" value={practitioner} muted={state.practitioner === "first"} />
           <Row
             label="When"
             value={
@@ -78,7 +73,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
               label={`${DEPOSIT_PERCENT}% deposit`}
               value={
                 <span>
-                  <span className="font-display text-[1.125rem]">{formatPrice(deposit)}</span>
+                  <span className="font-medium">{formatPrice(deposit)}</span>
                   <span className="block font-sans text-[0.75rem] text-ora-fog">balance {formatPrice(s.price - deposit)} at the clinic</span>
                 </span>
               }
@@ -88,9 +83,9 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
       )}
 
       {!compact && (
-        <p className="mt-5 flex items-start gap-2 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+        <p className="mt-4 flex items-start gap-2 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ora-bronze" aria-hidden />
-          ORÁ Suites · 45 Deansgate, Manchester M3 2AY · Women-only.
+          ORÁ Suites · 45 Deansgate, Manchester M3 2AY
         </p>
       )}
     </div>
@@ -102,10 +97,8 @@ export function SummaryRail({ state, className }: { state: BookingState; classNa
   return (
     <aside aria-label="Your booking" className={cn("hidden lg:block", className)}>
       <div className="sticky top-28">
-        <GlassCard tone="strong" padding="md" radius="xl" staticCard className="bg-ora-cream/55">
-          <Eyebrow as="p" rule className="mb-5">
-            Your booking
-          </Eyebrow>
+        <GlassCard tone="strong" padding="sm" radius="lg" staticCard className="bg-ora-cream/55">
+          <p className="mb-3 font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">Your booking</p>
           <SummaryBody state={state} />
         </GlassCard>
       </div>

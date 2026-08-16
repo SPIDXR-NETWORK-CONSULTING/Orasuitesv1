@@ -120,7 +120,7 @@ export function defaultBusinessJsonLd(extra: Record<string, unknown> = {}): Reco
     image: BUSINESS.image,
     logo: BUSINESS.image,
     description:
-      "Manchester's women-only sanctuary for beauty and wellness. Nurse-led aesthetics, luxury nails and private treatment rooms at 45 Deansgate.",
+      "ORÁ Suites — beauty & wellness sanctuary at 45 Deansgate, Manchester. Nurse-led aesthetics, luxury nails and private treatment rooms.",
     address: {
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,

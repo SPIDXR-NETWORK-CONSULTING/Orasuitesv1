@@ -4,8 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Instagram, ArrowRight, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Reveal, Stagger, easeLuxury } from "@/lib/motion";
-import { Eyebrow, ComingSoonBadge } from "@/components/ui/glass";
-import { categories } from "@/lib/catalogue";
 import logoImage from "@assets/ora-logo-new.jpg";
 
 const explore = [
@@ -43,7 +41,7 @@ function EmailListPill() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full text-center">
       <AnimatePresence mode="wait" initial={false}>
         {status === "success" ? (
           <motion.p
@@ -64,7 +62,7 @@ function EmailListPill() {
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.35, ease: easeLuxury }}
             className={cn(
-              "flex w-full max-w-md items-center gap-1 rounded-full border p-1 pl-5 transition-[border-color,box-shadow] duration-450 ease-luxury",
+              "mx-auto flex w-full max-w-md items-center gap-1 rounded-full border p-1 pl-5 transition-[border-color,box-shadow] duration-450 ease-luxury",
               "glass-pill focus-within:border-ora-bronze focus-within:shadow-glow-bronze",
               status === "error" && "border-destructive/60",
             )}
@@ -105,27 +103,23 @@ function EmailListPill() {
 export function Footer() {
   const year = new Date().getFullYear();
   return (
-    <footer data-testid="footer" className="band-dark mesh-bg-dark grain relative overflow-hidden">
+    <footer data-testid="footer" className="band-dark relative overflow-hidden">
       {/* email band */}
       <div className="relative z-[2] border-b border-ora-cream/10">
-        <Stagger className="mx-auto grid w-full max-w-wide gap-8 px-5 py-14 sm:px-8 md:grid-cols-[1.2fr_1fr] md:items-center md:py-16 lg:px-12">
+        <Stagger className="mx-auto flex w-full max-w-content flex-col items-center gap-5 px-5 py-12 text-center sm:px-8 lg:px-12">
           <Reveal inherit>
-            <Eyebrow as="p" rule className="mb-4">
-              Stay in the loop
-            </Eyebrow>
-            <p className="font-display text-display-sm text-ora-cream">
-              New treatments, quiet openings, <em className="italic text-ora-bronze">occasional</em> offers.
-            </p>
+            <p className="font-display text-display-sm text-ora-cream">Stay in the loop</p>
+            <p className="mt-1 text-[0.875rem] text-ora-smoke">New treatments and occasional offers.</p>
           </Reveal>
-          <Reveal inherit className="md:justify-self-end w-full md:max-w-md">
+          <Reveal inherit className="flex w-full justify-center">
             <EmailListPill />
           </Reveal>
         </Stagger>
       </div>
 
-      {/* columns */}
-      <Stagger className="relative z-[2] mx-auto grid w-full max-w-wide grid-cols-2 gap-x-6 gap-y-12 px-5 py-16 sm:px-8 md:py-20 lg:grid-cols-[1.6fr_1fr_1fr_1.2fr] lg:gap-x-12 lg:px-12">
-        <Reveal inherit className="col-span-2 lg:col-span-1">
+      {/* links */}
+      <Stagger className="relative z-[2] mx-auto flex w-full max-w-content flex-col items-center gap-7 px-5 py-12 text-center sm:px-8 lg:px-12">
+        <Reveal inherit>
           <Link href="/" aria-label="ORÁ Suites — home" className="focus-ring inline-block rounded-xl">
             <img
               src={logoImage}
@@ -134,38 +128,19 @@ export function Footer() {
               height={56}
               loading="lazy"
               decoding="async"
-              className="h-14 w-auto rounded-lg object-contain"
+              className="h-11 w-auto rounded-lg object-contain"
             />
           </Link>
-          <p className="mt-6 max-w-xs font-display text-[1.375rem] leading-snug text-ora-cream">
-            Manchester's women-only sanctuary for beauty & wellness.
-          </p>
-          <p className="mt-4 max-w-xs text-[0.9375rem] leading-relaxed text-ora-smoke">
-            Nurse-led aesthetics, luxury nails and private treatment rooms — by appointment, on Deansgate.
-          </p>
-          <div className="mt-6 flex items-center gap-3">
-            <a
-              href={INSTAGRAM_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="link-instagram"
-              aria-label="ORÁ on Instagram"
-              className="focus-ring glass-pill inline-flex h-11 w-11 items-center justify-center text-ora-cream hover:text-ora-bronze"
-            >
-              <Instagram size={18} strokeWidth={1.5} />
-            </a>
-          </div>
         </Reveal>
 
-        <Reveal inherit>
-          <h4 className="eyebrow mb-5">Explore</h4>
-          <ul className="space-y-3">
+        <Reveal inherit as="nav" aria-label="Footer">
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
             {explore.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
                   data-testid={`link-footer-${l.label.toLowerCase().replace(/\s+/g, "-")}`}
-                  className="focus-ring group relative inline-block text-[0.9375rem] text-ora-cream/80 transition-colors duration-450 hover:text-ora-cream"
+                  className="focus-ring group relative inline-block text-[0.9rem] text-ora-cream/80 transition-colors duration-450 hover:text-ora-cream"
                 >
                   {l.label}
                   <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-ora-bronze transition-transform duration-450 ease-luxury group-hover:scale-x-100" />
@@ -176,56 +151,36 @@ export function Footer() {
         </Reveal>
 
         <Reveal inherit>
-          <h4 className="eyebrow mb-5">Services</h4>
-          <ul className="space-y-3">
-            {categories.map((c) =>
-              c.live ? (
-                <li key={c.id}>
-                  <Link
-                    href={`/services#${c.id}`}
-                    className="focus-ring group relative inline-block text-[0.9375rem] text-ora-cream/80 transition-colors duration-450 hover:text-ora-cream"
-                  >
-                    {c.title}
-                    <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-ora-bronze transition-transform duration-450 ease-luxury group-hover:scale-x-100" />
-                  </Link>
-                </li>
-              ) : (
-                <li key={c.id} className="flex items-center gap-2.5 text-[0.9375rem] text-ora-cream/40" aria-label={`${c.title} — coming soon`}>
-                  <span>{c.title}</span>
-                  <ComingSoonBadge label="Soon" className="px-2 py-0.5 text-[0.5625rem] opacity-70" />
-                </li>
-              ),
-            )}
-          </ul>
+          <address className="not-italic text-[0.875rem] leading-relaxed text-ora-smoke">
+            45 Deansgate, Manchester M3 2AY
+            <span className="mx-2 text-ora-bronze/60">·</span>
+            Mon–Sat 9–7
+            <span className="mx-2 text-ora-bronze/60">·</span>
+            <a href="mailto:admin@orasuites.com" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
+              admin@orasuites.com
+            </a>
+          </address>
         </Reveal>
 
         <Reveal inherit>
-          <h4 className="eyebrow mb-5">Visit</h4>
-          <address className="not-italic space-y-3 text-[0.9375rem] leading-relaxed text-ora-cream/80">
-            <p>
-              45 Deansgate
-              <br />
-              Manchester M3 2AY
-            </p>
-            <p>
-              <a href="mailto:admin@orasuites.com" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
-                admin@orasuites.com
-              </a>
-            </p>
-            <p>
-              Mon–Sat 9–7
-              <br />
-              <span className="text-ora-smoke">Women-only · By appointment</span>
-            </p>
-          </address>
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="link-instagram"
+            aria-label="ORÁ on Instagram"
+            className="focus-ring glass-pill inline-flex h-10 w-10 items-center justify-center text-ora-cream hover:text-ora-bronze"
+          >
+            <Instagram size={17} strokeWidth={1.5} />
+          </a>
         </Reveal>
       </Stagger>
 
       {/* bottom bar */}
       <div className="relative z-[2] border-t border-ora-cream/10">
-        <div className="mx-auto flex w-full max-w-wide flex-col items-start justify-between gap-3 px-5 py-6 text-[0.8125rem] text-ora-smoke sm:flex-row sm:items-center sm:px-8 lg:px-12">
+        <div className="mx-auto flex w-full max-w-content flex-col items-center justify-center gap-2 px-5 py-5 text-[0.8125rem] text-ora-smoke sm:flex-row sm:gap-6 sm:px-8 lg:px-12">
           <p>© ORÁ Suites {year}</p>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-5">
             <Link href="/privacy" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
               Privacy
             </Link>

@@ -1,5 +1,5 @@
 /**
- * Step 6 — confirmation. Animated check-draw, summary card, add-to-calendar (.ics), back home.
+ * Done — confirmation. Animated check-draw, summary card, add-to-calendar (.ics), back home.
  */
 import * as React from "react";
 import { motion } from "framer-motion";
@@ -7,7 +7,7 @@ import { Link } from "wouter";
 import { CalendarPlus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow, GlassCard } from "@/components/ui/glass";
-import { formatDuration, formatPrice, teamMember, type ResolvedService } from "@/lib/catalogue";
+import { formatDuration, formatPrice, type ResolvedService } from "@/lib/catalogue";
 import { useMotionSafe, easeLuxury } from "@/lib/motion";
 import { icsDataUrl } from "../ics";
 import { addMinutesIso, formatLongDate, formatTime } from "../time";
@@ -33,13 +33,13 @@ export function DoneStep({ state, appointmentId }: Props) {
     () =>
       icsDataUrl({
         title: `${s.name} — ORÁ Suites`,
-        description: `${s.categoryTitle} · ${formatDuration(s.duration)}${state.practitioner !== "first" ? ` · Preferred: ${teamMember(state.practitioner).name}` : ""}`,
+        description: `${s.categoryTitle} · ${formatDuration(s.duration)}`,
         location: "ORÁ Suites, 45 Deansgate, Manchester M3 2AY",
         startIso: state.slot,
         endIso,
         uid: appointmentId ? `${appointmentId}@orasuites.com` : undefined,
       }),
-    [s, state.slot, state.practitioner, endIso, appointmentId],
+    [s, state.slot, endIso, appointmentId],
   );
 
   return (
@@ -49,7 +49,7 @@ export function DoneStep({ state, appointmentId }: Props) {
         initial={m.reduced ? false : { scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ duration: 0.7, ease: easeLuxury }}
-        className="mx-auto mb-8 inline-flex h-24 w-24 items-center justify-center rounded-full border border-ora-bronze/40 bg-ora-bronze/10 shadow-glow-bronze"
+        className="mx-auto mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full border border-ora-bronze/40 bg-ora-bronze/10 shadow-glow-bronze"
         aria-hidden
       >
         <svg width="44" height="44" viewBox="0 0 48 48" fill="none">
@@ -79,15 +79,15 @@ export function DoneStep({ state, appointmentId }: Props) {
       <Eyebrow as="p" className="mb-4 justify-center">
         {free ? "Consultation booked" : "Booking placed"}
       </Eyebrow>
-      <h2 ref={headingRef} tabIndex={-1} className="text-display-md font-display text-foreground outline-none">
+      <h2 ref={headingRef} tabIndex={-1} className="font-display text-[clamp(1.5rem,2.4vw,2rem)] font-normal leading-[1.15] tracking-[-0.01em] text-foreground outline-none">
         See you soon, {state.details.name.split(" ")[0]}.
       </h2>
-      <p className="lede mx-auto mt-4 max-w-md">
+      <p className="mx-auto mt-3 max-w-md font-sans text-[0.9375rem] leading-relaxed text-ora-fog">
         We've sent a confirmation to <span className="text-foreground">{state.details.email}</span>. Bring yourself — we'll take care of the rest.
       </p>
 
-      <GlassCard tone="strong" padding="md" radius="xl" staticCard className="mx-auto mt-10 max-w-md bg-ora-cream/60 text-left">
-        <p className="font-display text-[1.375rem] leading-tight text-foreground">{s.name}</p>
+      <GlassCard tone="strong" padding="md" radius="lg" staticCard className="mx-auto mt-8 max-w-md bg-ora-cream/60 text-left">
+        <p className="font-display text-[1.125rem] leading-tight text-foreground">{s.name}</p>
         <p className="mt-1 font-sans text-[0.8125rem] text-ora-fog">
           {s.categoryTitle} · {formatDuration(s.duration)} · {free ? "Complimentary" : formatPrice(s.price)}
         </p>

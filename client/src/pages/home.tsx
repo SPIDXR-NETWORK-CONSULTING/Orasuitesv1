@@ -7,14 +7,13 @@ import { ResultsShowcaseSection } from "@/components/home/results-showcase";
 import { TikTokCarouselSection } from "@/components/home/tiktok-carousel";
 import { TestimonialsSection } from "@/components/home/testimonials";
 import { LocationSection } from "@/components/home/location";
-import { CTASection } from "@/components/home/cta";
 import { useSEO, defaultBusinessJsonLd } from "@/hooks/use-seo";
 
 export default function HomePage() {
   useSEO({
-    title: "ORÁ Suites | Women-Only Beauty & Wellness Sanctuary, Deansgate Manchester",
+    title: "ORÁ Suites | Nurse-led Aesthetics & Luxury Nails, Deansgate Manchester",
     description:
-      "ORÁ Suites is Manchester's women-only sanctuary for beauty and wellness at 45 Deansgate — nurse-led aesthetics, luxury nails and private treatment rooms. Book a consultation.",
+      "ORÁ Suites — beauty & wellness sanctuary at 45 Deansgate, Manchester. Nurse-led aesthetics, luxury nails and private treatment rooms. Book online.",
     path: "/",
     jsonLd: defaultBusinessJsonLd(),
   });
@@ -26,10 +25,9 @@ export default function HomePage() {
       <ServicesOverviewSection />
       <RoomRentalsTeaserSection />
       <ResultsShowcaseSection />
-      <TikTokCarouselSection />
       <TestimonialsSection />
       <LocationSection />
-      <CTASection />
+      <TikTokCarouselSection />
     </Layout>
   );
 }

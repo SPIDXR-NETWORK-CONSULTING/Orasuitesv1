@@ -117,16 +117,16 @@ export default {
         "900": "900ms",
       },
       letterSpacing: {
-        display: "-0.02em",
-        eyebrow: "0.25em",
+        display: "-0.01em",
+        eyebrow: "0.22em",
       },
       maxWidth: {
-        content: "1280px",
+        content: "1200px",
         wide: "1440px",
       },
       spacing: {
-        section: "clamp(6rem, 10vw, 10rem)",
-        "section-sm": "clamp(4rem, 7vw, 6rem)",
+        section: "clamp(3.5rem, 6.5vw, 6rem)",
+        "section-sm": "clamp(3rem, 5vw, 4.5rem)",
       },
       fontFamily: {
         sans: ["DM Sans", "var(--font-sans)", "system-ui", "sans-serif"],
@@ -136,12 +136,12 @@ export default {
       },
       // Fluid display scale — same values as the .text-display-* utilities in index.css
       fontSize: {
-        "display-xl": ["clamp(2.75rem, 7vw, 6.5rem)", { lineHeight: "1.02", letterSpacing: "-0.02em" }],
-        "display-lg": ["clamp(2.5rem, 5.5vw, 5rem)", { lineHeight: "1.04", letterSpacing: "-0.02em" }],
-        "display-md": ["clamp(2rem, 4vw, 3.5rem)", { lineHeight: "1.08", letterSpacing: "-0.02em" }],
-        "display": ["clamp(2rem, 4vw, 3.5rem)", { lineHeight: "1.08", letterSpacing: "-0.02em" }],
-        "display-sm": ["clamp(1.5rem, 2.6vw, 2.25rem)", { lineHeight: "1.1", letterSpacing: "-0.015em" }],
-        eyebrow: ["0.71875rem", { lineHeight: "1.4", letterSpacing: "0.25em" }],
+        "display-xl": ["clamp(1.9rem, 3.2vw, 2.75rem)", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
+        "display-lg": ["clamp(1.5rem, 2.4vw, 2rem)", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
+        "display-md": ["clamp(1.25rem, 1.8vw, 1.35rem)", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
+        "display": ["clamp(1.5rem, 2.4vw, 2rem)", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
+        "display-sm": ["clamp(1.05rem, 1.4vw, 1.15rem)", { lineHeight: "1.15", letterSpacing: "-0.01em" }],
+        eyebrow: ["0.6875rem", { lineHeight: "1.4", letterSpacing: "0.22em" }],
       },
       keyframes: {
         "accordion-down": {

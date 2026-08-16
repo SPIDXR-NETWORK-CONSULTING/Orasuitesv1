@@ -1,11 +1,11 @@
 /**
- * /book — ORÁ Suites online booking.
- * Light page (milk mesh + grain), header in light mode, single-column stepper
- * with a sticky summary rail on lg+ and a bottom sheet on mobile.
+ * /book — ORÁ Suites online booking (v2, restraint pass).
+ * Light page (milk mesh + grain), header in light mode, centred 4-step flow
+ * (Service → Time → Details → Confirm) with a slim summary rail on lg+ and a
+ * bottom sheet on mobile.
  */
 import { Layout } from "@/components/layout/layout";
 import { Container } from "@/components/ui/section";
-import { Eyebrow, DisplayHeading } from "@/components/ui/glass";
 import { useSEO, servicesJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
 import { allServices } from "@/lib/catalogue";
 import { BookingFlow } from "@/components/booking/booking-flow";
@@ -18,7 +18,7 @@ export default function BookPage() {
   useSEO({
     title: "Book an Appointment | ORÁ Suites Manchester",
     description:
-      "Book nurse-led aesthetics and luxury nail treatments online at ORÁ Suites — Manchester's women-only sanctuary at 45 Deansgate. Choose your treatment, practitioner and time.",
+      "Book nurse-led aesthetics and luxury nail treatments online at ORÁ Suites, 45 Deansgate, Manchester. Choose your treatment and a time in four quick steps.",
     path: "/book",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Book", path: "/book" }]),
@@ -33,22 +33,17 @@ export default function BookPage() {
 
   return (
     <Layout lightHeader padTop>
-      <div className="mesh-bg grain relative min-h-screen pb-32 lg:pb-24">
-        <Container className="pt-6 md:pt-10">
-          <motion.header
-            variants={m.stagger(0.08)}
-            initial="hidden"
-            animate="show"
-            className="mb-10 max-w-3xl md:mb-14"
-          >
-            <Eyebrow reveal as="p" rule className="mb-5">
-              Online booking · 45 Deansgate
-            </Eyebrow>
-            <DisplayHeading as="h1" size="lg" inherit className="text-display-lg">
-              {"Book your\nappointment."}
-            </DisplayHeading>
-            <motion.p variants={m.fadeUp} className="lede mt-5 max-w-xl">
-              Nurse-led aesthetics and luxury nails, in Manchester's women-only sanctuary. Five quick steps.
+      <div className="mesh-bg grain relative min-h-screen pb-28 lg:pb-20">
+        <Container className="pt-4 md:pt-8">
+          <motion.header variants={m.stagger(0.06)} initial="hidden" animate="show" className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+            <motion.h1
+              variants={m.fadeUp}
+              className="font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-normal leading-[1.15] tracking-[-0.01em] text-foreground"
+            >
+              Book an appointment
+            </motion.h1>
+            <motion.p variants={m.fadeUp} className="mt-2 font-sans text-[0.9375rem] text-ora-fog">
+              45 Deansgate, Manchester · four quick steps.
             </motion.p>
           </motion.header>
 

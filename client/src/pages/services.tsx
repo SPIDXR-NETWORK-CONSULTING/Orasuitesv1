@@ -1,85 +1,70 @@
 /**
- * /services — Treatments & prices.
- * Hero (55vh) → sticky category tabs → one split panel per LIVE category
- * (image | grouped price list, rows → /book?service=<id>) → coming-soon strip
- * → consultation CTA. All prices/durations come from shared/catalogue.json.
+ * /services — Treatments & prices (v2, restraint pass).
+ * 40vh hero → centred 5-tile category selector → ONE price list open at a time,
+ * expanded in place below the tiles (default Aesthetics; `#nails` opens Nails)
+ * → one small consultation link line. Prices come from shared/catalogue.json.
  */
 import * as React from "react";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { Layout } from "@/components/layout/layout";
 import { Section, Container } from "@/components/ui/section";
-import { Eyebrow, DisplayHeading, GlassPill } from "@/components/ui/glass";
-import { Button } from "@/components/ui/button";
 import { useSEO, servicesJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
 import { useMotionSafe, easeLuxury } from "@/lib/motion";
-import {
-  liveCategories,
-  comingSoonCategories,
-  allServices,
-  findService,
-  formatPrice,
-  formatDuration,
-  fromPrice,
-  teamFor,
-} from "@/lib/catalogue";
-import { CategoryTabs } from "@/components/services/category-tabs";
-import { CategoryPanel } from "@/components/services/category-panel";
-import { ComingSoonStrip, type SoonItem } from "@/components/services/coming-soon-strip";
+import { categories, liveCategories, allServices, findService, type CategoryId } from "@/lib/catalogue";
+import { CategorySelector, type CategoryTile } from "@/components/services/category-selector";
+import { PriceList } from "@/components/services/price-list";
 
 import heroBannerImage from "@assets/ora-hero-zebra-crossing.jpg";
 import aestheticsImage from "@assets/service-aesthetics-skincare.jpg";
 import nailsImage from "@assets/service-nails-gold.jpg";
 import hairImage from "@assets/service-hair-blowout.jpg";
+import makeupImage from "@assets/service-wellness-facial.jpg";
 import laserImage from "@assets/service-led-laser.jpg";
-import wellnessImage from "@assets/service-wellness-facial.jpg";
-import makeupImage from "@assets/service-facial.jpg";
 
-/* Presentation-only metadata per category (images + copy). Prices never live here. */
-const PANEL_META: Record<string, { image: string; alt: string; blurb: string }> = {
-  aesthetics: {
-    image: aestheticsImage,
-    alt: "Nurse-led aesthetic treatment in a calm, warm-toned ORÁ treatment room",
-    blurb: "Nurse-led, regenerative and honest. Anti-wrinkle, fillers, skin boosters and facials — starting with a complimentary consultation.",
-  },
-  nails: {
-    image: nailsImage,
-    alt: "Freshly finished gel manicure with a soft gold accent at ORÁ Suites",
-    blurb: "BIAB, gel extensions, manicures and pedicures by nail artists who take their time.",
-  },
+/* Approved image per category (brief v2 map). Prices never live here. */
+const TILE_ART: Record<string, { image: string; alt: string }> = {
+  aesthetics: { image: aestheticsImage, alt: "Aesthetic skincare treatment at ORÁ Suites" },
+  nails: { image: nailsImage, alt: "Gel manicure with a gold accent at ORÁ Suites" },
+  hair: { image: hairImage, alt: "Hair blow-dry" },
+  makeup: { image: makeupImage, alt: "Facial and makeup treatment" },
+  laser: { image: laserImage, alt: "LED and laser treatment" },
 };
-
-const SOON_META: Record<string, { image?: string; line: string }> = {
-  hair: { image: hairImage, line: "Cuts, colour and styling — coming to the ORÁ salon floor." },
-  makeup: { image: makeupImage, line: "Occasion and bridal makeup, inside the sanctuary." },
-  laser: { image: laserImage, line: "Laser hair removal, launching at 45 Deansgate." },
-  wellness: { image: wellnessImage, line: "Massage and restorative rituals for body and mind." },
-};
+const TILE_ORDER = ["aesthetics", "nails", "hair", "makeup", "laser"];
 
 const CONSULTATION_ID = "aesthetics/consultation";
+
+function categoryFromHash(): CategoryId | undefined {
+  if (typeof window === "undefined") return undefined;
+  const id = window.location.hash.slice(1);
+  return id && liveCategories().some((c) => c.id === id) ? id : undefined;
+}
 
 export default function ServicesPage() {
   const m = useMotionSafe();
   const live = React.useMemo(liveCategories, []);
-  const soon = React.useMemo(comingSoonCategories, []);
   const consultation = React.useMemo(() => findService(CONSULTATION_ID) ?? findService("Consultation"), []);
-  const aestheticsTeam = React.useMemo(() => {
-    const names = teamFor("aesthetics").map((t) => t.short);
-    return names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : names[0] ?? "our nurse";
-  }, []);
-  const [hashId, setHashId] = React.useState<string>(() => (typeof window !== "undefined" ? window.location.hash.slice(1) : ""));
+  const [active, setActive] = React.useState<CategoryId>(() => categoryFromHash() ?? live[0]?.id ?? "aesthetics");
 
   React.useEffect(() => {
-    const onHash = () => setHashId(window.location.hash.slice(1));
+    const onHash = () => {
+      const id = categoryFromHash();
+      if (id) setActive(id);
+    };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
+  const select = (id: CategoryId) => {
+    setActive(id);
+    history.replaceState(null, "", `#${id}`);
+  };
+
   useSEO({
-    title: "Aesthetics & Nail Treatments Manchester | ORÁ Suites Prices",
+    title: "Treatments & Prices | ORÁ Suites Manchester",
     description:
-      "Full treatment menu and prices at ORÁ Suites, Manchester's women-only sanctuary on Deansgate: nurse-led anti-wrinkle, fillers, skin boosters, facials, BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser launching soon.",
+      "Full treatment menu and prices at ORÁ Suites, 45 Deansgate, Manchester: nurse-led anti-wrinkle, fillers, skin boosters and facials, plus BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser coming soon.",
     path: "/services",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Services", path: "/services" }]),
@@ -91,16 +76,16 @@ export default function ServicesPage() {
     ],
   });
 
-  const soonItems: SoonItem[] = soon.map((c) => ({
-    category: c,
-    image: SOON_META[c.id]?.image,
-    line: SOON_META[c.id]?.line ?? "Launching soon at ORÁ.",
-  }));
+  const tiles: CategoryTile[] = TILE_ORDER.map((id) => categories.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .map((c) => ({ category: c, image: TILE_ART[c.id].image, alt: TILE_ART[c.id].alt }));
+
+  const activeCategory = live.find((c) => c.id === active) ?? live[0];
 
   return (
     <Layout>
-      {/* ── Hero (55vh) ─────────────────────────────────── */}
-      <section className="relative flex min-h-[55vh] items-end overflow-hidden band-dark" aria-labelledby="services-h1">
+      {/* ── Hero (40vh) ─────────────────────────────────── */}
+      <section className="band-dark relative flex min-h-[40vh] items-center overflow-hidden" aria-labelledby="services-h1">
         <img
           src={heroBannerImage}
           alt="The ORÁ Suites entrance on Deansgate, Manchester"
@@ -110,92 +95,54 @@ export default function ServicesPage() {
           decoding="async"
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div aria-hidden className="absolute inset-0 bg-[linear-gradient(to_top,var(--overlay-deep)_0%,var(--overlay-dark)_40%,rgba(18,12,8,0.25)_100%)]" />
-        <div aria-hidden className="grain absolute inset-0" />
-        <Container className="relative z-[2] pb-16 pt-40 md:pb-20">
-          <motion.div variants={m.stagger(0.08)} initial="hidden" animate="show" className="max-w-4xl">
-            <Eyebrow reveal as="p" rule className="mb-5">
+        <div aria-hidden className="absolute inset-0 bg-[linear-gradient(to_top,var(--overlay-deep)_0%,var(--overlay-dark)_50%,rgba(18,12,8,0.35)_100%)]" />
+        <Container className="relative z-[2] pb-12 pt-32 text-center md:pb-14">
+          <motion.div variants={m.stagger(0.06)} initial="hidden" animate="show">
+            <motion.h1
+              id="services-h1"
+              variants={m.fadeUp}
+              className="font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-normal leading-[1.15] tracking-[-0.01em] text-ora-cream"
+            >
               Treatments & prices
-            </Eyebrow>
-            <DisplayHeading as="h1" size="lg" tone="cream" onMount id="services-h1" className="text-display-lg">
-              {"Aesthetics & nails in Manchester —\nour treatments & prices"}
-            </DisplayHeading>
-            <motion.p variants={m.fadeUp} className="lede mt-6 max-w-2xl text-ora-smoke">
-              Prices shown in full. Tap any treatment to book it online.
+            </motion.h1>
+            <motion.p variants={m.fadeUp} className="mx-auto mt-3 max-w-md font-sans text-[0.9375rem] text-ora-smoke">
+              Choose a category. Tap any treatment to book it online.
             </motion.p>
-            <motion.div variants={m.fadeUp} className="mt-7 flex flex-wrap gap-2">
-              {live.map((c) => {
-                const from = fromPrice(c.id);
-                return (
-                  <GlassPill key={c.id} as="a" href={`#${c.id}`} tone="light" className="text-ora-cream">
-                    {c.title}
-                    {from !== undefined && <span className="text-ora-bronze">from {formatPrice(from)}</span>}
-                  </GlassPill>
-                );
-              })}
-            </motion.div>
           </motion.div>
         </Container>
       </section>
 
-      {/* Tabs + panels share one wrapper so the sticky bar sticks for the whole menu */}
-      <div className="relative">
-      {/* ── Sticky category tabs — overlaps the hero edge ── */}
-      <CategoryTabs live={live} soon={soon} />
+      {/* ── Category selector + one open price list ───────── */}
+      <Section tone="milk" pad="sm" mesh grain animate={false}>
+        <motion.div variants={m.stagger(0.06)} initial="hidden" animate="show">
+          <CategorySelector tiles={tiles} active={activeCategory.id} onSelect={select} />
+        </motion.div>
 
-      {/* ── One split panel per live category ───────────── */}
-      {live.map((c, i) => {
-        const meta = PANEL_META[c.id] ?? PANEL_META.aesthetics;
-        return (
-          <CategoryPanel
-            key={c.id}
-            category={c}
-            image={{ src: meta.image, alt: meta.alt }}
-            blurb={meta.blurb}
-            flip={i % 2 === 1}
-            tone={i % 2 === 0 ? "milk" : "sand"}
-            forceOpen={hashId === c.id}
-          />
-        );
-      })}
-
-      {/* ── Coming soon ─────────────────────────────────── */}
-      <ComingSoonStrip items={soonItems} />
-      </div>
-
-      {/* ── Consultation CTA ────────────────────────────── */}
-      <Section tone="bone" pad="lg" mesh grain>
-        <div className="grid items-center gap-10 lg:grid-cols-12">
-          <motion.div variants={m.stagger(0.08)} className="lg:col-span-7">
-            <Eyebrow reveal as="p" rule className="mb-4">
-              Not sure where to start?
-            </Eyebrow>
-            <DisplayHeading as="h2" size="md" inherit className="text-display-md">
-              {"Book a free consultation.\nNurse-led. No pressure."}
-            </DisplayHeading>
-            <motion.p variants={m.fadeUp} className="lede mt-5 max-w-xl">
-              {consultation ? formatDuration(consultation.duration) : "Time"} with {aestheticsTeam} to talk through your goals and build a plan that suits your face, your budget and your diary.
-            </motion.p>
-          </motion.div>
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            variants={m.fadeUp}
-            className="lg:col-span-5 lg:justify-self-end"
-            whileHover={m.reduced ? undefined : { y: -4, transition: { duration: 0.45, ease: easeLuxury } }}
+            key={activeCategory.id}
+            initial={m.reduced ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={m.reduced ? undefined : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.45, ease: easeLuxury }}
+            className="overflow-hidden"
           >
-            <div className="glass-warm rounded-3xl bg-ora-cream/50 p-6 sm:p-8">
-              <p className="font-sans text-[0.71875rem] uppercase tracking-[0.25em] text-ora-bronze">Consultation</p>
-              <p className="mt-2 font-display text-[2rem] leading-none text-foreground">
-                Complimentary{" "}
-                {consultation && <span className="font-sans text-[0.875rem] tracking-normal text-ora-fog">· {formatDuration(consultation.duration)}</span>}
-              </p>
-              <Button asChild size="lg" className="mt-6 w-full sm:w-auto" data-testid="button-services-consultation">
-                <Link href={consultation ? `/book?service=${encodeURIComponent(consultation.id)}` : "/book"}>
-                  Book your free consultation <ArrowRight aria-hidden />
-                </Link>
-              </Button>
+            <div className="pt-10 md:pt-12">
+              <PriceList category={activeCategory} />
             </div>
           </motion.div>
-        </div>
+        </AnimatePresence>
+
+        <p className="mt-12 text-center font-sans text-[0.9375rem] text-ora-fog">
+          Not sure where to start?{" "}
+          <Link
+            href={consultation ? `/book?service=${encodeURIComponent(consultation.id)}` : "/book"}
+            className="focus-ring inline-flex items-center gap-1 text-ora-bronze underline-offset-4 hover:underline"
+            data-testid="link-services-consultation"
+          >
+            Book a free consultation <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </p>
       </Section>
     </Layout>
   );

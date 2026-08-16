@@ -44,9 +44,8 @@ const TESTIMONIALS = [
 const AUTOPLAY_MS = 6000;
 
 /**
- * Testimonials — large-quote hero: Playfair italic clamp(1.5rem, 3vw, 2.5rem),
- * giant decorative quote glyph in bone behind, crossfade + y12 (500ms),
- * author as eyebrow, IconOrb arrows. Existing quotes kept verbatim.
+ * Testimonials (v2) — centred, small quote type, crossfade, arrows + dots.
+ * Existing quotes kept verbatim.
  */
 export function TestimonialsSection() {
   const m = useMotionSafe();
@@ -75,15 +74,15 @@ export function TestimonialsSection() {
     : { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -12 } };
 
   return (
-    <Section id="testimonials" tone="sand" mesh grain className="overflow-hidden">
-      <SectionHeader eyebrow="Client words" title={"In their\nown words."} align="center" size="md" className="mb-6 md:mb-8 lg:mb-10" />
+    <Section id="testimonials" tone="sand" grain className="overflow-hidden">
+      <SectionHeader title="Client words" align="center" className="mb-6" />
 
       <motion.div
         variants={m.fadeUp}
         initial="hidden"
         whileInView="show"
         viewport={viewportOnce}
-        className="relative mx-auto max-w-4xl"
+        className="relative mx-auto max-w-2xl"
         onMouseEnter={() => setAutoplay(false)}
         onMouseLeave={() => setAutoplay(true)}
         onKeyDown={(e) => {
@@ -91,15 +90,8 @@ export function TestimonialsSection() {
           if (e.key === "ArrowRight") next();
         }}
       >
-        {/* Giant decorative glyph */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -top-14 left-1/2 -translate-x-1/2 select-none font-display text-[16rem] leading-none text-ora-smoke/30 sm:-top-20 sm:text-[22rem] lg:-left-6 lg:translate-x-0 lg:text-[26rem]"
-        >
-          “
-        </span>
 
-        <div className="relative px-2 pt-16 text-center sm:px-8 sm:pt-20" aria-live="polite" aria-atomic="true">
+        <div className="relative px-2 text-center sm:px-6" aria-live="polite" aria-atomic="true">
           <AnimatePresence mode="wait">
             <motion.figure
               key={t.id}
@@ -107,14 +99,14 @@ export function TestimonialsSection() {
               animate={fade.animate}
               exit={fade.exit}
               transition={{ duration: 0.5, ease: easeLuxury }}
-              className="mx-auto max-w-3xl"
+              className="mx-auto max-w-2xl"
             >
               <blockquote>
-                <p className="font-display text-[clamp(1.5rem,3vw,2.5rem)] italic leading-[1.3] tracking-[-0.01em] text-foreground text-balance">
+                <p className="font-display text-[clamp(1.05rem,1.6vw,1.25rem)] leading-[1.45] tracking-[-0.01em] text-foreground text-balance">
                   {t.quote}
                 </p>
               </blockquote>
-              <figcaption className="mt-8 flex flex-col items-center gap-2">
+              <figcaption className="mt-5 flex flex-col items-center gap-1">
                 <Eyebrow as="span" className="!text-ora-taupe">
                   {t.author}
                 </Eyebrow>
@@ -127,7 +119,7 @@ export function TestimonialsSection() {
         </div>
 
         {/* Controls */}
-        <div className="mt-10 flex items-center justify-center gap-5">
+        <div className="mt-6 flex items-center justify-center gap-4">
           <button
             type="button"
             onClick={prev}
@@ -135,7 +127,7 @@ export function TestimonialsSection() {
             aria-label="Previous testimonial"
             className="focus-ring rounded-full"
           >
-            <IconOrb size="md" tone="warm" className="hover-bronze transition-transform duration-450 ease-luxury hover:-translate-x-0.5">
+            <IconOrb size="sm" tone="warm" className="hover-bronze transition-transform duration-450 ease-luxury hover:-translate-x-0.5">
               <ChevronLeft />
             </IconOrb>
           </button>
@@ -167,7 +159,7 @@ export function TestimonialsSection() {
             aria-label="Next testimonial"
             className="focus-ring rounded-full"
           >
-            <IconOrb size="md" tone="warm" className="hover-bronze transition-transform duration-450 ease-luxury hover:translate-x-0.5">
+            <IconOrb size="sm" tone="warm" className="hover-bronze transition-transform duration-450 ease-luxury hover:translate-x-0.5">
               <ChevronRight />
             </IconOrb>
           </button>

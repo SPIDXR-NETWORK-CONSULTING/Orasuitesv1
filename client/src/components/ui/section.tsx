@@ -20,7 +20,7 @@ export interface SectionProps extends Omit<React.HTMLAttributes<HTMLElement>, "c
   children: React.ReactNode;
   id?: string;
   tone?: SectionTone;
-  /** padding scale (default md = 96–160px fluid) */
+  /** padding scale (default md = 56–96px fluid) */
   pad?: SectionPad;
   /** radial warm mesh gradient background */
   mesh?: boolean;
@@ -47,12 +47,13 @@ const toneClass: Record<SectionTone, string> = {
   none: "",
 };
 
+/* v2 rhythm: 56px mobile → 96px desktop max. lg/xl kept as aliases (no larger than md). */
 const padClass: Record<SectionPad, string> = {
   none: "",
-  sm: "py-[clamp(3rem,6vw,5rem)]",
+  sm: "py-section-sm",
   md: "py-section",
-  lg: "py-[clamp(7rem,12vw,12rem)]",
-  xl: "py-[clamp(8rem,14vw,14rem)]",
+  lg: "py-section",
+  xl: "py-section",
 };
 
 export const Container = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { wide?: boolean }>(
@@ -169,10 +170,10 @@ export function SectionHeader({
   return (
     <motion.div
       variants={m.stagger(0.08)}
-      className={cn("mb-12 md:mb-16 lg:mb-20 max-w-3xl", align === "center" && "mx-auto text-center", className)}
+      className={cn("mb-8 md:mb-10 max-w-3xl", align === "center" && "mx-auto text-center", className)}
     >
       {eyebrow && (
-        <Eyebrow reveal as="p" rule={align === "left"} className="mb-5">
+        <Eyebrow reveal as="p" rule={align === "left"} className="mb-3">
           {eyebrow}
         </Eyebrow>
       )}
@@ -180,12 +181,12 @@ export function SectionHeader({
         {title}
       </DisplayHeading>
       {subtitle && (
-        <motion.p variants={m.fadeUp} className={cn("lede mt-6 max-w-2xl", align === "center" && "mx-auto")}>
+        <motion.p variants={m.fadeUp} className={cn("lede mt-3 max-w-2xl", align === "center" && "mx-auto")}>
           {subtitle}
         </motion.p>
       )}
       {children && (
-        <motion.div variants={m.fadeUp} className="mt-8">
+        <motion.div variants={m.fadeUp} className="mt-5">
           {children}
         </motion.div>
       )}

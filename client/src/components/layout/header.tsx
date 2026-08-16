@@ -79,21 +79,21 @@ export function Header() {
           cream && "on-dark",
         )}
       >
-        <div className={cn("mx-auto flex w-full max-w-wide items-center justify-between gap-4 px-5 sm:px-8 lg:px-12 transition-[padding] duration-700 ease-luxury", scrolled ? "py-2.5" : "py-4 md:py-5")}>
-          <Link href="/" data-testid="link-home-logo" aria-label="ORÁ Suites — home" className="focus-ring rounded-xl">
+        <div className={cn("mx-auto flex w-full max-w-wide items-center justify-between gap-4 px-5 sm:px-8 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:px-12 transition-[padding] duration-700 ease-luxury", scrolled ? "py-2.5" : "py-4 md:py-5")}>
+          <Link href="/" data-testid="link-home-logo" aria-label="ORÁ Suites — home" className="focus-ring rounded-xl lg:justify-self-start">
             <motion.img
               src={logoImage}
               alt="ORÁ Suites"
               width={160}
               height={56}
-              animate={{ height: scrolled ? 40 : 52 }}
+              animate={{ height: scrolled ? 36 : 44 }}
               transition={{ duration: 0.6, ease: easeLuxury }}
               className="w-auto object-contain rounded-lg"
-              style={{ height: scrolled ? 40 : 52 }}
+              style={{ height: scrolled ? 36 : 44 }}
             />
           </Link>
 
-          <nav aria-label="Primary" className="hidden lg:flex items-center gap-1">
+          <nav aria-label="Primary" className="hidden lg:flex items-center justify-center gap-0.5">
             {navLinks.map((link) => {
               const active = isActive(link.href);
               return (
@@ -103,7 +103,7 @@ export function Header() {
                   data-testid={`link-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "focus-ring group relative rounded-md px-3.5 py-2 font-sans text-[0.875rem] font-medium tracking-[0.02em] transition-colors duration-450 ease-luxury",
+                    "focus-ring group relative rounded-md px-3 py-2 font-sans text-[0.875rem] font-medium tracking-[0.02em] transition-colors duration-450 ease-luxury",
                     cream
                       ? active
                         ? "text-ora-cream"
@@ -128,10 +128,10 @@ export function Header() {
             })}
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 lg:justify-self-end">
             <Button asChild size="pill" variant={cream ? "glass" : "primary"} className="sm:min-h-11 sm:px-6 sm:text-[0.9375rem]">
               <Link href="/book" data-testid="button-book-now">
-                Book Now
+                Book
               </Link>
             </Button>
 
@@ -202,7 +202,7 @@ export function Header() {
                         data-testid={`link-mobile-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "focus-ring group flex items-baseline justify-between border-b border-ora-cream/10 py-4 font-display text-[clamp(2rem,8vw,2.75rem)] leading-none tracking-display",
+                          "focus-ring group flex items-baseline justify-between border-b border-ora-cream/10 py-4 font-display text-[clamp(1.5rem,6vw,2rem)] leading-none tracking-display",
                           active ? "text-ora-bronze" : "text-ora-cream",
                         )}
                       >
