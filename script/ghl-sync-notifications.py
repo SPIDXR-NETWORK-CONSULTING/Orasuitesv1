@@ -30,7 +30,7 @@ def api(method, path, body=None):
     except urllib.error.HTTPError as e:
         return {"error": e.code, "message": e.read().decode()[:500]}
 
-ADDRESS = "ORÁ Suites, 45 Deansgate, Manchester M3 2AY"
+ADDRESS = "ORÁ Suites, 49 Deansgate, Manchester M3 2AY"
 SIGN = "<br><br>With love,<br>The ORÁ Suites team<br>admin@orasuites.com"
 
 CONFIRM_EMAIL = {

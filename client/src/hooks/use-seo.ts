@@ -98,7 +98,7 @@ export const BUSINESS = {
   legalName: "ORÁ Suites",
   url: SITE_URL,
   email: "admin@orasuites.com",
-  streetAddress: "45 Deansgate",
+  streetAddress: "49 Deansgate",
   addressLocality: "Manchester",
   postalCode: "M3 2AY",
   addressCountry: "GB",
@@ -120,7 +120,7 @@ export function defaultBusinessJsonLd(extra: Record<string, unknown> = {}): Reco
     image: BUSINESS.image,
     logo: BUSINESS.image,
     description:
-      "ORÁ Suites — beauty & wellness sanctuary at 45 Deansgate, Manchester. Nurse-led aesthetics, luxury nails and private treatment rooms.",
+      "ORÁ Suites — beauty & wellness sanctuary at 49 Deansgate, Manchester. Nurse-led aesthetics, luxury nails and private treatment rooms.",
     address: {
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,

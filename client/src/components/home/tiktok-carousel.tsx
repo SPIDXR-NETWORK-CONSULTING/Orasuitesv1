@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 const VIDEOS = [
   { src: "/tiktok/tiktok-1.mp4", caption: "Nurse-led, natural results — the ORÁ way." },
-  { src: "/tiktok/tiktok-2.mp4", caption: "Inside ORÁ at 45 Deansgate." },
+  { src: "/tiktok/tiktok-2.mp4", caption: "Inside ORÁ at 49 Deansgate." },
   { src: "/tiktok/tiktok-3.mp4", caption: "Fresh sets from ORÁ Nails." },
   { src: "/tiktok/tiktok-4.mp4", caption: "Skin boosters, softly done." },
   { src: "/tiktok/tiktok-5.mp4", caption: "Real clients. Real glow." },

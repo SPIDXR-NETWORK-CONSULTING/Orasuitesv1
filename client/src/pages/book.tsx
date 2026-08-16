@@ -18,7 +18,7 @@ export default function BookPage() {
   useSEO({
     title: "Book an Appointment | ORÁ Suites Manchester",
     description:
-      "Book nurse-led aesthetics and luxury nail treatments online at ORÁ Suites, 45 Deansgate, Manchester. Choose your treatment and a time in four quick steps.",
+      "Book nurse-led aesthetics and luxury nail treatments online at ORÁ Suites, 49 Deansgate, Manchester. Choose your treatment and a time in four quick steps.",
     path: "/book",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Book", path: "/book" }]),
@@ -43,7 +43,7 @@ export default function BookPage() {
               Book an appointment
             </motion.h1>
             <motion.p variants={m.fadeUp} className="mt-2 font-sans text-[0.9375rem] text-ora-fog">
-              45 Deansgate, Manchester · four quick steps.
+              49 Deansgate, Manchester · four quick steps.
             </motion.p>
           </motion.header>
 

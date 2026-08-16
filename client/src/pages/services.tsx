@@ -64,7 +64,7 @@ export default function ServicesPage() {
   useSEO({
     title: "Treatments & Prices | ORÁ Suites Manchester",
     description:
-      "Full treatment menu and prices at ORÁ Suites, 45 Deansgate, Manchester: nurse-led anti-wrinkle, fillers, skin boosters and facials, plus BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser coming soon.",
+      "Full treatment menu and prices at ORÁ Suites, 49 Deansgate, Manchester: nurse-led anti-wrinkle, fillers, skin boosters and facials, plus BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser coming soon.",
     path: "/services",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Services", path: "/services" }]),

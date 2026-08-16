@@ -152,7 +152,7 @@ export function Footer() {
 
         <Reveal inherit>
           <address className="not-italic text-[0.875rem] leading-relaxed text-ora-smoke">
-            45 Deansgate, Manchester M3 2AY
+            49 Deansgate, Manchester M3 2AY
             <span className="mx-2 text-ora-bronze/60">·</span>
             Mon–Sat 9–7
             <span className="mx-2 text-ora-bronze/60">·</span>

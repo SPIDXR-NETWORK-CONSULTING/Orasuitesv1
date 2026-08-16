@@ -85,7 +85,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
       {!compact && (
         <p className="mt-4 flex items-start gap-2 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ora-bronze" aria-hidden />
-          ORÁ Suites · 45 Deansgate, Manchester M3 2AY
+          ORÁ Suites · 49 Deansgate, Manchester M3 2AY
         </p>
       )}
     </div>

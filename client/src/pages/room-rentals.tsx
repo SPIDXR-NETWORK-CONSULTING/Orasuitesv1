@@ -259,7 +259,7 @@ export default function RoomRentalsPage() {
   useSEO({
     title: "Treatment Room Rental Manchester | Practitioner Rooms at ORÁ Suites, Deansgate",
     description:
-      "Rent a fully equipped treatment room at ORÁ Suites, 45 Deansgate, Manchester. Half day from £75, full day £130, monthly £1,200 — furnished rooms, booking system, Wi-Fi and marketing included.",
+      "Rent a fully equipped treatment room at ORÁ Suites, 49 Deansgate, Manchester. Half day from £75, full day £130, monthly £1,200 — furnished rooms, booking system, Wi-Fi and marketing included.",
     jsonLd: [
       defaultBusinessJsonLd(),
       breadcrumbJsonLd([{ name: "Room rentals", path: "/room-rentals" }]),
@@ -303,7 +303,7 @@ export default function RoomRentalsPage() {
               Room rentals
             </DisplayHeading>
             <motion.p variants={m.fadeUp} className="mt-4 font-sans text-[0.95rem] leading-[1.55] text-ora-smoke sm:text-base">
-              Furnished treatment rooms for practitioners at 45 Deansgate, Manchester.
+              Furnished treatment rooms for practitioners at 49 Deansgate, Manchester.
             </motion.p>
             <motion.div variants={m.fadeUp} className="mt-7 flex flex-wrap justify-center gap-2.5">
               {PLANS.map((p) => (

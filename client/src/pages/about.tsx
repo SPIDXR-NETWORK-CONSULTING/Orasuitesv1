@@ -40,7 +40,7 @@ export default function AboutPage() {
   useSEO({
     title: "About ORÁ Suites | Nurse-Led Aesthetics & Luxury Nails, Deansgate Manchester",
     description:
-      "ORÁ Suites is a calm, private clinic at 45 Deansgate, Manchester — nurse-led aesthetics and luxury nails in a space designed to slow down, connect and feel looked after.",
+      "ORÁ Suites is a calm, private clinic at 49 Deansgate, Manchester — nurse-led aesthetics and luxury nails in a space designed to slow down, connect and feel looked after.",
     jsonLd: [
       defaultBusinessJsonLd({
         founder: { "@type": "Person", name: "Meg Cauli", worksFor: { "@id": `${SITE_URL}/#business` } },
@@ -53,7 +53,7 @@ export default function AboutPage() {
     <Layout padTop lightHeader>
       {/* ── 1. Intro + founder ───────────────────────────── */}
       <Section tone="milk" mesh grain pad="sm" animate={false} className="pt-6 md:pt-10">
-        <Heading as="h1" size="xl" title="About ORÁ" line="Nurse-led aesthetics and luxury nails, 45 Deansgate, Manchester." className="mb-10 md:mb-14" />
+        <Heading as="h1" size="xl" title="About ORÁ" line="Nurse-led aesthetics and luxury nails, 49 Deansgate, Manchester." className="mb-10 md:mb-14" />
 
         <div className="mx-auto grid max-w-4xl items-center gap-8 md:grid-cols-2 md:gap-12">
           <Reveal>
@@ -142,7 +142,7 @@ export default function AboutPage() {
               <li className="flex items-start justify-center gap-3 md:justify-start">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ora-bronze" aria-hidden />
                 <span>
-                  <span className="text-foreground">45 Deansgate</span>, Manchester M3 2AY
+                  <span className="text-foreground">49 Deansgate</span>, Manchester M3 2AY
                 </span>
               </li>
               <li className="flex items-start justify-center gap-3 md:justify-start">

@@ -6,9 +6,9 @@ import { useMotionSafe, viewportOnce } from "@/lib/motion";
 import manchesterImage from "@assets/manchester-location_1770213665902.png";
 
 /* Business truth — keep in sync with hooks/use-seo.ts BUSINESS */
-const ADDRESS = "45 Deansgate, Manchester M3 2AY";
+const ADDRESS = "49 Deansgate, Manchester M3 2AY";
 const EMAIL = "admin@orasuites.com";
-const MAPS_URL = "https://maps.google.com/?q=45+Deansgate+Manchester+M3+2AY";
+const MAPS_URL = "https://maps.google.com/?q=49+Deansgate+Manchester+M3+2AY";
 const HOURS = "Mon – Sat · 9am – 7pm";
 
 const ROWS = [

@@ -36,13 +36,19 @@ export function Header() {
 
   useEffect(() => setOpen(false), [location]);
 
-  // lock body scroll when the overlay is open
+  // close the dropdown when the user scrolls the page or taps outside it
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const onScroll = () => setOpen(false);
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && !t.closest("#mobile-menu") && !t.closest("[data-mobile-toggle]")) setOpen(false);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    document.addEventListener("pointerdown", onDown);
     return () => {
-      document.body.style.overflow = prev;
+      window.removeEventListener("scroll", onScroll);
+      document.removeEventListener("pointerdown", onDown);
     };
   }, [open]);
 
@@ -138,6 +144,7 @@ export function Header() {
             <button
               data-testid="button-mobile-menu"
               type="button"
+              data-mobile-toggle
               onClick={() => setOpen((v) => !v)}
               aria-label={open ? "Close menu" : "Open menu"}
               aria-expanded={open}
@@ -169,14 +176,13 @@ export function Header() {
         {open && (
           <motion.div
             id="mobile-menu"
-            role="dialog"
-            aria-modal="true"
+            role="region"
             aria-label="Menu"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, transition: { duration: 0.3, ease: easeLuxury } }}
-            transition={{ duration: 0.4, ease: easeLuxury }}
-            className="fixed inset-0 z-40 lg:hidden band-dark mesh-bg-dark grain"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8, transition: { duration: 0.2, ease: easeLuxury } }}
+            transition={{ duration: 0.3, ease: easeLuxury }}
+            className="fixed inset-x-0 top-0 z-40 max-h-[100dvh] overflow-y-auto overscroll-contain rounded-b-2xl band-dark mesh-bg-dark grain shadow-luxury lg:hidden"
           >
             <motion.nav
               aria-label="Mobile"
@@ -184,7 +190,7 @@ export function Header() {
               animate="show"
               exit="hidden"
               variants={m.stagger(0.07, 0.15)}
-              className="relative z-[2] flex h-full flex-col justify-between px-6 pb-8 pt-28 sm:px-10"
+              className="relative z-[2] flex flex-col gap-8 px-6 pb-8 pt-24 sm:px-10"
             >
               <ul className="flex flex-col gap-1">
                 {navLinks.map((link) => {
@@ -228,7 +234,7 @@ export function Header() {
                   </Link>
                 </Button>
                 <p className="font-sans text-[0.8125rem] leading-relaxed text-ora-smoke">
-                  45 Deansgate, Manchester M3 2AY
+                  49 Deansgate, Manchester M3 2AY
                   <br />
                   <a href="mailto:admin@orasuites.com" className="hover:text-ora-cream transition-colors">
                     admin@orasuites.com

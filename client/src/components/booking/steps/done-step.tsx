@@ -34,7 +34,7 @@ export function DoneStep({ state, appointmentId }: Props) {
       icsDataUrl({
         title: `${s.name} — ORÁ Suites`,
         description: `${s.categoryTitle} · ${formatDuration(s.duration)}`,
-        location: "ORÁ Suites, 45 Deansgate, Manchester M3 2AY",
+        location: "ORÁ Suites, 49 Deansgate, Manchester M3 2AY",
         startIso: state.slot,
         endIso,
         uid: appointmentId ? `${appointmentId}@orasuites.com` : undefined,
@@ -99,7 +99,7 @@ export function DoneStep({ state, appointmentId }: Props) {
           </div>
           <div>
             <p className="text-[0.6875rem] uppercase tracking-[0.18em] text-ora-bronze">Where</p>
-            <p className="mt-1 text-foreground">45 Deansgate</p>
+            <p className="mt-1 text-foreground">49 Deansgate</p>
             <p className="text-ora-fog">Manchester M3 2AY</p>
           </div>
         </div>

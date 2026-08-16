@@ -57,7 +57,7 @@ export function HeroSection() {
           </DisplayHeading>
 
           <motion.p variants={m.fadeUp} className="mt-3 font-sans text-[0.9375rem] tracking-[0.02em] text-ora-cream/85">
-            45 Deansgate, Manchester
+            49 Deansgate, Manchester
           </motion.p>
 
           <motion.div variants={m.fadeUp} className="mt-7 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:gap-4">

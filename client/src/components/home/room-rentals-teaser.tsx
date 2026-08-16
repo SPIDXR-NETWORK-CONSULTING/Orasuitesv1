@@ -46,7 +46,7 @@ export function RoomRentalsTeaserSection() {
             {"Rent a treatment room."}
           </DisplayHeading>
           <motion.p variants={m.fadeUp} className="lede mt-3">
-            Furnished private rooms at 45 Deansgate — half-day, day or monthly.
+            Furnished private rooms at 49 Deansgate — half-day, day or monthly.
           </motion.p>
 
           <motion.ul

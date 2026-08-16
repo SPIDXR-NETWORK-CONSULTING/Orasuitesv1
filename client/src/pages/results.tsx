@@ -146,7 +146,7 @@ export default function ResultsPage() {
   useSEO({
     title: "Results | Aesthetics & Skin at ORÁ Suites, Manchester",
     description:
-      "Before-and-after results and treatment photos from ORÁ Suites, 45 Deansgate, Manchester — lip, chin and under-eye filler, polynucleotides, HydraFacial and microneedling. Shared with consent; results vary.",
+      "Before-and-after results and treatment photos from ORÁ Suites, 49 Deansgate, Manchester — lip, chin and under-eye filler, polynucleotides, HydraFacial and microneedling. Shared with consent; results vary.",
     jsonLd: [defaultBusinessJsonLd(), breadcrumbJsonLd([{ name: "Results", path: "/results" }])],
   });
 

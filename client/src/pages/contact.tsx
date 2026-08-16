@@ -147,9 +147,9 @@ function EnquiryForm() {
 /* ── page ──────────────────────────────────────────────── */
 export default function ContactPage() {
   useSEO({
-    title: "Contact ORÁ Suites | 45 Deansgate, Manchester",
+    title: "Contact ORÁ Suites | 49 Deansgate, Manchester",
     description:
-      "Get in touch with ORÁ Suites at 45 Deansgate, Manchester M3 2AY. Ask about aesthetics, nails or room rentals — we reply within one working day.",
+      "Get in touch with ORÁ Suites at 49 Deansgate, Manchester M3 2AY. Ask about aesthetics, nails or room rentals — we reply within one working day.",
     jsonLd: [defaultBusinessJsonLd(), breadcrumbJsonLd([{ name: "Contact", path: "/contact" }])],
   });
 
@@ -182,9 +182,9 @@ export default function ContactPage() {
                 <li className="flex gap-3">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-ora-bronze" aria-hidden />
                   <div>
-                    <p className="text-foreground">45 Deansgate, Manchester M3 2AY</p>
+                    <p className="text-foreground">49 Deansgate, Manchester M3 2AY</p>
                     <a
-                      href="https://www.google.com/maps/dir/?api=1&destination=45+Deansgate+Manchester+M3+2AY"
+                      href="https://www.google.com/maps/dir/?api=1&destination=49+Deansgate+Manchester+M3+2AY"
                       target="_blank"
                       rel="noreferrer"
                       className="mt-1 inline-flex items-center gap-1.5 text-[0.75rem] uppercase tracking-[0.16em] text-ora-bronze underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ora-bronze rounded"
@@ -222,8 +222,8 @@ export default function ContactPage() {
         <Reveal delay={0.1} className="mx-auto mt-5 max-w-5xl">
           <div className="overflow-hidden rounded-2xl border border-white/40 bg-white/40 p-1.5 shadow-glass backdrop-blur-glass-sm">
             <iframe
-              title="Map showing ORÁ Suites at 45 Deansgate, Manchester M3 2AY"
-              src="https://www.google.com/maps?q=45+Deansgate+Manchester+M3+2AY&output=embed"
+              title="Map showing ORÁ Suites at 49 Deansgate, Manchester M3 2AY"
+              src="https://www.google.com/maps?q=49+Deansgate+Manchester+M3+2AY&output=embed"
               className="h-[280px] w-full rounded-xl border-0 grayscale-[35%] transition-[filter] duration-700 ease-luxury hover:grayscale-0"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
