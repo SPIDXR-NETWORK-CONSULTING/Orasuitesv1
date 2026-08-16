@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
+import { processEnquiry } from "./ghl-notify";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -15,6 +16,7 @@ async function ghlFetch(path: string, options: RequestInit = {}) {
       "Authorization": `Bearer ${GHL_API_KEY}`,
       "Version": "2021-04-15",
       "Content-Type": "application/json",
+      "User-Agent": "Mozilla/5.0 ora-suites/1.0",
       ...(options.headers || {}),
     },
   });
@@ -32,54 +34,19 @@ export async function registerRoutes(
       const validatedData = insertContactSchema.parse(req.body);
       const contact = await storage.createContactSubmission(validatedData);
 
-      // Push to GHL asynchronously — don't block the response
-      (async () => {
-        try {
-          const nameParts = (validatedData.name || "").trim().split(" ");
-          const firstName = nameParts[0];
-          const lastName = nameParts.slice(1).join(" ") || "";
-
-          const contactRes = await ghlFetch("/contacts/", {
-            method: "POST",
-            headers: { "Version": "2021-07-28" },
-            body: JSON.stringify({
-              locationId: GHL_LOCATION_ID,
-              firstName,
-              lastName,
-              email: validatedData.email,
-              phone: validatedData.phone || "",
-              tags: ["website-enquiry"],
-              source: "website-contact-form",
-            }),
-          });
-
-          const contactId = contactRes?.contact?.id;
-          if (contactId && validatedData.service) {
-            await ghlFetch("/opportunities/", {
-              method: "POST",
-              headers: { "Version": "2021-07-28" },
-              body: JSON.stringify({
-                pipelineId: "",
-                locationId: GHL_LOCATION_ID,
-                name: `Enquiry — ${validatedData.name}`,
-                pipelineStageId: "",
-                status: "open",
-                contactId,
-                monetaryValue: 0,
-                assignedTo: "",
-                customFields: [
-                  { key: "message", field_value: validatedData.message || "" },
-                  { key: "service_interest", field_value: validatedData.service || "" },
-                ],
-              }),
-            });
-          }
-        } catch (ghlErr) {
-          console.error("GHL contact sync error (non-blocking):", ghlErr);
-        }
-      })();
-
+      // Respond first, then sync to GHL (contact → opportunity → admin email) without blocking.
       res.status(201).json({ success: true, id: contact.id });
+      void processEnquiry(
+        {
+          name: validatedData.name,
+          email: validatedData.email,
+          phone: validatedData.phone ?? null,
+          service: validatedData.service ?? null,
+          message: validatedData.message,
+        },
+        "express",
+      );
+      return;
     } catch (error) {
       if (error instanceof z.ZodError) {
         res.status(400).json({ error: "Invalid form data", details: error.errors });

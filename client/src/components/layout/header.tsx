@@ -1,154 +1,241 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from "framer-motion";
+import { Menu, X, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import logoImage from "@assets/ora-logo-new.jpg";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
-  { href: "/results", label: "Results" },
-  { href: "/about", label: "About" },
   { href: "/room-rentals", label: "Room Rentals" },
+  { href: "/about", label: "About" },
+  { href: "/results", label: "Results" },
   { href: "/contact", label: "Contact" },
 ];
 
+/**
+ * Routes whose hero is dark imagery → header starts transparent with cream text.
+ * Pages with a light top (e.g. /book, /privacy) get the dark-on-light treatment.
+ * Page agents: add/remove routes here if a hero changes tone (or add `.on-dark`
+ * handling via the `data-header="light"` attribute below).
+ */
+const DARK_HERO_ROUTES = ["/", "/services", "/about", "/results", "/room-rentals", "/contact"];
+
 export function Header() {
   const [location] = useLocation();
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const m = useMotionSafe();
+  const { scrollY } = useScroll();
 
+  useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 24));
+  useEffect(() => setScrolled(window.scrollY > 24), []);
+
+  useEffect(() => setOpen(false), [location]);
+
+  // lock body scroll when the overlay is open
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
     };
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  }, [open]);
 
+  const onKey = useCallback((e: KeyboardEvent) => {
+    if (e.key === "Escape") setOpen(false);
+  }, []);
   useEffect(() => {
-    setIsMobileMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onKey]);
+
+  const [pageForcesLight, setPageForcesLight] = useState(false);
+  useEffect(() => {
+    // pages may opt out of the transparent/cream header with <main data-header="light"> or any element [data-header="light"]
+    setPageForcesLight(!!document.querySelector('[data-header="light"]'));
   }, [location]);
+  const overDark = !scrolled && !open && !pageForcesLight && DARK_HERO_ROUTES.includes(location);
+  /** cream text: over a dark hero, or while the dark overlay menu is open */
+  const cream = overDark || open;
+  const isActive = (href: string) => (href === "/" ? location === "/" : location.startsWith(href));
 
   return (
     <>
-      <header
+      <motion.header
         data-testid="header"
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          isScrolled
-            ? "bg-ora-milk/95 backdrop-blur-md shadow-sm py-3"
-            : "bg-transparent py-5"
-        }`}
+        initial={m.reduced ? false : { y: -24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.9, ease: easeLuxury }}
+        className={cn(
+          "fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,padding] duration-700 ease-luxury",
+          scrolled && !open
+            ? "border-b border-glass-border bg-ora-milk/70 backdrop-blur-glass shadow-[0_10px_40px_-20px_rgba(15,9,8,.35)] supports-[backdrop-filter]:bg-ora-milk/60"
+            : "border-b border-transparent bg-transparent",
+          cream && "on-dark",
+        )}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4">
-            <Link href="/" data-testid="link-home-logo">
-              <img
-                src={logoImage}
-                alt="ORÁ."
-                className="h-12 md:h-14 w-auto object-contain rounded-xl"
-              />
-            </Link>
+        <div className={cn("mx-auto flex w-full max-w-wide items-center justify-between gap-4 px-5 sm:px-8 lg:px-12 transition-[padding] duration-700 ease-luxury", scrolled ? "py-2.5" : "py-4 md:py-5")}>
+          <Link href="/" data-testid="link-home-logo" aria-label="ORÁ Suites — home" className="focus-ring rounded-xl">
+            <motion.img
+              src={logoImage}
+              alt="ORÁ Suites"
+              width={160}
+              height={56}
+              animate={{ height: scrolled ? 40 : 52 }}
+              transition={{ duration: 0.6, ease: easeLuxury }}
+              className="w-auto object-contain rounded-lg"
+              style={{ height: scrolled ? 40 : 52 }}
+            />
+          </Link>
 
-            <nav className="hidden lg:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link key={link.href} href={link.href}>
-                  <span
-                    data-testid={`link-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                    className={`px-4 py-2 text-sm font-medium transition-colors rounded-md ${
-                      location === link.href
-                        ? "text-ora-taupe"
-                        : "text-ora-fog hover:text-ora-taupe"
-                    }`}
-                  >
-                    {link.label}
-                  </span>
-                </Link>
-              ))}
-            </nav>
-
-            <div className="flex items-center gap-3">
-              <Link href="/book" className="hidden sm:block">
-                <Button
-                  data-testid="button-book-now"
-                  className="bg-ora-taupe text-white hover:bg-ora-fog font-medium px-6"
+          <nav aria-label="Primary" className="hidden lg:flex items-center gap-1">
+            {navLinks.map((link) => {
+              const active = isActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  data-testid={`link-nav-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "focus-ring group relative rounded-md px-3.5 py-2 font-sans text-[0.875rem] font-medium tracking-[0.02em] transition-colors duration-450 ease-luxury",
+                    cream
+                      ? active
+                        ? "text-ora-cream"
+                        : "text-ora-cream/75 hover:text-ora-cream"
+                      : active
+                        ? "text-foreground"
+                        : "text-ora-fog hover:text-foreground",
+                  )}
                 >
-                  Book Now
-                </Button>
-              </Link>
+                  {link.label}
+                  {active ? (
+                    <motion.span
+                      layoutId="nav-underline"
+                      transition={spring.soft}
+                      className="absolute left-3.5 right-3.5 -bottom-0.5 h-px bg-ora-bronze"
+                    />
+                  ) : (
+                    <span className="absolute left-3.5 right-3.5 -bottom-0.5 h-px origin-left scale-x-0 bg-ora-bronze/70 transition-transform duration-450 ease-luxury group-hover:scale-x-100" />
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
 
-              <button
-                data-testid="button-mobile-menu"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 text-ora-fog hover:text-ora-taupe transition-colors"
-                aria-label="Toggle menu"
-              >
-                {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-              </button>
-            </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button asChild size="pill" variant={cream ? "glass" : "primary"} className="sm:min-h-11 sm:px-6 sm:text-[0.9375rem]">
+              <Link href="/book" data-testid="button-book-now">
+                Book Now
+              </Link>
+            </Button>
+
+            <button
+              data-testid="button-mobile-menu"
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-label={open ? "Close menu" : "Open menu"}
+              aria-expanded={open}
+              aria-controls="mobile-menu"
+              className={cn(
+                "focus-ring lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-450",
+                cream ? "text-ora-cream hover:bg-ora-cream/10" : "text-foreground hover:bg-ora-taupe/10",
+              )}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.span
+                  key={open ? "x" : "menu"}
+                  initial={{ rotate: -90, opacity: 0 }}
+                  animate={{ rotate: 0, opacity: 1 }}
+                  exit={{ rotate: 90, opacity: 0 }}
+                  transition={{ duration: 0.25, ease: easeLuxury }}
+                  className="inline-flex"
+                >
+                  {open ? <X size={22} strokeWidth={1.5} /> : <Menu size={22} strokeWidth={1.5} />}
+                </motion.span>
+              </AnimatePresence>
+            </button>
           </div>
         </div>
-      </header>
+      </motion.header>
 
+      {/* Mobile full-screen glass overlay */}
       <AnimatePresence>
-        {isMobileMenuOpen && (
+        {open && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 lg:hidden"
+            id="mobile-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.3, ease: easeLuxury } }}
+            transition={{ duration: 0.4, ease: easeLuxury }}
+            className="fixed inset-0 z-40 lg:hidden band-dark mesh-bg-dark grain"
           >
-            <div
-              className="absolute inset-0 bg-black/20 backdrop-blur-sm"
-              onClick={() => setIsMobileMenuOpen(false)}
-            />
             <motion.nav
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="absolute right-0 top-0 h-full w-80 max-w-full bg-ora-milk shadow-xl"
+              aria-label="Mobile"
+              initial="hidden"
+              animate="show"
+              exit="hidden"
+              variants={m.stagger(0.07, 0.15)}
+              className="relative z-[2] flex h-full flex-col justify-between px-6 pb-8 pt-28 sm:px-10"
             >
-              <div className="pt-20 px-6 pb-8 flex flex-col gap-2">
-                {navLinks.map((link, index) => (
-                  <motion.div
-                    key={link.href}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                  >
-                    <Link href={link.href}>
-                      <span
-                        data-testid={`link-mobile-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                        className={`block py-3 px-4 text-lg font-medium rounded-md transition-colors ${
-                          location === link.href
-                            ? "text-ora-taupe bg-ora-bone"
-                            : "text-ora-fog hover:text-ora-taupe hover:bg-ora-sand"
-                        }`}
-                      >
-                        {link.label}
-                      </span>
-                    </Link>
-                  </motion.div>
-                ))}
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: navLinks.length * 0.05 }}
-                  className="mt-6"
-                >
-                  <Link href="/book">
-                    <Button
-                      data-testid="button-mobile-book-now"
-                      className="w-full bg-ora-taupe text-white hover:bg-ora-fog font-medium py-6"
+              <ul className="flex flex-col gap-1">
+                {navLinks.map((link) => {
+                  const active = isActive(link.href);
+                  return (
+                    <motion.li
+                      key={link.href}
+                      variants={{
+                        hidden: { opacity: 0, y: 24 },
+                        show: { opacity: 1, y: 0, transition: spring.soft },
+                      }}
                     >
-                      Book Now
-                    </Button>
+                      <Link
+                        href={link.href}
+                        data-testid={`link-mobile-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "focus-ring group flex items-baseline justify-between border-b border-ora-cream/10 py-4 font-display text-[clamp(2rem,8vw,2.75rem)] leading-none tracking-display",
+                          active ? "text-ora-bronze" : "text-ora-cream",
+                        )}
+                      >
+                        <span>{link.label}</span>
+                        <ArrowUpRight
+                          size={22}
+                          strokeWidth={1.25}
+                          className="translate-y-1 text-ora-bronze opacity-0 transition-all duration-450 ease-luxury group-hover:translate-y-0 group-hover:opacity-100"
+                        />
+                      </Link>
+                    </motion.li>
+                  );
+                })}
+              </ul>
+
+              <motion.div
+                variants={{ hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: spring.soft } }}
+                className="flex flex-col gap-5"
+              >
+                <Button asChild size="lg" variant="luxury" className="w-full">
+                  <Link href="/book" data-testid="button-mobile-book-now">
+                    Book Now
                   </Link>
-                </motion.div>
-              </div>
+                </Button>
+                <p className="font-sans text-[0.8125rem] leading-relaxed text-ora-smoke">
+                  45 Deansgate, Manchester M3 2AY
+                  <br />
+                  <a href="mailto:admin@orasuites.com" className="hover:text-ora-cream transition-colors">
+                    admin@orasuites.com
+                  </a>
+                  <span className="mx-2 text-ora-bronze/60">·</span>Mon–Sat 9–7
+                </p>
+              </motion.div>
             </motion.nav>
           </motion.div>
         )}

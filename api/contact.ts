@@ -1,10 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
+import { processEnquiry } from "./_lib/ghl";
 
-const GHL_API_KEY = process.env.GHL_API_KEY!;
-const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
-const GHL_BASE = "https://services.leadconnectorhq.com";
-
+/** Mirrors shared/schema insertContactSchema (name, email, phone?, service?, message). */
 const insertContactSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
@@ -13,74 +11,32 @@ const insertContactSchema = z.object({
   message: z.string().min(1),
 });
 
-async function pushToGHL(data: z.infer<typeof insertContactSchema>) {
-  try {
-    const nameParts = (data.name || "").trim().split(" ");
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(" ") || "";
-
-    const contactRes = await fetch(`${GHL_BASE}/contacts/`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${GHL_API_KEY}`,
-        Version: "2021-07-28",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        locationId: GHL_LOCATION_ID,
-        firstName,
-        lastName,
-        email: data.email,
-        phone: data.phone || "",
-        tags: ["website-enquiry"],
-        source: "website-contact-form",
-        customFields: [
-          { key: "message", field_value: data.message || "" },
-          ...(data.service ? [{ key: "service_interest", field_value: data.service }] : []),
-        ],
-      }),
-    });
-
-    const contactJson = await contactRes.json();
-    const contactId = contactJson?.contact?.id;
-
-    if (contactId && data.service) {
-      await fetch(`${GHL_BASE}/opportunities/`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${GHL_API_KEY}`,
-          Version: "2021-07-28",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          locationId: GHL_LOCATION_ID,
-          name: `Enquiry — ${data.name}`,
-          status: "open",
-          contactId,
-          monetaryValue: 0,
-        }),
-      });
-    }
-  } catch (err) {
-    console.error("GHL contact sync error (non-blocking):", err);
-  }
-}
-
-export default function handler(req: VercelRequest, res: VercelResponse) {
+/**
+ * POST /api/contact (Vercel)
+ * Same contract + same GHL side-effects as server/routes.ts:
+ *   contact upsert → opportunity (Room Rentals pipeline for rental enquiries) → admin email via GHL.
+ * We await the sync here because a serverless function may be frozen the moment the
+ * response is sent; the calls are wrapped so a GHL failure never fails the submission.
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "POST") {
+    let validated: z.infer<typeof insertContactSchema>;
     try {
-      const validatedData = insertContactSchema.parse(req.body);
-      pushToGHL(validatedData); // fire-and-forget
-      return res.status(201).json({ success: true });
+      validated = insertContactSchema.parse(req.body);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid form data", details: error.errors });
       }
       return res.status(500).json({ error: "Failed to submit form" });
     }
+
+    // Best-effort, never throws. Awaited so Vercel doesn't freeze the function mid-request.
+    await processEnquiry(validated, "vercel");
+    return res.status(201).json({ success: true });
   }
 
   if (req.method === "GET") {
+    // Submissions are not persisted on Vercel (no DB) — they live in GHL.
     return res.json([]);
   }
 

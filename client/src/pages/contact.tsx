@@ -1,214 +1,352 @@
-import { useState } from "react";
+import * as React from "react";
+import { z } from "zod";
+import { motion } from "framer-motion";
+import { Link } from "wouter";
+import { ArrowRight, Clock, Mail, MapPin } from "lucide-react";
+
 import { Layout } from "@/components/layout/layout";
 import { Section } from "@/components/ui/section";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { motion } from "framer-motion";
-import { MapPin, Mail, Clock, CheckCircle, Loader2 } from "lucide-react";
-import { Link } from "wouter";
-import { useSEO } from "@/hooks/use-seo";
+import { GlassCard, GlassPill, Eyebrow, DisplayHeading } from "@/components/ui/glass";
+import { Reveal, Stagger, useMotionSafe, spring } from "@/lib/motion";
+import { categories } from "@/lib/catalogue";
+import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd } from "@/hooks/use-seo";
+import {
+  FloatingInput,
+  FloatingSelect,
+  FloatingTextarea,
+  SubmitButton,
+  SuccessPanel,
+  type SubmitState,
+} from "@/components/forms/floating-field";
 
-import heroBannerImage from "@assets/contact-hero-nails.jpg";
+import warmImage from "@assets/contact-hero-nails.jpg";
 
-function ContactForm() {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" });
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+/* ── validation ────────────────────────────────────────── */
+const contactSchema = z.object({
+  name: z.string().trim().min(2, "Please tell us your name."),
+  email: z.string().trim().email("That email doesn't look right."),
+  phone: z
+    .string()
+    .trim()
+    .max(30, "That number looks too long.")
+    .optional()
+    .or(z.literal("")),
+  service: z.string().min(1, "Choose what this is about."),
+  message: z.string().trim().min(10, "A sentence or two helps us help you."),
+});
+type ContactValues = z.infer<typeof contactSchema>;
+type Errors = Partial<Record<keyof ContactValues, string>>;
 
-  const update = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-    setForm((f) => ({ ...f, [field]: e.target.value }));
+const SERVICE_OPTIONS = [...categories.map((c) => c.title), "Room rental", "Something else"];
 
-  async function handleSubmit(e: React.FormEvent) {
+const HOURS = [
+  { day: "Monday – Saturday", time: "9am – 7pm" },
+  { day: "Sunday", time: "Closed" },
+];
+
+/* ── form ──────────────────────────────────────────────── */
+function EnquiryForm() {
+  const [values, setValues] = React.useState<ContactValues>({ name: "", email: "", phone: "", service: "", message: "" });
+  const [errors, setErrors] = React.useState<Errors>({});
+  const [touched, setTouched] = React.useState<Partial<Record<keyof ContactValues, boolean>>>({});
+  const [state, setState] = React.useState<SubmitState>("idle");
+  const [serverError, setServerError] = React.useState<string | null>(null);
+
+  const validate = React.useCallback((v: ContactValues): Errors => {
+    const r = contactSchema.safeParse(v);
+    if (r.success) return {};
+    const out: Errors = {};
+    for (const issue of r.error.issues) {
+      const k = issue.path[0] as keyof ContactValues;
+      if (!out[k]) out[k] = issue.message;
+    }
+    return out;
+  }, []);
+
+  const set = (k: keyof ContactValues) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const next = { ...values, [k]: e.target.value };
+    setValues(next);
+    if (touched[k]) setErrors(validate(next));
+  };
+  const blur = (k: keyof ContactValues) => () => {
+    setTouched((t) => ({ ...t, [k]: true }));
+    setErrors(validate(values));
+  };
+
+  async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name || !form.email || !form.message) return;
-    setStatus("loading");
+    const errs = validate(values);
+    setErrors(errs);
+    setTouched({ name: true, email: true, phone: true, service: true, message: true });
+    if (Object.keys(errs).length) return;
+    setState("loading");
+    setServerError(null);
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, service: "" }),
+        body: JSON.stringify({
+          name: values.name.trim(),
+          email: values.email.trim(),
+          phone: values.phone?.trim() || undefined,
+          service: values.service,
+          message: values.message.trim(),
+        }),
       });
-      if (res.ok) {
-        setStatus("success");
-        setForm({ name: "", email: "", phone: "", message: "" });
-      } else {
-        setStatus("error");
-      }
+      if (!res.ok) throw new Error(String(res.status));
+      setState("success");
     } catch {
-      setStatus("error");
+      setState("error");
+      setServerError("Something went wrong on our side. Please try again, or email admin@orasuites.com.");
     }
   }
 
-  if (status === "success") {
+  const reset = () => {
+    setValues({ name: "", email: "", phone: "", service: "", message: "" });
+    setErrors({});
+    setTouched({});
+    setState("idle");
+  };
+
+  if (state === "success") {
     return (
-      <div className="flex flex-col items-center gap-3 py-6 text-center">
-        <CheckCircle size={28} className="text-ora-taupe" />
-        <p className="font-medium text-foreground">Message received!</p>
-        <p className="text-sm text-ora-fog">We'll get back to you within 24 hours.</p>
-        <button onClick={() => setStatus("idle")} className="text-xs text-ora-fog underline mt-1">
-          Send another message
-        </button>
-      </div>
+      <SuccessPanel
+        title="Message received."
+        body={
+          <>
+            Thank you, {values.name.split(" ")[0]}. We reply within one working day — usually much sooner.
+          </>
+        }
+        onReset={reset}
+      />
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label htmlFor="c-name" className="text-sm text-foreground">Name *</Label>
-        <Input id="c-name" value={form.name} onChange={update("name")} placeholder="Jane Smith" required className="mt-1 bg-white border-ora-greige focus:border-ora-taupe" />
+    <form onSubmit={onSubmit} noValidate className="space-y-5" aria-describedby={serverError ? "contact-server-error" : undefined}>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FloatingInput label="Your name" name="name" autoComplete="name" required value={values.name} onChange={set("name")} onBlur={blur("name")} error={touched.name ? errors.name : undefined} />
+        <FloatingInput label="Email" name="email" type="email" autoComplete="email" inputMode="email" required value={values.email} onChange={set("email")} onBlur={blur("email")} error={touched.email ? errors.email : undefined} />
       </div>
-      <div>
-        <Label htmlFor="c-email" className="text-sm text-foreground">Email *</Label>
-        <Input id="c-email" type="email" value={form.email} onChange={update("email")} placeholder="jane@example.com" required className="mt-1 bg-white border-ora-greige focus:border-ora-taupe" />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FloatingInput label="Phone (optional)" name="phone" type="tel" autoComplete="tel" inputMode="tel" value={values.phone ?? ""} onChange={set("phone")} onBlur={blur("phone")} error={touched.phone ? errors.phone : undefined} />
+        <FloatingSelect label="What's this about?" name="service" required value={values.service} onChange={set("service")} onBlur={blur("service")} error={touched.service ? errors.service : undefined} placeholder="Choose one">
+          {SERVICE_OPTIONS.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </FloatingSelect>
       </div>
-      <div>
-        <Label htmlFor="c-phone" className="text-sm text-foreground">Phone</Label>
-        <Input id="c-phone" type="tel" value={form.phone} onChange={update("phone")} placeholder="+44 7700 900000" className="mt-1 bg-white border-ora-greige focus:border-ora-taupe" />
+      <FloatingTextarea label="Your message" name="message" rows={5} required value={values.message} onChange={set("message")} onBlur={blur("message")} error={touched.message ? errors.message : undefined} />
+
+      {serverError && (
+        <p id="contact-server-error" role="alert" className="rounded-2xl border border-[#b5533c]/30 bg-[#b5533c]/[.06] px-4 py-3 font-sans text-[0.85rem] text-[#8f3f2c]">
+          {serverError}
+        </p>
+      )}
+
+      <div className="flex flex-col-reverse items-start gap-4 pt-1 sm:flex-row sm:items-center sm:justify-between">
+        <p className="font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+          We only use your details to reply to you.{" "}
+          <Link href="/privacy" className="text-ora-bronze underline-offset-4 hover:underline">
+            Privacy
+          </Link>
+        </p>
+        <SubmitButton state={state === "error" ? "idle" : state} idleLabel="Send message" successLabel="Sent" icon={<ArrowRight className="h-4 w-4" aria-hidden />} className="w-full sm:w-auto" />
       </div>
-      <div>
-        <Label htmlFor="c-message" className="text-sm text-foreground">Message *</Label>
-        <Textarea id="c-message" value={form.message} onChange={update("message")} placeholder="How can we help you?" rows={4} required className="mt-1 bg-white border-ora-greige focus:border-ora-taupe resize-none" />
-      </div>
-      {status === "error" && <p className="text-sm text-red-500">Something went wrong. Please try again.</p>}
-      <Button type="submit" disabled={status === "loading"} className="w-full bg-ora-taupe text-white hover:bg-ora-fog">
-        {status === "loading" ? <><Loader2 size={16} className="animate-spin mr-2" /> Sending…</> : "Send Message"}
-      </Button>
     </form>
   );
 }
 
+/* ── page ──────────────────────────────────────────────── */
 export default function ContactPage() {
+  const m = useMotionSafe();
+
   useSEO({
-    title: "Contact Us | ORÁ. - Manchester's Premier Wellness Sanctuary",
-    description: "Get in touch with Ora Suites. Book a consultation, ask questions, or inquire about room rentals. Located in Manchester city centre.",
+    title: "Contact ORÁ Suites | Women-Only Clinic, 45 Deansgate Manchester",
+    description:
+      "Get in touch with ORÁ Suites — Manchester's women-only sanctuary for beauty & wellness at 45 Deansgate, M3 2AY. Ask about aesthetics, nails or room rentals. We reply within one working day.",
+    jsonLd: [defaultBusinessJsonLd(), breadcrumbJsonLd([{ name: "Contact", path: "/contact" }])],
   });
 
   return (
-    <Layout>
-      <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
-        <img
-          src={heroBannerImage}
-          alt="ORÁ Suites — Contact"
-          className="absolute inset-0 w-full h-full object-cover object-top"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+    <Layout padTop lightHeader>
+      {/* ── Intro (no tall hero — straight into the two columns) ── */}
+      <Section tone="milk" mesh grain pad="sm" className="pb-0 md:pb-0" animate={false}>
+        <div className="max-w-3xl">
+          <Eyebrow as="p" rule className="mb-5">
+            Contact · Deansgate, Manchester
+          </Eyebrow>
+          <DisplayHeading as="h1" size="lg" onMount>
+            {"Say hello.\nWe'd love to hear from you."}
+          </DisplayHeading>
+          <motion.p
+            variants={m.fadeUp}
+            initial="hidden"
+            animate="show"
+            transition={{ delay: 0.25 }}
+            className="lede mt-6 max-w-xl"
           >
-            <h1 className="font-serif text-display-sm md:text-display text-white mb-3">
-              Get in Touch
-            </h1>
-            <p className="text-white/80 text-lg max-w-2xl">
-              Ready to begin your transformation? Book a consultation or send us a
-              message. We'd love to hear from you.
-            </p>
-          </motion.div>
+            Questions about a treatment, a nail appointment, or renting a room at Manchester's women-only sanctuary — one message reaches the whole ORÁ team.
+          </motion.p>
         </div>
-      </section>
+      </Section>
 
-      <Section className="bg-ora-sand">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16">
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-            >
-              <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-6">
-                Contact Information
-              </h2>
-
-              <div className="space-y-6 mb-10">
-                <div className="flex items-start gap-4 p-5 bg-ora-milk rounded-md">
-                  <span className="flex-shrink-0 w-10 h-10 rounded-full bg-ora-bone flex items-center justify-center">
-                    <MapPin size={20} className="text-ora-taupe" />
-                  </span>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">Address</h4>
-                    <p className="text-ora-fog text-sm" data-testid="text-address">
-                      45 Deansgate, Manchester
-                      <br />
-                      M3 2AY, England
-                    </p>
-                  </div>
-                </div>
-
-<div className="flex items-start gap-4 p-5 bg-ora-milk rounded-md">
-                  <span className="flex-shrink-0 w-10 h-10 rounded-full bg-ora-bone flex items-center justify-center">
-                    <Mail size={20} className="text-ora-taupe" />
-                  </span>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">Email</h4>
-                    <a
-                      href="mailto:admin@orasuites.com"
-                      data-testid="link-email"
-                      className="text-ora-fog text-sm hover:text-ora-taupe transition-colors"
-                    >
-                      admin@orasuites.com
-                    </a>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4 p-5 bg-ora-milk rounded-md">
-                  <span className="flex-shrink-0 w-10 h-10 rounded-full bg-ora-bone flex items-center justify-center">
-                    <Clock size={20} className="text-ora-taupe" />
-                  </span>
-                  <div>
-                    <h4 className="font-medium text-foreground mb-1">
-                      Opening Hours
-                    </h4>
-                    <p className="text-ora-fog text-sm" data-testid="text-hours">
-                      Monday - Saturday: 9am - 7pm
-                      <br />
-                      Sunday: By Appointment Only
-                    </p>
-                  </div>
-                </div>
+      <Section tone="milk" mesh grain pad="md" className="pt-12 md:pt-16" animate={false}>
+        <div className="grid items-start gap-12 lg:grid-cols-12 lg:gap-10">
+          {/* ── Left: warm image + glass info card + map ── */}
+          <div className="relative lg:col-span-5">
+            <Reveal variant="scale" className="relative">
+              <div className="img-zoom relative aspect-[4/5] overflow-hidden rounded-[2rem] shadow-luxury">
+                <img
+                  src={warmImage}
+                  alt="Freshly manicured nails resting on a cream towel at ORÁ Suites, Deansgate Manchester"
+                  width={1086}
+                  height={1448}
+                  loading="eager"
+                  decoding="async"
+                  className="h-full w-full object-cover object-top"
+                />
+                <div aria-hidden className="absolute inset-0 bg-[linear-gradient(to_top,var(--overlay-deep)_0%,var(--overlay-dark)_38%,transparent_75%)]" />
               </div>
 
-              <div className="overflow-hidden rounded-md">
+              {/* glass info card — deliberately overlaps the image edge on desktop */}
+              <GlassCard
+                tone="strong"
+                padding="md"
+                radius="xl"
+                staticCard
+                className="on-dark relative -mt-24 mx-4 sm:mx-6 lg:-mr-10 lg:ml-8 lg:-mt-40 text-ora-cream bg-ora-deep/70 border-ora-bronze/25"
+              >
+                <Eyebrow as="p" className="mb-4">
+                  Find us
+                </Eyebrow>
+                <ul className="space-y-5">
+                  <li className="flex gap-4">
+                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ora-bronze/15 text-ora-bronze ring-1 ring-ora-bronze/40">
+                      <MapPin className="h-4 w-4" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="font-display text-xl leading-tight">45 Deansgate</p>
+                      <p className="mt-1 font-sans text-[0.9rem] text-ora-smoke">Manchester M3 2AY</p>
+                      <a
+                        href="https://www.google.com/maps/dir/?api=1&destination=45+Deansgate+Manchester+M3+2AY"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 font-sans text-[0.75rem] uppercase tracking-[0.18em] text-ora-bronze underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ora-bronze rounded"
+                      >
+                        Directions <ArrowRight className="h-3 w-3" aria-hidden />
+                      </a>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ora-bronze/15 text-ora-bronze ring-1 ring-ora-bronze/40">
+                      <Mail className="h-4 w-4" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-smoke">Email</p>
+                      <a
+                        href="mailto:admin@orasuites.com"
+                        className="mt-1 inline-block font-sans text-[1rem] text-ora-cream underline-offset-4 hover:text-ora-bronze hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ora-bronze rounded"
+                        data-testid="link-email"
+                      >
+                        admin@orasuites.com
+                      </a>
+                    </div>
+                  </li>
+                  <li className="flex gap-4">
+                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ora-bronze/15 text-ora-bronze ring-1 ring-ora-bronze/40">
+                      <Clock className="h-4 w-4" aria-hidden />
+                    </span>
+                    <div className="w-full">
+                      <p className="font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-smoke">Opening hours</p>
+                      <dl className="mt-1.5 space-y-1 font-sans text-[0.9rem]" data-testid="text-hours">
+                        {HOURS.map((h) => (
+                          <div key={h.day} className="flex items-baseline justify-between gap-6">
+                            <dt className="text-ora-cream/90">{h.day}</dt>
+                            <dd className="text-ora-smoke tabular-nums">{h.time}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  </li>
+                </ul>
+              </GlassCard>
+            </Reveal>
+
+            {/* map */}
+            <Reveal delay={0.1} className="mt-8 lg:mt-10">
+              <div className="overflow-hidden rounded-3xl border border-white/40 bg-white/40 p-1.5 shadow-glass backdrop-blur-glass-sm">
                 <iframe
-                  title="ORÁ Suites location"
+                  title="Map showing ORÁ Suites at 45 Deansgate, Manchester M3 2AY"
                   src="https://www.google.com/maps?q=45+Deansgate+Manchester+M3+2AY&output=embed"
-                  className="w-full h-48 border-0"
+                  className="h-56 w-full rounded-[1.25rem] border-0 grayscale-[35%] contrast-[1.02] transition-[filter] duration-700 ease-luxury hover:grayscale-0"
                   loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
                 />
               </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-6">
-                Book or Message Us
-              </h2>
-
-              <div className="bg-ora-milk rounded-md p-8">
-                <h3 className="font-serif text-xl text-foreground mb-2">Book Online</h3>
-                <p className="text-ora-fog text-sm mb-5">
-                  Choose your treatment, pick a time, and confirm your appointment in minutes.
-                </p>
-                <Link href="/book">
-                  <Button className="w-full bg-ora-taupe text-white hover:bg-ora-fog py-5 text-base mb-6">
-                    Book an Appointment →
-                  </Button>
-                </Link>
-                <div className="border-t border-ora-greige pt-6">
-                  <p className="text-sm font-medium text-foreground mb-4">Or send us a message:</p>
-                  <ContactForm />
-                </div>
-              </div>
-            </motion.div>
+            </Reveal>
           </div>
+
+          {/* ── Right: booking pill + form ── */}
+          <div className="lg:col-span-7 lg:pl-6">
+            <Stagger className="space-y-6">
+              <Reveal inherit>
+                <Link href="/book" className="group inline-flex focus-visible:outline-none">
+                  <GlassPill
+                    as="span"
+                    tone="bronze"
+                    className="bg-white/60 py-2.5 pl-4 pr-3 text-[0.8125rem] text-foreground shadow-glass group-focus-visible:ring-2 group-focus-visible:ring-ora-bronze"
+                    icon={<span aria-hidden className="h-1.5 w-1.5 rounded-full bg-ora-bronze animate-pulse" />}
+                  >
+                    Ready to book? Skip the form
+                    <motion.span
+                      aria-hidden
+                      className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-ora-deep text-ora-cream"
+                      whileHover={m.reduced ? undefined : { x: 2 }}
+                      transition={spring.snappy}
+                    >
+                      <ArrowRight className="h-3 w-3" />
+                    </motion.span>
+                  </GlassPill>
+                </Link>
+              </Reveal>
+
+              <GlassCard inherit tone="strong" padding="lg" radius="2xl" className="bg-white/55">
+                <div className="mb-8">
+                  <Eyebrow as="p" className="mb-3">
+                    Send an enquiry
+                  </Eyebrow>
+                  <h2 className="font-display text-display-sm text-foreground">Tell us what you need.</h2>
+                  <p className="mt-2 font-sans text-[0.95rem] text-ora-fog">We reply by email within one working day. No phone line yet — email is fastest.</p>
+                </div>
+                <EnquiryForm />
+              </GlassCard>
+            </Stagger>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Closing band ── */}
+      <Section tone="chocolate" mesh grain pad="sm">
+        <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+            <Reveal>
+              <p className="font-display text-display-sm text-ora-cream">
+                Manchester's women-only sanctuary <em className="italic text-ora-bronze">for beauty &amp; wellness.</em>
+              </p>
+            </Reveal>
+            <Reveal delay={0.1} className="flex flex-wrap gap-3">
+              <GlassPill tone="light" size="sm" as="span">
+                45 Deansgate
+              </GlassPill>
+              <GlassPill tone="light" size="sm" as="span">
+                Mon–Sat 9–7
+              </GlassPill>
+              <GlassPill tone="light" size="sm" as="span">
+                Women only
+              </GlassPill>
+            </Reveal>
         </div>
       </Section>
     </Layout>

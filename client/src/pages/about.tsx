@@ -1,340 +1,373 @@
-import { Layout } from "@/components/layout/layout";
-import { Section, SectionHeader } from "@/components/ui/section";
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
+import * as React from "react";
+import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Button } from "@/components/ui/button";
-import { Heart, Shield, Sparkles, Users } from "lucide-react";
-import { useSEO } from "@/hooks/use-seo";
+import { ArrowRight } from "lucide-react";
 
-import receptionImage from "@assets/ora-hallway.jpg";
-import heroImage from "@assets/ora-hero-zebra-crossing.jpg";
+import { Layout } from "@/components/layout/layout";
+import { Section, Container } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { GlassCard, GlassPill, Eyebrow, DisplayHeading, SectionIntro, IconOrb } from "@/components/ui/glass";
+import { Reveal, Stagger, useMotionSafe, spring, viewportOnce } from "@/lib/motion";
+import { allTeam, categories, type TeamMember } from "@/lib/catalogue";
+import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
+import { FeatherIcon, DiamondLeafIcon, StarClusterIcon, LotusIcon } from "@/components/icons/OraIcons";
+
+import hallwayImage from "@assets/ora-hallway.jpg";
+import streetImage from "@assets/ora-hero-zebra-crossing.jpg";
 import megImage from "@assets/about-meg-ceo.jpg";
 import coffeeImage from "@assets/community-coffee.jpg";
 import newspaperImage from "@assets/community-newspaper.jpg";
 
+/* ── content ───────────────────────────────────────────── */
 const values = [
   {
-    icon: Heart,
-    title: "Intentional Care",
-    description:
-      "Every treatment is performed with intention and attention to detail. We believe beauty should be cultivated, not rushed.",
+    Icon: FeatherIcon,
+    title: "Intentional care",
+    body: "Nothing is rushed. Every treatment is performed with attention and time — beauty is cultivated, not chased.",
   },
   {
-    icon: Shield,
-    title: "Safety First",
-    description:
-      "Your wellbeing is our priority. All treatments are performed by trained, certified professionals using the highest quality products.",
+    Icon: DiamondLeafIcon,
+    title: "Safety first",
+    body: "Nurse-led. Certified practitioners, medical-grade products, honest consultations before anything else.",
   },
   {
-    icon: Sparkles,
+    Icon: StarClusterIcon,
     title: "Transformation",
-    description:
-      "We're not just about treatments—we're about helping you feel confident, radiant, and empowered in your own skin.",
+    body: "Not just treatments — confidence. You should leave feeling more yourself, never less.",
   },
   {
-    icon: Users,
+    Icon: LotusIcon,
     title: "Community",
-    description:
-      "Ora is more than a clinic. It's a community of wellness-conscious individuals supporting one another on their self-care journeys.",
+    body: "A women-only space where mums, students, practitioners and everyday people pause, connect and breathe.",
   },
 ];
 
+const community = [
+  { title: "Come as you are", body: "Busy mum, young professional, or simply in need of a moment — no pressure, no judgement. Just care." },
+  { title: "Refreshments on us", body: "Matcha, herbal teas and more while you wait. Your time here should feel like a treat from the first minute." },
+  { title: "A place to connect", body: "Soft events, social mornings and practitioner meet-ups through the year. Come alone, leave with a community." },
+];
+
+/** Which category each team member belongs to (for the small tag). */
+function categoryLabelFor(member: TeamMember): string | undefined {
+  return categories.find((c) => c.team.includes(member.key))?.title;
+}
+
+/* ── page ──────────────────────────────────────────────── */
 export default function AboutPage() {
-  const storyRef = useRef<HTMLDivElement>(null);
-  const isStoryInView = useInView(storyRef, { once: true, margin: "-100px" });
+  const m = useMotionSafe();
+  const team = React.useMemo(() => allTeam(), []);
+  const meg = team.find((t) => t.key === "meg") ?? team[0];
+  const others = team.filter((t) => t.key !== "meg");
 
   useSEO({
-    title: "About Us | ORÁ. - Manchester's Premier Wellness Sanctuary",
-    description: "Learn about Ora Suites, Manchester's premier beauty and wellness sanctuary. Discover our story and the values dedicated to your transformation.",
+    title: "About ORÁ Suites | Meg Cauli's Women-Only Clinic, Deansgate Manchester",
+    description:
+      "Meet Meg Cauli, founder of ORÁ Suites — Manchester's women-only sanctuary for beauty & wellness at 45 Deansgate. Nurse-led aesthetics, luxury nails and a warm, private space built for women.",
+    jsonLd: [
+      defaultBusinessJsonLd({
+        founder: { "@type": "Person", name: "Meg Cauli", jobTitle: "Founder & Aesthetic Practitioner", worksFor: { "@id": `${SITE_URL}/#business` } },
+      }),
+      breadcrumbJsonLd([{ name: "About", path: "/about" }]),
+    ],
   });
 
   return (
-    <Layout>
-      {/* Full-bleed hero */}
-      <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
-        <img
-          src={heroImage}
-          alt="ORÁ Suites — Manchester"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h1 className="font-serif text-display-sm md:text-display text-white mb-3">
-              About Ora
-            </h1>
-            <p className="text-white/80 text-lg max-w-2xl">
-              Where beauty meets intention. Where care becomes ritual. A sanctuary
-              for those who invest in themselves.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Story section */}
-      <Section className="bg-ora-milk">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div ref={storyRef} className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              animate={isStoryInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -40 }}
-              transition={{ duration: 0.8 }}
-            >
-              <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-6">
-                This is Ora
-              </h2>
-              <div className="space-y-5 text-ora-fog leading-relaxed">
-                <p className="text-lg">
-                  Ora is not a clinic. It's a sanctuary. A space where
-                  wellness-conscious individuals come to pause, breathe, and transform.
-                  Where every treatment is a ritual. Where care is intentional.
-                  Where you are seen, heard, and held.
-                </p>
-                <p>
-                  We believe beauty is not something you chase—it's something you
-                  cultivate. From the inside out. With intention. With care. With
-                  time.
-                </p>
-                <p>
-                  Founded in Manchester, Ora was created to fill a gap in the
-                  wellness industry—a space where people could receive advanced
-                  aesthetic treatments, luxurious beauty services, and holistic
-                  wellness care all under one roof, in an environment designed
-                  for excellence and discretion.
-                </p>
-                <p className="font-serif text-xl text-foreground italic" data-testid="text-quote">
-                  "This is your space. To breathe. To transform. To become."
-                </p>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              animate={isStoryInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              <div className="relative">
-                <div className="absolute -inset-4 bg-ora-bone rounded-lg -z-10" />
-                <img
-                  src={receptionImage}
-                  alt="ORÁ Suites hallway — Manchester"
-                  className="w-full h-auto rounded-md shadow-lg"
-                />
-              </div>
+    <Layout padTop lightHeader>
+      {/* ── 1. Hero — Meg ─────────────────────────────────── */}
+      <Section tone="milk" mesh grain pad="sm" className="overflow-hidden pt-4 md:pt-8" animate={false}>
+        <div className="grid items-end gap-10 lg:grid-cols-12 lg:gap-8">
+          {/* text */}
+          <div className="order-2 lg:order-1 lg:col-span-5 lg:pb-16">
+            <motion.div variants={m.stagger(0.1)} initial="hidden" animate="show">
+              <Eyebrow reveal as="p" rule className="mb-6">
+                Founder · Aesthetic practitioner
+              </Eyebrow>
+              <DisplayHeading as="h1" size="xl" inherit>
+                {"Meg\nCauli."}
+              </DisplayHeading>
+              <motion.p variants={m.fadeUp} className="lede mt-7 max-w-md">
+                Nurse-led. Women-only. Built on Deansgate by a practitioner who wanted somewhere calmer, kinder and more honest than the clinics she trained in.
+              </motion.p>
+              <motion.div variants={m.fadeUp} className="mt-8 flex flex-wrap gap-2.5">
+                <GlassPill tone="bronze" size="sm" className="bg-white/50">Nearly 10 years in aesthetics</GlassPill>
+                <GlassPill tone="bronze" size="sm" className="bg-white/50">Medical-grade skincare</GlassPill>
+                <GlassPill tone="bronze" size="sm" className="bg-white/50">45 Deansgate</GlassPill>
+              </motion.div>
             </motion.div>
           </div>
-        </div>
-      </Section>
 
-      {/* Meet Meg — CEO & Lead Nurse Practitioner */}
-      <Section className="bg-ora-sand">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <p className="text-ora-taupe text-sm font-medium tracking-widest uppercase mb-3">Meet the Expert Behind ORÁ</p>
-            <h2 className="font-serif text-2xl md:text-3xl text-foreground">
-              Meg Cauli
-            </h2>
-            <p className="text-ora-fog mt-2">CEO & Lead Nurse Practitioner</p>
-          </motion.div>
-
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="order-2 lg:order-1"
+          {/* portrait — bleeds past the column edge on desktop */}
+          <div className="order-1 lg:order-2 lg:col-span-7">
+            <motion.figure
+              initial={m.reduced ? false : { opacity: 0, clipPath: "inset(0 0 100% 0)" }}
+              animate={{ opacity: 1, clipPath: "inset(0 0 0% 0)" }}
+              transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+              className="relative -mx-5 sm:-mx-8 lg:mx-0 lg:-mr-[14vw] lg:ml-6"
             >
-              <div className="space-y-5 text-ora-fog leading-relaxed">
-                <p className="text-lg text-foreground font-serif italic">
-                  "With nearly 10 years of experience in the industry, I commenced my career as a skincare expert and medical-grade skincare specialist."
-                </p>
-                <p>
-                  My dedication to delivering professional and medically-focused treatments took root during this period. Having completed advanced studies in aesthetics and cosmetology, I consistently enhance my skills to provide you with cutting-edge services.
-                </p>
-                <p>
-                  My passion lies in the gratification of individuals experiencing their optimal selves, all while adhering to a natural and health-conscious approach to filler and anti-aging injections.
-                </p>
-                <div className="pt-4 border-t border-ora-greige">
-                  <p className="text-sm text-ora-smoke">
-                    <span className="font-medium text-foreground">Specialisms:</span> Advanced Injectables · Medical-Grade Skincare · Anti-Aging Treatments · Natural Filler Techniques
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="order-1 lg:order-2"
-            >
-              <div className="relative max-w-sm mx-auto lg:mx-0 lg:ml-auto">
-                <div className="absolute -inset-4 bg-ora-bone rounded-lg -z-10" />
+              <div className="img-zoom relative aspect-[4/5] overflow-hidden rounded-none sm:rounded-[2rem] lg:rounded-r-none lg:rounded-l-[2.5rem] shadow-luxury max-h-[82vh]">
                 <img
                   src={megImage}
-                  alt="Meg Cauli — CEO & Lead Nurse Practitioner at ORÁ Suites"
-                  className="w-full h-auto rounded-md shadow-lg object-cover"
+                  alt="Meg Cauli, founder and aesthetic practitioner at ORÁ Suites, photographed in the clinic on Deansgate, Manchester"
+                  width={1536}
+                  height={2048}
+                  loading="eager"
+                  decoding="async"
+                  fetchPriority="high"
+                  className="h-full w-full object-cover object-top"
+                />
+                <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(to_top,var(--overlay-dark),transparent)]" />
+              </div>
+              <figcaption className="absolute bottom-6 left-6 sm:left-8 lg:left-10 lg:bottom-10">
+                <GlassCard tone="strong" padding="sm" radius="xl" staticCard className="on-dark inline-block bg-ora-deep/60 border-ora-bronze/25 text-ora-cream">
+                  <p className="font-display text-xl leading-none">Meg Cauli</p>
+                  <p className="mt-1.5 font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">Founder · ORÁ Suites</p>
+                </GlassCard>
+              </figcaption>
+            </motion.figure>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── 2. Origin story — pull-quote editorial ─────────── */}
+      <Section tone="sand" grain pad="md" animate={false}>
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
+          {/* narrow image column */}
+          <Reveal variant="scale" className="lg:col-span-4">
+            <div className="img-zoom relative aspect-[3/4] overflow-hidden rounded-[2rem] shadow-luxury lg:-ml-8 lg:mt-24">
+              <img
+                src={hallwayImage}
+                alt="The warm, softly lit hallway of ORÁ Suites leading to private treatment rooms"
+                width={1206}
+                height={1609}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          </Reveal>
+
+          {/* quote + copy */}
+          <div className="lg:col-span-7 lg:col-start-6">
+            <SectionIntro
+              eyebrow="Our story"
+              heading={"Manchester's women-only sanctuary.\nBuilt by a nurse."}
+              size="md"
+              className="mb-10 md:mb-12 lg:mb-14"
+            />
+            <Stagger className="space-y-10">
+              <Reveal inherit as="figure" className="relative border-l border-ora-bronze/60 pl-6 sm:pl-8">
+                <blockquote className="font-display text-[clamp(1.6rem,3vw,2.6rem)] leading-[1.15] tracking-[-0.01em] text-foreground">
+                  “This is your space. <em className="italic text-ora-bronze">To breathe. To transform. To become.</em>”
+                </blockquote>
+              </Reveal>
+              <Reveal inherit className="grid gap-8 sm:grid-cols-2">
+                <div className="space-y-5 font-sans text-[1rem] leading-[1.7] text-ora-fog">
+                  <p>
+                    ORÁ is not a clinic. It's a sanctuary — a place where women come to pause, breathe and transform. Where every treatment is a ritual, and care is intentional. Where you are seen, heard and held.
+                  </p>
+                  <p>
+                    We believe beauty isn't chased. It's cultivated — from the inside out, with intention and with time.
+                  </p>
+                </div>
+                <div className="space-y-5 font-sans text-[1rem] leading-[1.7] text-ora-fog">
+                  <p>
+                    Founded on Deansgate to fill a gap: advanced aesthetics, luxury beauty and holistic wellness under one roof, in a space designed for excellence and discretion — for women only.
+                  </p>
+                  <p className="font-display text-lg italic text-foreground">
+                    “With nearly ten years in the industry, I began as a skincare and medical-grade specialist — and I've never stopped studying. My approach to injectables is natural and health-first.” — Meg
+                  </p>
+                </div>
+              </Reveal>
+              <Reveal inherit className="flex flex-wrap gap-2.5">
+                {["Advanced injectables", "Medical-grade skincare", "Anti-ageing", "Natural filler technique"].map((s) => (
+                  <GlassPill key={s} tone="light" size="sm" className="bg-white/60 text-foreground">
+                    {s}
+                  </GlassPill>
+                ))}
+              </Reveal>
+            </Stagger>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── 3. The team — dark band, glass cards ──────────── */}
+      <Section tone="dark" mesh grain pad="md" animate={false}>
+        <SectionIntro
+          eyebrow="The team"
+          heading={"Small on purpose.\nExpert by design."}
+          tone="cream"
+          lede="Aesthetics with Meg and Daniela. Nails with Soli, Ruslana and Diana. Every practitioner is chosen for skill and for the way she makes you feel."
+        />
+        <Stagger gap={0.1} className="grid gap-5 sm:grid-cols-2 lg:grid-cols-6">
+          {/* Meg — portrait card, spans two columns */}
+          <GlassCard inherit hover tone="dark" padding="none" radius="xl" className="group sm:col-span-2 lg:col-span-2 lg:row-span-2">
+            <div className="img-zoom relative aspect-[4/5] overflow-hidden lg:h-full">
+              <img
+                src={megImage}
+                alt={`${meg.name}, ${meg.role} at ORÁ Suites`}
+                width={1536}
+                height={2048}
+                loading="lazy"
+                decoding="async"
+                className="h-full w-full object-cover object-top"
+              />
+              <div aria-hidden className="absolute inset-x-0 bottom-0 h-2/3 bg-[linear-gradient(to_top,var(--overlay-deep),transparent)]" />
+              <div className="absolute inset-x-0 bottom-0 p-6">
+                <p className="font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">{categoryLabelFor(meg) ?? "Aesthetics"}</p>
+                <p className="mt-2 font-display text-2xl text-ora-cream">{meg.name}</p>
+                <p className="mt-1 font-sans text-[0.875rem] text-ora-smoke">{meg.role}</p>
+              </div>
+            </div>
+          </GlassCard>
+
+          {others.map((t, i) => (
+            <GlassCard
+              key={t.key}
+              inherit
+              hover
+              tone="dark"
+              padding="md"
+              radius="xl"
+              className={["lg:col-span-2 flex flex-col justify-between min-h-[15rem]", i % 2 === 1 ? "lg:translate-y-6" : ""].join(" ")}
+            >
+              <div className="flex items-start justify-between">
+                <IconOrb size="lg" tone="bronze" initials={t.initials} aria-hidden />
+                <span className="font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">{categoryLabelFor(t)}</span>
+              </div>
+              <div className="mt-8">
+                <p className="font-display text-2xl text-ora-cream">{t.name}</p>
+                <p className="mt-1 font-sans text-[0.875rem] text-ora-smoke">{t.role}</p>
+              </div>
+            </GlassCard>
+          ))}
+        </Stagger>
+      </Section>
+
+      {/* ── 4. Community — asymmetric collage ─────────────── */}
+      <Section tone="bone" grain pad="md" animate={false}>
+        <div className="grid items-center gap-14 lg:grid-cols-12 lg:gap-8">
+          <div className="relative lg:col-span-7">
+            <Reveal variant="scale" className="relative">
+              <div className="img-zoom relative w-[78%] overflow-hidden rounded-[2rem] shadow-luxury aspect-[3/4]">
+                <img
+                  src={newspaperImage}
+                  alt="Two women relaxing on a sofa at ORÁ Suites reading the ORÁ Gazette"
+                  width={1536}
+                  height={2048}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover object-top"
                 />
               </div>
-            </motion.div>
+            </Reveal>
+            <Reveal variant="right" delay={0.15} className="absolute right-0 top-[38%] w-[46%]">
+              <div className="img-zoom relative overflow-hidden rounded-[1.5rem] border-[6px] border-ora-bone shadow-luxury aspect-[3/4]">
+                <img
+                  src={coffeeImage}
+                  alt="ORÁ-branded matcha and coffee cups served to clients in the lounge"
+                  width={1086}
+                  height={1448}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </Reveal>
+            <Reveal delay={0.3} className="absolute -bottom-6 left-[6%] sm:left-[10%]">
+              <GlassCard tone="strong" padding="sm" radius="full" staticCard className="bg-white/70 px-5">
+                <p className="font-sans text-[0.75rem] uppercase tracking-[0.18em] text-ora-bronze">Women only · Always welcome</p>
+              </GlassCard>
+            </Reveal>
+          </div>
+
+          <div className="lg:col-span-5">
+            <SectionIntro
+              eyebrow="A space for everyone"
+              heading={"More than a clinic.\nA community."}
+              size="md"
+              className="mb-8 md:mb-10 lg:mb-10"
+            />
+            <Stagger as="ul" className="divide-y divide-ora-greige/70 border-y border-ora-greige/70">
+              {community.map((c) => (
+                <Reveal inherit as="li" key={c.title} className="group flex gap-5 py-6">
+                  <span aria-hidden className="mt-2.5 h-px w-8 shrink-0 bg-ora-bronze transition-[width] duration-450 ease-luxury group-hover:w-12" />
+                  <div>
+                    <h3 className="font-display text-xl text-foreground">{c.title}</h3>
+                    <p className="mt-2 font-sans text-[0.95rem] leading-relaxed text-ora-fog">{c.body}</p>
+                  </div>
+                </Reveal>
+              ))}
+            </Stagger>
           </div>
         </div>
       </Section>
 
-      {/* Community & Sanctuary section */}
-      <Section className="bg-ora-milk">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-12"
-          >
-            <p className="text-ora-taupe text-sm font-medium tracking-widest uppercase mb-3">A Space for Everyone</p>
-            <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-4">
-              More Than a Salon. A Community.
-            </h2>
-            <p className="text-ora-fog max-w-2xl mx-auto">
-              ORÁ is a place where all walks of life are welcome — mothers, young adults, practitioners, everyday people.
-              A space designed not just for treatments, but for connection.
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 gap-8 mb-12">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="overflow-hidden rounded-md"
-            >
-              <img
-                src={newspaperImage}
-                alt="Clients relaxing at ORÁ Suites — reading the ORÁ Gazette"
-                className="w-full h-72 object-cover object-top"
-              />
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.15 }}
-              className="overflow-hidden rounded-md"
-            >
-              <img
-                src={coffeeImage}
-                alt="ORÁ branded refreshments — matcha and community"
-                className="w-full h-72 object-cover"
-              />
-            </motion.div>
+      {/* ── 5. Values — horizontal scroll-snap strip ──────── */}
+      <Section tone="milk" mesh grain pad="md" contain={false} animate={false} className="overflow-hidden">
+        <Container>
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <SectionIntro eyebrow="What we stand for" heading={"Four things\nwe never compromise."} size="md" className="mb-0 md:mb-0 lg:mb-0" />
+            <Reveal className="hidden md:block">
+              <p className="mb-2 font-sans text-[0.75rem] uppercase tracking-[0.18em] text-ora-fog">Scroll →</p>
+            </Reveal>
           </div>
-
-          <div className="grid sm:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Come as You Are",
-                body: "Whether you're a busy mum, a young professional, or someone simply in need of a moment to yourself — ORÁ was built for you. No pressure. No judgement. Just care.",
-              },
-              {
-                title: "Refreshments on Us",
-                body: "We believe self-care starts the moment you walk through our door. Enjoy complimentary refreshments while you wait — matcha, herbal teas, and more — because your time here should feel like a treat from start to finish.",
-              },
-              {
-                title: "A Place to Connect",
-                body: "ORÁ is a gathering space as much as it is a treatment space. Come alone, leave with a community. We host soft events, social mornings, and practitioner meet-ups throughout the year.",
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="bg-ora-sand rounded-md p-6"
-              >
-                <h3 className="font-serif text-lg text-foreground mb-3">{item.title}</h3>
-                <p className="text-ora-fog text-sm leading-relaxed">{item.body}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+        </Container>
+        <motion.ul
+          variants={m.stagger(0.1)}
+          initial="hidden"
+          whileInView="show"
+          viewport={viewportOnce}
+          className="no-scrollbar mt-10 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-6 sm:px-8 lg:px-[max(3rem,calc((100vw-1280px)/2+3rem))] md:mt-14"
+          aria-label="ORÁ values"
+        >
+          {values.map(({ Icon, title, body }, i) => (
+            <li key={title} className={["w-[80vw] max-w-[380px] shrink-0 snap-start", i % 2 === 1 ? "md:mt-10" : ""].join(" ")}>
+            <GlassCard inherit hover tone="warm" padding="lg" radius="xl" className="h-full bg-white/55">
+              <IconOrb size="lg" tone="bronze">
+                <Icon size={28} />
+              </IconOrb>
+              <p className="mt-10 font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">0{i + 1}</p>
+              <h3 className="mt-2 font-display text-2xl text-foreground">{title}</h3>
+              <p className="mt-3 font-sans text-[0.95rem] leading-relaxed text-ora-fog">{body}</p>
+            </GlassCard>
+            </li>
+          ))}
+          {/* the strip bleeds to the viewport edge — see-through spacer keeps the last card fully snappable */}
+          <li aria-hidden className="w-2 shrink-0" />
+        </motion.ul>
       </Section>
 
-      {/* Values */}
-      <Section className="bg-ora-bone">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader
-            title="Our Values"
-            subtitle="The principles that guide everything we do at Ora."
-          />
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {values.map((value, index) => (
-              <motion.div
-                key={value.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                data-testid={`card-value-${value.title.toLowerCase().replace(/\s+/g, "-")}`}
-                className="text-center p-6"
-              >
-                <span className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-ora-milk mb-4">
-                  <value.icon size={28} className="text-ora-taupe" />
-                </span>
-                <h3 className="font-serif text-lg text-foreground mb-2">
-                  {value.title}
-                </h3>
-                <p className="text-ora-fog text-sm leading-relaxed">
-                  {value.description}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+      {/* ── 6. CTA → /book ─────────────────────────────────── */}
+      <Section tone="chocolate" mesh grain pad="lg" className="overflow-hidden" animate={false}>
+        <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 hidden w-[42%] opacity-[.18] lg:block">
+          <img src={streetImage} alt="" className="h-full w-full object-cover" loading="lazy" decoding="async" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--ora-chocolate)),transparent_60%)]" />
         </div>
-      </Section>
-
-      {/* CTA */}
-      <section className="py-20 bg-ora-sand">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-4">
-              Ready to Experience Ora?
-            </h2>
-            <p className="text-ora-fog mb-8">
-              Book your first treatment and discover why wellness-conscious individuals
-              across Manchester choose Ora as their sanctuary.
-            </p>
-            <Link href="/book">
-              <Button
-                data-testid="button-about-book"
-                className="bg-ora-taupe text-white hover:bg-ora-fog px-8"
-              >
-                Book Your Treatment
+        <motion.div variants={m.stagger(0.1)} initial="hidden" whileInView="show" viewport={viewportOnce} className="relative max-w-3xl">
+          <Eyebrow reveal as="p" rule className="mb-6">
+            Ready when you are
+          </Eyebrow>
+          <DisplayHeading as="h2" size="lg" tone="cream" inherit>
+            {"Come and meet us.\nDeansgate, Manchester."}
+          </DisplayHeading>
+          <motion.p variants={m.fadeUp} className="lede mt-6 max-w-xl">
+            Book a consultation with Meg or the team — nurse-led aesthetics, luxury nails, women only.
+          </motion.p>
+          <motion.div variants={m.fadeUp} className="mt-10 flex flex-wrap gap-4">
+            <motion.span whileHover={m.hoverButton} whileTap={m.tapButton} transition={spring.snappy} className="inline-flex">
+              <Button asChild size="xl" variant="primary">
+                <Link href="/book" data-testid="button-about-book">
+                  Book a consultation <ArrowRight aria-hidden />
+                </Link>
               </Button>
-            </Link>
+            </motion.span>
+            <Button asChild size="xl" variant="ghost">
+              <Link href="/contact">Ask a question</Link>
+            </Button>
           </motion.div>
-        </div>
-      </section>
+        </motion.div>
+      </Section>
     </Layout>
   );
 }
