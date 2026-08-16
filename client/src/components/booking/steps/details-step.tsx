@@ -129,7 +129,7 @@ export function DetailsStep({ value, onChange, onBack, onNext }: Props) {
         </p>
       )}
 
-      <StepNav onBack={onBack} nextType="submit" nextLabel="Review & confirm" />
+      <StepNav onBack={onBack} nextType="submit" nextLabel="Review and confirm" />
     </form>
   );
 }

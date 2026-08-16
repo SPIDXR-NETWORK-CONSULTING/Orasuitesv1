@@ -53,7 +53,7 @@ export function HeroSection() {
             onMount
             className="!text-[clamp(1.7rem,3.2vw,2.4rem)] text-balance"
           >
-            {"Nurse-led aesthetics and luxury nails."}
+            {"A wellness sanctuary in the heart of Manchester."}
           </DisplayHeading>
 
           <motion.p variants={m.fadeUp} className="mt-3 font-sans text-[0.9375rem] tracking-[0.02em] text-ora-cream/85">

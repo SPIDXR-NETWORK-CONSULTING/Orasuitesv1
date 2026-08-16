@@ -25,7 +25,7 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
 
   return (
     <div>
-      <StepHeader step={3} title={free ? "Confirm your consultation" : "Review & confirm"} />
+      <StepHeader step={3} title={free ? "Confirm your consultation" : "Review and confirm"} />
 
       {/* Review card */}
       <dl className="overflow-hidden rounded-2xl border border-glass-border-warm bg-ora-cream/50 backdrop-blur-glass-sm">

@@ -35,7 +35,7 @@ export function IntroductionSection() {
         </motion.figure>
 
         <DisplayHeading as="h2" size="lg" inherit className="mt-8">
-          {"A beauty & wellness sanctuary on Deansgate."}
+          {"A beauty and wellness sanctuary on Deansgate."}
         </DisplayHeading>
         <motion.p variants={m.fadeUp} className="lede mt-3 max-w-xl">
           Private treatment rooms, nurse-led aesthetics and luxury nails — in one calm space.

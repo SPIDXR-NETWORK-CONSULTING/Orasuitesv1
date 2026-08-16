@@ -241,6 +241,8 @@ export function DisplayHeading({
   const Tag = as as React.ElementType;
   const toneCls = tone === "cream" ? "text-ora-cream" : tone === "bronze" ? "text-ora-bronze" : "text-foreground";
   const classes = cn(sizeClass[size], toneCls, "font-display [&_em]:not-italic [&_em]:font-medium", className);
+  // Playfair's ampersand is calligraphic — headings always read "and" (owner rule).
+  if (typeof children === "string") children = children.replace(/\s&\s/g, " and ") as typeof children;
   if (plain) {
     const lines = typeof children === "string" ? children.split("\n") : children;
     return (

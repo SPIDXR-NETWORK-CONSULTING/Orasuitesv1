@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Music2, ArrowUpRight, Pause, Play } from "lucide-react";
+import { Music2, Instagram, Pause, Play } from "lucide-react";
 import { Section } from "@/components/ui/section";
-import { DisplayHeading, IconOrb, GlassPill } from "@/components/ui/glass";
+import { DisplayHeading, IconOrb } from "@/components/ui/glass";
 import { useMotionSafe, viewportOnce } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,7 @@ const VIDEOS = [
   { src: "/tiktok/tiktok-5.mp4", caption: "Real clients. Real glow." },
 ];
 
-const HANDLE = "@ora_beauty_mcr";
+
 const HANDLE_URL = "https://www.instagram.com/ora_beauty_mcr/";
 const INTERVAL = 6000;
 
@@ -51,7 +51,6 @@ function TikTokFrame({ src, caption, paused }: { src: string; caption: string; p
         <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/45 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/70 to-transparent" />
         <div className="absolute bottom-5 left-3 right-3">
-          <p className="font-sans text-[12px] font-semibold text-white">{HANDLE}</p>
           <p className="mt-0.5 font-sans text-[10.5px] leading-tight text-white/85">{caption}</p>
           <div className="mt-1.5 flex items-center gap-1">
             <Music2 size={9} className="text-white" />
@@ -109,9 +108,9 @@ export function TikTokCarouselSection() {
             className="focus-ring inline-flex rounded-full"
             data-testid="link-follow-instagram"
           >
-            <GlassPill size="sm" className="!text-ora-cream" icon={<ArrowUpRight />}>
-              {HANDLE}
-            </GlassPill>
+            <IconOrb size="md" tone="dark" className="hover-bronze" aria-label="ORÁ on Instagram">
+              <Instagram />
+            </IconOrb>
           </a>
         </motion.div>
 
@@ -124,21 +123,22 @@ export function TikTokCarouselSection() {
         >
           <div
             className="relative"
-            style={{ width: "min(220px, 58vw)", height: "min(474px, 125vw)" }}
+            style={{ width: "min(228px, 58vw)", aspectRatio: "440 / 956" }}
             onMouseEnter={() => setHovering(true)}
             onMouseLeave={() => setHovering(false)}
             onFocus={() => setHovering(true)}
             onBlur={() => setHovering(false)}
           >
             <div
-              className="absolute inset-0 overflow-hidden rounded-[14%] bg-ora-void shadow-luxury"
-              style={{ border: "min(7px, 2vw) solid #2a2320" }}
+              className="absolute inset-0 overflow-hidden bg-black shadow-luxury"
+              style={{ borderRadius: "22% / 10.2%", border: "min(5px, 1.4vw) solid #3a3431", boxShadow: "0 0 0 1px #171312, 0 30px 60px -20px rgba(0,0,0,.6)" }}
             >
+              {/* Dynamic Island */}
               <div
-                className="absolute left-1/2 top-0 z-30 -translate-x-1/2 bg-black"
-                style={{ width: "36%", height: "5%", borderRadius: "0 0 40% 40%" }}
+                className="absolute left-1/2 z-30 -translate-x-1/2 rounded-full bg-black"
+                style={{ top: "2.4%", width: "27%", height: "3.6%" }}
               />
-              <div className="absolute inset-0 overflow-hidden rounded-[12%]">
+              <div className="absolute inset-0 overflow-hidden" style={{ borderRadius: "20% / 9.4%" }}>
                 <AnimatePresence initial={false} mode="wait">
                   <motion.div
                     key={index}

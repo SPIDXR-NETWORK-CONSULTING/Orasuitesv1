@@ -1,5 +1,5 @@
 /**
- * /services — Treatments & prices (v2, restraint pass).
+ * /services — Treatments and prices (v2, restraint pass).
  * 40vh hero → centred 5-tile category selector → ONE price list open at a time,
  * expanded in place below the tiles (default Aesthetics; `#nails` opens Nails)
  * → one small consultation link line. Prices come from shared/catalogue.json.
@@ -103,7 +103,7 @@ export default function ServicesPage() {
               variants={m.fadeUp}
               className="font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-normal leading-[1.15] tracking-[-0.01em] text-ora-cream"
             >
-              Treatments & prices
+              Treatments and prices
             </motion.h1>
             <motion.p variants={m.fadeUp} className="mx-auto mt-3 max-w-md font-sans text-[0.9375rem] text-ora-smoke">
               Choose a category. Tap any treatment to book it online.
