@@ -3,14 +3,14 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213670965.jpeg";
+import logoImage from "@assets/ora-logo-new.jpg";
 
 const navLinks = [
   { href: "/", label: "Home" },
   { href: "/services", label: "Services" },
-  { href: "/room-rentals", label: "Room Rentals" },
-  { href: "/about", label: "About" },
   { href: "/results", label: "Results" },
+  { href: "/about", label: "About" },
+  { href: "/room-rentals", label: "Room Rentals" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -47,7 +47,7 @@ export function Header() {
               <img
                 src={logoImage}
                 alt="ORÁ."
-                className="h-12 md:h-14 w-auto object-contain"
+                className="h-12 md:h-14 w-auto object-contain rounded-xl"
               />
             </Link>
 
@@ -69,7 +69,7 @@ export function Header() {
             </nav>
 
             <div className="flex items-center gap-3">
-              <Link href="/contact" className="hidden sm:block">
+              <Link href="/book" className="hidden sm:block">
                 <Button
                   data-testid="button-book-now"
                   className="bg-ora-taupe text-white hover:bg-ora-fog font-medium px-6"
@@ -139,7 +139,7 @@ export function Header() {
                   transition={{ delay: navLinks.length * 0.05 }}
                   className="mt-6"
                 >
-                  <Link href="/contact">
+                  <Link href="/book">
                     <Button
                       data-testid="button-mobile-book-now"
                       className="w-full bg-ora-taupe text-white hover:bg-ora-fog font-medium py-6"

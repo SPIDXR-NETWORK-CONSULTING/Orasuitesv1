@@ -100,6 +100,7 @@
   --ora-fog: 38 8% 50%;
   --ora-greige: 30 10% 87%;
   --ora-taupe: 25 25% 52%;
+  --ora-chocolate: 22 35% 22%;
 }
 
 .dark {
@@ -191,6 +192,7 @@
   --ora-fog: 38 6% 65%;
   --ora-greige: 30 6% 18%;
   --ora-taupe: 25 30% 55%;
+  --ora-chocolate: 22 35% 22%;
 }
 
 @layer base {

@@ -1,0 +1,482 @@
+{
+  "_meta": {
+    "updated": "2026-08-16",
+    "sources": {
+      "aesthetics": "25 Clinic (Meg Cauli) Booksy menu — https://booksy.com/en-gb/76098_25clinic-ora-beauty_aesthetic-medicine_628476_manchester",
+      "nails": "ORÁ Beauty NAIL MENU image supplied by Abdul 2026-08-16 (supersedes June ORÁ NAILS menu)"
+    },
+    "team": {
+      "meg": {
+        "ghlUserId": "cE5h9SAvNHDxRTS6DuWh",
+        "name": "Meg Cauli"
+      },
+      "daniela": {
+        "ghlUserId": "aoRb2In0y1fjT0IH9nGd",
+        "name": "Daniela Mehmeti"
+      },
+      "soheila": {
+        "ghlUserId": "LZ9YI9CGmUBaliQ6nmfb",
+        "name": "Soheila (Soli) Sadhagat"
+      },
+      "ruslana": {
+        "ghlUserId": "xYcgQ8RYQUXhuzV710kR",
+        "name": "Ruslana Stupina"
+      },
+      "diana": {
+        "ghlUserId": "H8uaGkwR0h2sFz9Ekd2O",
+        "name": "Diana Ann"
+      }
+    },
+    "depositPercent": 20
+  },
+  "categories": [
+    {
+      "id": "aesthetics",
+      "title": "Aesthetics",
+      "live": true,
+      "team": [
+        "meg",
+        "daniela"
+      ],
+      "ghlGroupId": "7L0ZKJhWbuZZ1Fg5sqip",
+      "groups": [
+        {
+          "name": "Consultation",
+          "services": [
+            {
+              "name": "Consultation",
+              "price": 0,
+              "duration": 30,
+              "ghlCalendarId": "HeNvXTTfEAvHFV2FOthP"
+            }
+          ]
+        },
+        {
+          "name": "Anti-Wrinkle (Botox)",
+          "services": [
+            {
+              "name": "Anti-Wrinkle Injections — 1 Area",
+              "price": 125,
+              "duration": 30,
+              "ghlCalendarId": "8bWQtsZZn6gNoCl1rtUQ"
+            },
+            {
+              "name": "Anti-Wrinkle Injections — 2 Areas",
+              "price": 145,
+              "duration": 30,
+              "ghlCalendarId": "sTtTkJr49wfYd0ijmBBO"
+            },
+            {
+              "name": "Anti-Wrinkle Injections — 3 Areas",
+              "price": 175,
+              "duration": 30,
+              "ghlCalendarId": "JbOGwH0cyzGcmGatQjKj"
+            },
+            {
+              "name": "Botox Top-Up (2 weeks after)",
+              "price": 20,
+              "duration": 20,
+              "ghlCalendarId": "89EAJQuK4EXa9RQmfAB3"
+            },
+            {
+              "name": "Lip Flip",
+              "price": 80,
+              "duration": 30,
+              "ghlCalendarId": "ZTRee8oRYGWfVlgoiP8f"
+            },
+            {
+              "name": "Masseter Muscle (Jaw Slimming)",
+              "price": 140,
+              "duration": 30,
+              "ghlCalendarId": "dBBxpgbUalyN7RdC3kKp"
+            },
+            {
+              "name": "Nose Slimming",
+              "price": 90,
+              "duration": 40,
+              "ghlCalendarId": "0E3zw1iYqRXlPEBxEzqS"
+            },
+            {
+              "name": "Gummy Smile",
+              "price": 90,
+              "duration": 20,
+              "ghlCalendarId": "1RJlXywWrHSgJI3CHOBT"
+            },
+            {
+              "name": "Bunny Lines",
+              "price": 80,
+              "duration": 30,
+              "ghlCalendarId": "eylOrYFXtFcEnwwnHlw1"
+            },
+            {
+              "name": "Underarm Sweating (Hyperhidrosis)",
+              "price": 250,
+              "duration": 45,
+              "ghlCalendarId": "hhm8HjgksfLPku3uP11k"
+            },
+            {
+              "name": "Nefertiti Neck Lift",
+              "price": 300,
+              "duration": 60,
+              "ghlCalendarId": "ZqdqHpGkP0rGvW6Ga9H7"
+            },
+            {
+              "name": "Trapezius Muscle (Trap Tox)",
+              "price": 300,
+              "duration": 40,
+              "ghlCalendarId": "l7jBM8UGtbYS2bKAUF2N"
+            },
+            {
+              "name": "Calves Slimming",
+              "price": 400,
+              "duration": 30,
+              "ghlCalendarId": "QT9aMoSXFSZmjUfkX6jB"
+            }
+          ]
+        },
+        {
+          "name": "Facial Fillers",
+          "services": [
+            {
+              "name": "Lip Filler — 0.5ml",
+              "price": 145,
+              "duration": 45,
+              "ghlCalendarId": "8nIRmCPWHC3y64q7ZzMG"
+            },
+            {
+              "name": "Lip Filler — 1.1ml",
+              "price": 180,
+              "duration": 45,
+              "ghlCalendarId": "M1qSMkY6HyGrbA9yuZ2E"
+            },
+            {
+              "name": "Cheek Filler — 1ml",
+              "price": 145,
+              "duration": 60,
+              "ghlCalendarId": "80HM4TSMUyerOmTzd837"
+            },
+            {
+              "name": "Chin Filler",
+              "price": 145,
+              "duration": 45,
+              "ghlCalendarId": "kZKLBN7TiCafai1slnYu"
+            },
+            {
+              "name": "Jawline Filler",
+              "price": 145,
+              "duration": 45,
+              "ghlCalendarId": "Rxi4eGEaWL2SG2LRuiFy"
+            },
+            {
+              "name": "Smile Lines (Nasolabial) Filler",
+              "price": 130,
+              "duration": 45,
+              "ghlCalendarId": "OaJ5LVJ1irFORFAQENqV"
+            },
+            {
+              "name": "Non-Surgical Nose Filler",
+              "price": 150,
+              "duration": 45,
+              "ghlCalendarId": "mYfv0Gl2PnPhQ8dI5jnf"
+            },
+            {
+              "name": "Tear Trough Filler",
+              "price": 185,
+              "duration": 45,
+              "ghlCalendarId": "UREsGaEbDnGMDB38sNVB"
+            },
+            {
+              "name": "Hand Rejuvenation",
+              "price": 300,
+              "duration": 70,
+              "ghlCalendarId": "Aa5nNIy0x4IdtprA3aGn"
+            },
+            {
+              "name": "Filler Dissolving",
+              "price": 90,
+              "duration": 30,
+              "ghlCalendarId": "zuUa83SIvyHck45VDa4O"
+            }
+          ]
+        },
+        {
+          "name": "Skin Boosters & Regenerative",
+          "services": [
+            {
+              "name": "Polynucleotide — Face",
+              "price": 250,
+              "duration": 35,
+              "ghlCalendarId": "ZpLjJO2PMOagUX3Wxn6r"
+            },
+            {
+              "name": "Polynucleotide — Under-Eye",
+              "price": 140,
+              "duration": 35,
+              "ghlCalendarId": "EifXtgs0KQTkgFtWcxLU"
+            },
+            {
+              "name": "Profhilo",
+              "price": 180,
+              "duration": 60,
+              "ghlCalendarId": "IkbXWZFxcrV4sQbvwGWL"
+            },
+            {
+              "name": "PRP Regenerative Facial — Single",
+              "price": 250,
+              "duration": 80,
+              "ghlCalendarId": "uNO7cu8TwLoyOMnilQKK"
+            },
+            {
+              "name": "PRP Regenerative Facial — Course of 3",
+              "price": 695,
+              "duration": 80,
+              "ghlCalendarId": "5VYdMfqUDxN6ZvF0t425"
+            },
+            {
+              "name": "Vitamin B12 Injection",
+              "price": 25,
+              "duration": 10,
+              "ghlCalendarId": "KPuAD6GPKq8tL97r05IX"
+            }
+          ]
+        },
+        {
+          "name": "Skin & Facials",
+          "services": [
+            {
+              "name": "Hydrafacial",
+              "price": 150,
+              "duration": 70,
+              "ghlCalendarId": "dEpzKQM2e4dXe1XtuAFa"
+            },
+            {
+              "name": "Express Hydrafacial",
+              "price": 120,
+              "duration": 45,
+              "ghlCalendarId": "z3WdVWNxh9ffZQru4Dpa"
+            },
+            {
+              "name": "Skin Pen Microneedling",
+              "price": 200,
+              "duration": 60,
+              "ghlCalendarId": "k9KesLVuF4kKjoYJCsdd"
+            },
+            {
+              "name": "Microneedling",
+              "price": 85,
+              "duration": 50,
+              "ghlCalendarId": "zWHGREAcsQVMMnboALs5"
+            },
+            {
+              "name": "Chemical Peel",
+              "price": 95,
+              "duration": 40,
+              "ghlCalendarId": "GMPvogfcKVH4QLGJqFkM"
+            },
+            {
+              "name": "Luxury Facial",
+              "price": 60,
+              "duration": 65,
+              "ghlCalendarId": "JmBvCVJAD8YjSvowvkY1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nails",
+      "title": "Nails",
+      "live": true,
+      "team": [
+        "soheila",
+        "ruslana",
+        "diana"
+      ],
+      "ghlGroupId": "pnF50Q3Pvk5Kc7bfbftk",
+      "groups": [
+        {
+          "name": "BIAB",
+          "services": [
+            {
+              "name": "BIAB Removal & New Set (with cutting cuticle)",
+              "price": 45,
+              "duration": 80,
+              "ghlCalendarId": "IZYePZR4RagpCE8fNIx8"
+            },
+            {
+              "name": "BIAB Infill (with cutting cuticle)",
+              "price": 37,
+              "duration": 80,
+              "ghlCalendarId": "tOe0yn7ZGhaKQ9lIy7oH"
+            },
+            {
+              "name": "Gel Polish Hands (with cutting cuticle)",
+              "price": 28,
+              "duration": 50,
+              "ghlCalendarId": "bb9Mb0dU3DHvtCshCfuM"
+            },
+            {
+              "name": "Smart Gel Infill (with cutting cuticle)",
+              "price": 42,
+              "duration": 80,
+              "ghlCalendarId": "OH91D47YPiGTzALmhaDo"
+            }
+          ]
+        },
+        {
+          "name": "Gel Extensions",
+          "services": [
+            {
+              "name": "Smart Gel Extensions — up to 4 length (with cutting cuticle)",
+              "price": 48,
+              "duration": 80,
+              "ghlCalendarId": "yaX6RhIGQ7hTVc6ajWgz"
+            },
+            {
+              "name": "Smart Gel Extensions — more than 4 length (with cutting cuticle)",
+              "price": 55,
+              "duration": 90,
+              "ghlCalendarId": "EPF6fbOnT4maqNYmdCbl"
+            }
+          ]
+        },
+        {
+          "name": "Manicures",
+          "services": [
+            {
+              "name": "Overlay (on natural nails)",
+              "price": 30,
+              "duration": 45,
+              "ghlCalendarId": "z9gUzUqJTFkc3GoW61F6"
+            },
+            {
+              "name": "Classic Manicure without polish (with cutting cuticle)",
+              "price": 23,
+              "duration": 30,
+              "ghlCalendarId": "jCNM5yVOPvpk2gy4TVVf"
+            },
+            {
+              "name": "Classic Manicure with polish (with cutting cuticle & gel polish)",
+              "price": 30,
+              "duration": 45,
+              "ghlCalendarId": "6LV2G9fQP3S5DFtw8tFX"
+            },
+            {
+              "name": "Japanese Manicure without polish (with cutting cuticle)",
+              "price": 30,
+              "duration": 35,
+              "ghlCalendarId": "2CyKtGrEnv8ver4Hitho"
+            },
+            {
+              "name": "Classic Manicure (with cutting cuticle)",
+              "price": 26,
+              "duration": 30,
+              "ghlCalendarId": "zuvmbjhC0qngjjuM0PgG"
+            },
+            {
+              "name": "Luxury Treatment incl. hand massage & scrub",
+              "price": 50,
+              "duration": 60,
+              "ghlCalendarId": "UbYcSSvqkBjadu9paGoG"
+            }
+          ]
+        },
+        {
+          "name": "Pedicures",
+          "services": [
+            {
+              "name": "Classic Pedicure (with cutting cuticle & gel polish)",
+              "price": 40,
+              "duration": 60,
+              "ghlCalendarId": "tT9m5eRwdpbeRMeWxVYB"
+            },
+            {
+              "name": "Classic Pedicure without polish (with cutting cuticle)",
+              "price": 35,
+              "duration": 45,
+              "ghlCalendarId": "QhcsovVByxTDYBmVW1I8"
+            },
+            {
+              "name": "Only Toes (no spa)",
+              "price": 30,
+              "duration": 30,
+              "ghlCalendarId": "KxGwePxaISMoroR5Q1iu"
+            },
+            {
+              "name": "Luxury Pedicure (cutting cuticle + polish + SPA)",
+              "price": 50,
+              "duration": 60,
+              "ghlCalendarId": "pQbMdHd3q6M5gT22vy9q"
+            },
+            {
+              "name": "Luxury Pedicure (cutting cuticle, no polish + SPA)",
+              "price": 45,
+              "duration": 45,
+              "ghlCalendarId": "AU2WjdomQ98TE9A5zfiz"
+            }
+          ]
+        },
+        {
+          "name": "Removals",
+          "services": [
+            {
+              "name": "Acrylic Removal",
+              "price": 18,
+              "duration": 20,
+              "ghlCalendarId": "zCG2K8L5kuCsU9XBqZSp"
+            },
+            {
+              "name": "BIAB / Gel Removal",
+              "price": 15,
+              "duration": 20,
+              "ghlCalendarId": "MZoYu4vYeFUZhVsKzFz2"
+            }
+          ]
+        }
+      ],
+      "addOns": [
+        {
+          "name": "French / Chrome / Ombré",
+          "price": 7
+        },
+        {
+          "name": "Simple Nail Art (stars, hearts, polka dots) — 1–2 nails",
+          "price": 5
+        },
+        {
+          "name": "Simple Nail Art — full hands",
+          "price": 15
+        },
+        {
+          "name": "Advanced Nail Art (3D designs) — 1–2 nails",
+          "price": 10
+        },
+        {
+          "name": "Advanced Nail Art (3D designs) — full hands",
+          "price": 25
+        }
+      ]
+    },
+    {
+      "id": "hair",
+      "title": "Hair",
+      "live": false,
+      "team": [],
+      "groups": []
+    },
+    {
+      "id": "makeup",
+      "title": "Makeup",
+      "live": false,
+      "team": [],
+      "groups": []
+    },
+    {
+      "id": "laser",
+      "title": "Laser",
+      "live": false,
+      "team": [],
+      "groups": []
+    }
+  ]
+}

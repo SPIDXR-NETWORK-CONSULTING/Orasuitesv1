@@ -4,16 +4,16 @@ import { Link } from "wouter";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import aestheticsImage from "@assets/service-aesthetics_1770213665902.png";
-import nailsImage from "@assets/service-nails_1770213665903.png";
-import hairImage from "@assets/service-hair_1770213665902.png";
-import roomRentalImage from "@assets/room-rental_1770213665899.png";
+import aestheticsImage from "@assets/service-injectables.jpg";
+import nailsImage from "@assets/service-nails-ora.jpg";
+import hairImage from "@assets/service-hair-homepage.jpg";
+import wellnessImage from "@assets/service-wellness-homepage.jpg";
 
 const services = [
   {
     id: "aesthetics",
     title: "Aesthetics",
-    description: "Advanced facial treatments and rejuvenation therapies",
+    description: "Advanced injectables, skin boosters and rejuvenation therapies",
     image: aestheticsImage,
     href: "/services#aesthetics",
   },
@@ -27,16 +27,16 @@ const services = [
   {
     id: "hair",
     title: "Hair Services",
-    description: "Expert styling, color, and transformative hair care",
+    description: "Expert styling, colour, and transformative hair care",
     image: hairImage,
     href: "/services#hair",
   },
   {
-    id: "laser",
-    title: "Laser & Wellness",
-    description: "Professional laser treatments and holistic wellness",
-    image: roomRentalImage,
-    href: "/services#laser",
+    id: "wellness",
+    title: "Massage & Wellness",
+    description: "Restorative facials and holistic wellness rituals",
+    image: wellnessImage,
+    href: "/services#wellness",
   },
 ];
 

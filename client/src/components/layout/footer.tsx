@@ -1,6 +1,6 @@
 import { Link } from "wouter";
-import { MapPin, Phone, Mail, Instagram, Facebook } from "lucide-react";
-import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213670965.jpeg";
+import { MapPin, Mail, Instagram, Facebook } from "lucide-react";
+import logoImage from "@assets/ora-logo-new.jpg";
 
 const quickLinks = [
   { href: "/services", label: "Services" },
@@ -28,16 +28,16 @@ export function Footer() {
               <img
                 src={logoImage}
                 alt="ORÁ."
-                className="h-14 w-auto object-contain mb-4"
+                className="h-14 w-auto object-contain mb-4 rounded-xl"
               />
             </Link>
             <p className="text-ora-fog text-sm leading-relaxed mb-6">
-              Manchester's premier women-only wellness sanctuary. Where beauty
+              Manchester's premier wellness sanctuary. Where beauty
               meets intention. Where care becomes ritual.
             </p>
             <div className="flex items-center gap-4">
               <a
-                href="https://instagram.com/orasuites"
+                href="https://www.instagram.com/ora_beauty_mcr/"
                 target="_blank"
                 rel="noopener noreferrer"
                 data-testid="link-instagram"
@@ -104,27 +104,18 @@ export function Footer() {
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-ora-taupe mt-0.5 flex-shrink-0" />
                 <span className="text-ora-fog text-sm">
-                  Manchester City Centre
+                  45 Deansgate, Manchester
                   <br />
-                  Greater Manchester, UK
+                  M3 2AY, England
                 </span>
               </li>
-              <li className="flex items-center gap-3">
-                <Phone size={18} className="text-ora-taupe flex-shrink-0" />
-                <a
-                  href="tel:+441onal"
-                  className="text-ora-fog hover:text-ora-taupe transition-colors text-sm"
-                >
-                  +44 (0) 123 456 7890
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
+<li className="flex items-center gap-3">
                 <Mail size={18} className="text-ora-taupe flex-shrink-0" />
                 <a
-                  href="mailto:hello@orasuites.com"
+                  href="mailto:admin@orasuites.com"
                   className="text-ora-fog hover:text-ora-taupe transition-colors text-sm"
                 >
-                  hello@orasuites.com
+                  admin@orasuites.com
                 </a>
               </li>
             </ul>
@@ -136,7 +127,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-ora-smoke text-sm">
-              &copy; {new Date().getFullYear()} Ora Suites. A sanctuary for women.
+              &copy; {new Date().getFullYear()} Ora Suites. A sanctuary for wellness.
             </p>
             <div className="flex items-center gap-6 text-sm text-ora-smoke">
               <Link href="/privacy">

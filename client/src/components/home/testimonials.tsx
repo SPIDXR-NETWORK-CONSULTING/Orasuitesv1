@@ -73,7 +73,7 @@ export function TestimonialsSection() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader
           title="What Our Clients Say"
-          subtitle="Real stories from women who have experienced the Ora difference."
+          subtitle="Real stories from clients who have experienced the Ora difference."
         />
 
         <div

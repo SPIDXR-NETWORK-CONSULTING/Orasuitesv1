@@ -1,3 +1,5 @@
+> ⚠️ **STALE BUILD — this folder is the deprecated secondary build. The canonical build is `../Ora-Suites Website/`. Do not edit this folder.** The "MemStorage (development)" framing below understates a production gap: contact submissions are not persisted in the canonical build either (verify in its `server/storage.ts`). *(Banner added 2026-07-06.)*
+
 # ORÁ Suites Website
 
 ## Overview

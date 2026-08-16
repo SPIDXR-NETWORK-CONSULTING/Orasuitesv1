@@ -1,0 +1,30 @@
+# ORÁ Suites — Redesign Brief (v1, 16 Aug 2026)
+
+Read fully before touching code. Also read `/Users/abdulafolabi/.claude/skills/abdul-design-standard/SKILL.md` and `../ORA_DESIGN_AUDIT_2026-08-16.md`.
+Branch: `restore-full-site`. Dev: `npm run dev` (PORT env; Vite+Express). Type-check: `npm run check`.
+
+## Non-negotiables
+- KEEP every existing image/video and the warm-neutral palette (ora-milk/sand/bone/smoke/fog/greige/taupe/chocolate + bronze #b98867). No new stock imagery. No purple/blue/SaaS look.
+- Aesthetic: **luxury glassmorphic**. Frosted see-through panels (`backdrop-filter: blur(24px)`, `rgba(255,255,255,.08–.14)` fill, 1px `rgba(255,255,255,.14)` border, soft inner highlight) floating OVER photos/video; warm dark contrast bands (`ora-chocolate` / `#1a1008`) with cream type; bronze accents used sparingly (lines, eyebrows, hover glows). Backgrounds never flat: radial warm mesh + 3% grain via `::before`.
+- Typography: display = **Playfair Display** (big: `clamp(2.5rem, 6.5vw, 6rem)`, tracking -0.02em, line-height 1.02); body = **DM Sans** (16–18px, lh 1.6); eyebrows = DM Sans 11–12px, tracking .25em uppercase, bronze. **Inter is banned** — remove from index.html, index.css, tailwind.config.ts.
+- Motion: easing `--ease-luxury: cubic-bezier(.22,1,.36,1)`; spring feel via framer `type:"spring", stiffness 120–160, damping 18–22` for cards/buttons ("bounce" but no overshoot > 4%). Reveals: `whileInView` `once:true`, `y: 28→0` + opacity, **staggerChildren 0.08**, duration .8–1.0s. Split-line headline reveals on hero/section titles. Hover: lift `y:-6`, scale 1.02–1.03, bronze glow shadow, image scale 1.05/700ms. Page transitions: fade+y 12, 350ms (AnimatePresence). Always honour `prefers-reduced-motion` (useReducedMotion → no transforms).
+- Layout: section padding 96–160px desktop; ≥1 deliberate grid-break per page (overlap, offset, bleed-to-edge). One idea per section. Mobile 375px flawless first.
+- Copy tone: warm, confident, few words. Positioning line: **"Manchester's women-only sanctuary for beauty & wellness."** Address everywhere: **45 Deansgate, Manchester M3 2AY**. Email: **admin@orasuites.com**. Phone: none yet — never show a placeholder number.
+- Accessibility: alt text descriptive, `aria-expanded` on accordions, focus rings (bronze), contrast AA on glass (add `--overlay-dark` under text on imagery).
+- SEO: per-route title (keyword-first on inner pages) + description + canonical + og:image via `useSEO`; JSON-LD `HealthAndBeautyBusiness` (home) + `Service` list; sitemap.xml + robots.txt in `client/public`. Words "women-only", "Manchester", "Deansgate" in H1/H2/description.
+- Performance: hero video `poster` + `preload="metadata"`; all non-hero images `loading="lazy" decoding="async"` with width/height; TikTok videos `preload="none"`; delete `client/public/tiktok/*.mov` and any `.zip` in `attached_assets/`.
+
+## Business truth
+- Categories (from the ORÁ menu): **Nails · Hair · Makeup · Aesthetics · Laser** (+ Wellness later). LIVE now: **Aesthetics + Nails**. Hair, Makeup, Laser (and Wellness) = "Coming soon" — shown faded (opacity .55, grayscale 40%, `pointer-events` limited to a "Notify me" affordance), never hidden.
+- Services + prices + durations: `shared/catalogue.json` is the ONLY source. Import it (Vite JSON import) — never hard-code prices in components. Aesthetics = Meg + Daniela; Nails = Soheila, Ruslana, Diana. Add-ons (nails) display-only.
+- Team (public-facing): Meg Cauli (founder, aesthetics), Daniela Mehmeti (aesthetics), Soheila "Soli" Sadhagat, Ruslana Stupina, Diana Ann (nails). Photos: use `attached_assets/about-meg-ceo.jpg` for Meg; others = initials monogram in a glass circle (no stock).
+- Room rentals STAYS: page + homepage teaser + enquiry form. Enquiry → existing GHL contact/opportunity flow (Room Rentals pipeline `ps9Mrw1I7sL2vq7pOvyz`) AND email admin@orasuites.com.
+- Booking backend already exists: `GET /api/ghl/slots?calendarId&startDate&endDate` (ms epochs, returns `{ "YYYY-MM-DD": {slots:[iso...]}}`), `POST /api/ghl/booking` `{name,email,phone,notes,calendarId,serviceName,startTime,endTime}`; Vercel twins in `api/ghl/`. GHL calendar per service — the site needs a `catalogue.json` → `ghlCalendarId` map: run `script/ghl-sync-services.py --emit-map` (adds `ghlCalendarId` per service; if not present, engineer adds that flag). Deposits (20%) UI: show "20% deposit (£X) secures your booking — payment step arrives once Stripe is connected" as a disabled/preview step; do NOT fake a payment.
+- Legacy widget calendars: Aesthetics `k9RONq5BHZakjhuytyNn`, Nails `tBhcLZKehdPCusO9gAM2` — do not embed iframes anymore.
+
+## File ownership (to avoid conflicts)
+- FOUNDATION (agent 1): `client/index.html`, `client/src/index.css`, `tailwind.config.ts`, `client/src/components/ui/section.tsx`, `button.tsx`, new `client/src/components/ui/glass.tsx` (GlassCard, GlassPill, Eyebrow, DisplayHeading, SplitLineReveal, Reveal/Stagger helpers, BeforeAfterSlider stub), `client/src/lib/motion.ts` (variants + easing + useReducedMotion wrappers), `client/src/lib/catalogue.ts` (typed loader/helpers), `client/src/components/layout/header.tsx`, `footer.tsx`, `layout.tsx`, `App.tsx` (page transitions), `hooks/use-seo.ts` (canonical/og/JSON-LD), `client/public/robots.txt`, `sitemap.xml`. Harvest glass tokens + `OraIcons.tsx` from `git show 6087cd3:client/src/index.css` / `git show 6087cd3:client/src/components/icons/OraIcons.tsx`.
+- HOME (agent 2): `client/src/components/home/*.tsx`, `pages/home.tsx`.
+- SERVICES + BOOK (agent 3): `pages/services.tsx`, `pages/book.tsx` + new `client/src/components/booking/*`.
+- ABOUT/CONTACT/ROOM-RENTALS/RESULTS (agent 4): those pages + `server/routes.ts` + `api/contact.ts` for admin email (via GHL: create/find contact "ORÁ Admin" admin@orasuites.com and POST `/conversations/messages` type Email; keep it non-blocking).
+Agents 2–4 may ADD files under their own folders and import from foundation; they must NOT edit foundation files — if a token/helper is missing, add a local one and note it in the final report.

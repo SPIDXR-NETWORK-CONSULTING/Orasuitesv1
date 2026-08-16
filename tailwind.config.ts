@@ -79,6 +79,7 @@ export default {
           sand: "hsl(var(--ora-sand) / <alpha-value>)",
           bone: "hsl(var(--ora-bone) / <alpha-value>)",
           smoke: "hsl(var(--ora-smoke) / <alpha-value>)",
+          chocolate: "hsl(var(--ora-chocolate) / <alpha-value>)",
           fog: "hsl(var(--ora-fog) / <alpha-value>)",
           greige: "hsl(var(--ora-greige) / <alpha-value>)",
           taupe: "hsl(var(--ora-taupe) / <alpha-value>)",

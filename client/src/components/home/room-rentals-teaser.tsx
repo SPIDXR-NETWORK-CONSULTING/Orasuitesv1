@@ -4,7 +4,7 @@ import { Link } from "wouter";
 import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check } from "lucide-react";
-import roomRentalImage from "@assets/room-rental_1770215241478.png";
+import roomRentalImage from "@assets/ora-hallway.jpg";
 
 const features = [
   "Fully equipped treatment rooms",
@@ -56,7 +56,7 @@ export function RoomRentalsTeaserSection() {
               rooms available for daily, monthly, or yearly rental.
             </p>
             <p className="text-ora-fog leading-relaxed mb-8">
-              Join a community of women-led wellness experts in the heart of
+              Join a community of wellness professionals in the heart of
               Manchester. Elevate your practice in a space designed for success.
             </p>
 

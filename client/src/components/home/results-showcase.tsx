@@ -3,26 +3,21 @@ import { useRef } from "react";
 import { Link } from "wouter";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
-import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
+import lipFiller1 from "@assets/result-lip-filler-1.jpg";
+import hydrofacialImg from "@assets/result-hydrofacial.jpg";
 
 const results = [
   {
     id: 1,
-    treatment: "Skin Rejuvenation",
-    description: "Profhilo treatment results after 2 sessions",
-    image: beforeAfterImage,
+    treatment: "Lip Filler",
+    description: "Natural volume and definition — before & after",
+    image: lipFiller1,
   },
   {
     id: 2,
-    treatment: "Anti-Aging",
-    description: "Polynucleotide therapy transformation",
-    image: beforeAfterImage,
-  },
-  {
-    id: 3,
-    treatment: "Facial Enhancement",
-    description: "Natural enhancement with dermal fillers",
-    image: beforeAfterImage,
+    treatment: "HydraFacial",
+    description: "Deep cleanse, exfoliation and targeted hydration",
+    image: hydrofacialImg,
   },
 ];
 
@@ -38,7 +33,7 @@ export function ResultsShowcaseSection() {
           subtitle="Every transformation tells a story of renewed confidence. See the results our clients have achieved through our expert treatments."
         />
 
-        <div ref={ref} className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div ref={ref} className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
           {results.map((result, index) => (
             <motion.div
               key={result.id}

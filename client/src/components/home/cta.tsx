@@ -2,7 +2,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
-import heroImage from "@assets/hero-image_1770213665902.png";
+import heroImage from "@assets/ora-hero-zebra-crossing.jpg";
 
 export function CTASection() {
   const ref = useRef<HTMLElement>(null);
@@ -36,7 +36,7 @@ export function CTASection() {
             Book your appointment today and experience Manchester's most
             elevated beauty sanctuary.
           </p>
-          <Link href="/contact">
+          <Link href="/book">
             <Button
               data-testid="button-cta-book"
               size="lg"

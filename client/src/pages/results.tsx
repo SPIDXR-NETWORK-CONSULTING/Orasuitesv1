@@ -5,54 +5,58 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useSEO } from "@/hooks/use-seo";
 
-import beforeAfterImage from "@assets/before-after-results_1770213665903.png";
+import heroBannerImage from "@assets/result-hero-contour.jpg";
+import lipFiller1 from "@assets/result-lip-filler-new.jpg";
+import polynucleotideImg from "@assets/service-polynucleotide.jpg";
+import hydrofacialImg from "@assets/result-hydrofacial.jpg";
+import underEyeImg from "@assets/result-under-eye-new.jpg";
+import microneedlingImg from "@assets/result-microneedling.jpg";
+import chinFillerImg from "@assets/result-chin-filler.jpg";
 
 const results = [
   {
     id: 1,
-    treatment: "Profhilo Treatment",
-    description: "Visible improvement in skin hydration and firmness after 2 sessions",
+    treatment: "Lip Filler",
+    description: "Natural volume and definition with precise placement",
     category: "Aesthetics",
-    image: beforeAfterImage,
+    image: lipFiller1,
   },
   {
     id: 2,
     treatment: "Polynucleotide Therapy",
-    description: "Enhanced skin quality and reduced fine lines",
+    description: "Advanced skin regeneration — Ora practitioner at work",
     category: "Aesthetics",
-    image: beforeAfterImage,
+    image: polynucleotideImg,
   },
   {
     id: 3,
-    treatment: "Dermal Fillers",
-    description: "Natural enhancement maintaining facial harmony",
+    treatment: "Under Eye Filler",
+    description: "Tear trough correction for refreshed, rested eyes",
     category: "Aesthetics",
-    image: beforeAfterImage,
+    image: underEyeImg,
   },
   {
     id: 4,
-    treatment: "Skin Rejuvenation",
-    description: "Comprehensive treatment for texture and tone improvement",
-    category: "Aesthetics",
-    image: beforeAfterImage,
+    treatment: "HydraFacial",
+    description: "Deep cleanse, exfoliation and targeted hydration",
+    category: "Skin",
+    image: hydrofacialImg,
   },
   {
     id: 5,
-    treatment: "Laser Hair Removal",
-    description: "Smooth, lasting results after treatment course",
-    category: "Laser",
-    image: beforeAfterImage,
+    treatment: "Chin Filler",
+    description: "Profile enhancement and facial balance with expert contouring",
+    category: "Aesthetics",
+    image: chinFillerImg,
   },
   {
     id: 6,
-    treatment: "Anti-Aging Treatment",
-    description: "Reduced wrinkles and improved skin elasticity",
-    category: "Aesthetics",
-    image: beforeAfterImage,
+    treatment: "Microneedling",
+    description: "Collagen induction therapy for skin texture and lasting radiance",
+    category: "Skin",
+    image: microneedlingImg,
   },
 ];
-
-const categories = ["All", "Aesthetics", "Laser", "Skin"];
 
 export default function ResultsPage() {
   useSEO({
@@ -62,37 +66,27 @@ export default function ResultsPage() {
 
   return (
     <Layout>
-      <section className="pt-32 pb-16 bg-ora-milk">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative h-[50vh] min-h-[360px] flex items-end overflow-hidden">
+        <img
+          src={heroBannerImage}
+          alt="ORÁ Suites — Results"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
+        <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="font-serif text-display-sm md:text-display text-foreground mb-4">
+            <h1 className="font-serif text-display-sm md:text-display text-white mb-3">
               Real Results, Real Confidence
             </h1>
-            <p className="text-ora-fog text-lg max-w-2xl mx-auto">
+            <p className="text-white/80 text-lg max-w-2xl">
               Every transformation tells a story of renewed confidence. See what's
-              possible with expert care and personalized treatment plans.
+              possible with expert care and personalised treatment plans.
             </p>
           </motion.div>
-        </div>
-      </section>
-
-      <section className="py-8 bg-ora-sand">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap justify-center gap-3">
-            {categories.map((category) => (
-              <button
-                key={category}
-                data-testid={`button-filter-${category.toLowerCase()}`}
-                className="px-5 py-2.5 bg-ora-bone text-ora-fog hover:bg-ora-greige hover:text-ora-taupe rounded-full text-sm font-medium transition-colors"
-              >
-                {category}
-              </button>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -113,7 +107,7 @@ export default function ResultsPage() {
                   <div className="aspect-square overflow-hidden">
                     <img
                       src={result.image}
-                      alt={`${result.treatment} before and after`}
+                      alt={`${result.treatment} result`}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
                   </div>
@@ -148,9 +142,9 @@ export default function ResultsPage() {
             </h2>
             <p className="text-ora-fog mb-8">
               Book a consultation with our experts to discuss your goals and create
-              a personalized treatment plan.
+              a personalised treatment plan.
             </p>
-            <Link href="/contact">
+            <Link href="/book">
               <Button
                 data-testid="button-results-book"
                 className="bg-ora-taupe text-white hover:bg-ora-fog px-8"

@@ -2,7 +2,6 @@ import { motion } from "framer-motion";
 import { Link } from "wouter";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroImage from "@assets/hero-image_1770213665902.png";
 
 export function HeroSection() {
   const scrollToContent = () => {
@@ -12,23 +11,21 @@ export function HeroSection() {
   return (
     <section
       data-testid="section-hero"
-      className="relative min-h-screen flex items-center justify-center overflow-hidden"
+      className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black"
     >
-      <div className="absolute inset-0">
-        <motion.div
-          initial={{ scale: 1.1 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
-          className="h-full"
-        >
-          <img
-            src={heroImage}
-            alt="Ora Suites luxury treatment room"
-            className="w-full h-full object-cover"
-          />
-        </motion.div>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50" />
-      </div>
+      {/* Full-screen video background */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      >
+        <source src="/hero-video.mp4" type="video/mp4" />
+      </video>
+
+      {/* Gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
 
       <div className="relative z-10 text-center px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         <motion.div
@@ -36,10 +33,10 @@ export function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
         >
-          <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-display-xl text-white mb-2 tracking-tight">
+          <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl lg:text-display-xl text-white mb-2 tracking-tight drop-shadow-lg">
             ORÁ.
           </h1>
-          <p className="font-serif text-xl sm:text-2xl text-white/80 mb-6" dir="rtl">
+          <p className="font-serif text-xl sm:text-2xl text-white/70 mb-6" dir="rtl">
             أورا
           </p>
         </motion.div>
@@ -47,32 +44,32 @@ export function HeroSection() {
         <motion.p
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          className="text-lg sm:text-xl md:text-2xl text-white/90 font-light mb-4 tracking-wide"
+          transition={{ duration: 0.8, delay: 0.55 }}
+          className="text-lg sm:text-xl md:text-2xl text-white/90 font-light mb-4 tracking-wide drop-shadow"
         >
-          Manchester's Premier Women-Only Wellness Sanctuary
+          Manchester's Premier Wellness Sanctuary
         </motion.p>
 
         <motion.p
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.7 }}
+          transition={{ duration: 0.8, delay: 0.75 }}
           className="text-base sm:text-lg text-white/70 mb-10 max-w-2xl mx-auto"
         >
-          Where Beauty, Confidence, and Transformation Intersect
+          Where Self-Care Becomes Ritual
         </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.9 }}
+          transition={{ duration: 0.8, delay: 0.95 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <Link href="/contact">
+          <Link href="/book">
             <Button
               data-testid="button-hero-book"
               size="lg"
-              className="bg-white text-ora-fog hover:bg-white/90 font-medium px-8 py-6 text-base"
+              className="bg-white text-ora-fog hover:bg-ora-bone font-medium px-8 py-6 text-base"
             >
               Book Your Treatment
             </Button>
@@ -82,7 +79,7 @@ export function HeroSection() {
               data-testid="button-hero-services"
               size="lg"
               variant="outline"
-              className="border-white/50 text-white hover:bg-white/10 font-medium px-8 py-6 text-base backdrop-blur-sm"
+              className="border-white/60 text-white hover:bg-white/10 font-medium px-8 py-6 text-base"
             >
               Explore Services
             </Button>
