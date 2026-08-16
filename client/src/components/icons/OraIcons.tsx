@@ -69,7 +69,7 @@ export function ScalpIcon({ size, color, strokeWidth, className }: IconProps = d
   );
 }
 
-/** Crescent Moon — Women-only marker */
+/** Crescent Moon — calm / evening marker */
 export function CrescentIcon({ size, color, strokeWidth, className }: IconProps = defaultProps) {
   return (
     <svg width={size ?? 24} height={size ?? 24} viewBox="0 0 24 24" fill="none"

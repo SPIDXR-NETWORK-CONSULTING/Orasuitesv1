@@ -1,156 +1,192 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { MapPin, Phone, Mail, Instagram, Facebook } from "lucide-react";
-import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213670965.jpeg";
+import { motion, AnimatePresence } from "framer-motion";
+import { Instagram, ArrowRight, Loader2, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Reveal, Stagger, easeLuxury } from "@/lib/motion";
+import logoImage from "@assets/ora-logo-new.jpg";
 
-const quickLinks = [
+const explore = [
   { href: "/services", label: "Services" },
-  { href: "/korean-head-spa", label: "Head Spa" },
-  { href: "/about", label: "About Us" },
+  { href: "/book", label: "Book" },
+  { href: "/room-rentals", label: "Room Rentals" },
   { href: "/results", label: "Results" },
+  { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
 
-const services = [
-  { href: "/korean-head-spa", label: "Korean Head Spa" },
-  { href: "/services#aesthetics", label: "Aesthetics" },
-  { href: "/services#nails", label: "Nails & Pedicure" },
-  { href: "/services#hair", label: "Hair Services" },
-  { href: "/services#laser", label: "Laser Removal" },
-  { href: "/services#wellness", label: "Wellness" },
-];
+const INSTAGRAM_URL = "https://www.instagram.com/ora_beauty_mcr/";
+
+function EmailListPill() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/email-list", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setStatus("success");
+        setEmail("");
+      } else setStatus("error");
+    } catch {
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div className="w-full text-center">
+      <AnimatePresence mode="wait" initial={false}>
+        {status === "success" ? (
+          <motion.p
+            key="ok"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: easeLuxury }}
+            className="inline-flex items-center gap-2 rounded-full border border-ora-bronze/40 bg-ora-bronze/10 px-5 py-3 text-[0.9375rem] text-ora-cream"
+          >
+            <Check size={16} className="text-ora-bronze" /> You're on the list.
+          </motion.p>
+        ) : (
+          <motion.form
+            key="form"
+            onSubmit={submit}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.35, ease: easeLuxury }}
+            className={cn(
+              "mx-auto flex w-full max-w-md items-center gap-1 rounded-full border p-1 pl-5 transition-[border-color,box-shadow] duration-450 ease-luxury",
+              "glass-pill focus-within:border-ora-bronze focus-within:shadow-glow-bronze",
+              status === "error" && "border-destructive/60",
+            )}
+          >
+            <label htmlFor="footer-email" className="sr-only">
+              Email address
+            </label>
+            <input
+              id="footer-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Your email"
+              autoComplete="email"
+              className="min-w-0 flex-1 bg-transparent font-sans text-[0.9375rem] text-ora-cream placeholder:text-ora-smoke/80 outline-none"
+            />
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              aria-label="Join the list"
+              className="focus-ring inline-flex h-10 shrink-0 items-center gap-2 rounded-full bg-ora-taupe px-4 text-[0.8125rem] font-medium text-ora-cream transition-[background-color,box-shadow] duration-450 ease-luxury hover:bg-ora-bronze hover:shadow-glow-bronze disabled:opacity-60"
+            >
+              {status === "loading" ? <Loader2 size={16} className="animate-spin" /> : <>Join <ArrowRight size={14} /></>}
+            </button>
+          </motion.form>
+        )}
+      </AnimatePresence>
+      {status === "error" && (
+        <p role="alert" className="mt-2 text-[0.8125rem] text-ora-smoke">
+          Something went wrong — please try again.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export function Footer() {
+  const year = new Date().getFullYear();
   return (
-    <footer data-testid="footer" className="bg-ora-sand border-t border-ora-greige">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-12 lg:gap-8">
-          <div className="lg:col-span-1">
-            <Link href="/">
-              <img
-                src={logoImage}
-                alt="ORÁ."
-                className="h-14 w-auto object-contain mb-4"
-              />
-            </Link>
-            <p className="text-ora-fog text-sm leading-relaxed mb-6">
-              Manchester's premier women-only wellness sanctuary. Where beauty
-              meets intention. Where care becomes ritual.
-            </p>
-            <div className="flex items-center gap-4">
-              <a
-                href="https://instagram.com/orasuites"
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="link-instagram"
-                className="p-2 rounded-full bg-ora-bone text-ora-fog hover:text-ora-taupe hover:bg-ora-greige transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram size={20} />
-              </a>
-              <a
-                href="https://facebook.com/orasuites"
-                target="_blank"
-                rel="noopener noreferrer"
-                data-testid="link-facebook"
-                className="p-2 rounded-full bg-ora-bone text-ora-fog hover:text-ora-taupe hover:bg-ora-greige transition-colors"
-                aria-label="Facebook"
-              >
-                <Facebook size={20} />
-              </a>
-            </div>
-          </div>
-
-          <div>
-            <h4 className="font-serif text-lg text-foreground mb-4">
-              Quick Links
-            </h4>
-            <ul className="space-y-3">
-              {quickLinks.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href}>
-                    <span
-                      data-testid={`link-footer-${link.label.toLowerCase().replace(/\s+/g, "-")}`}
-                      className="text-ora-fog hover:text-ora-taupe transition-colors text-sm"
-                    >
-                      {link.label}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-serif text-lg text-foreground mb-4">
-              Our Services
-            </h4>
-            <ul className="space-y-3">
-              {services.map((link) => (
-                <li key={link.href}>
-                  <Link href={link.href}>
-                    <span className="text-ora-fog hover:text-ora-taupe transition-colors text-sm">
-                      {link.label}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="font-serif text-lg text-foreground mb-4">
-              Contact Us
-            </h4>
-            <ul className="space-y-4">
-              <li className="flex items-start gap-3">
-                <MapPin size={18} className="text-ora-taupe mt-0.5 flex-shrink-0" />
-                <span className="text-ora-fog text-sm">
-                  Manchester City Centre
-                  <br />
-                  Greater Manchester, UK
-                </span>
-              </li>
-              <li className="flex items-center gap-3">
-                <Phone size={18} className="text-ora-taupe flex-shrink-0" />
-                <a
-                  href="tel:+441onal"
-                  className="text-ora-fog hover:text-ora-taupe transition-colors text-sm"
-                >
-                  +44 (0) 123 456 7890
-                </a>
-              </li>
-              <li className="flex items-center gap-3">
-                <Mail size={18} className="text-ora-taupe flex-shrink-0" />
-                <a
-                  href="mailto:admin@orasuites.com"
-                  className="text-ora-fog hover:text-ora-taupe transition-colors text-sm"
-                >
-                  admin@orasuites.com
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
+    <footer data-testid="footer" className="band-dark relative overflow-hidden">
+      {/* email band */}
+      <div className="relative z-[2] border-b border-ora-cream/10">
+        <Stagger className="mx-auto flex w-full max-w-content flex-col items-center gap-5 px-5 py-12 text-center sm:px-8 lg:px-12">
+          <Reveal inherit>
+            <p className="font-display text-display-sm text-ora-cream">Stay in the loop</p>
+            <p className="mt-1 text-[0.875rem] text-ora-smoke">New treatments and occasional offers.</p>
+          </Reveal>
+          <Reveal inherit className="flex w-full justify-center">
+            <EmailListPill />
+          </Reveal>
+        </Stagger>
       </div>
 
-      <div className="border-t border-ora-greige">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-ora-smoke text-sm">
-              &copy; {new Date().getFullYear()} Ora Suites. A sanctuary for women.
-            </p>
-            <div className="flex items-center gap-6 text-sm text-ora-smoke">
-              <Link href="/privacy">
-                <span className="hover:text-ora-taupe transition-colors">
-                  Privacy Policy
-                </span>
-              </Link>
-              <Link href="/terms">
-                <span className="hover:text-ora-taupe transition-colors">
-                  Terms of Service
-                </span>
-              </Link>
-            </div>
+      {/* links */}
+      <Stagger className="relative z-[2] mx-auto flex w-full max-w-content flex-col items-center gap-7 px-5 py-12 text-center sm:px-8 lg:px-12">
+        <Reveal inherit>
+          <Link href="/" aria-label="ORÁ Suites — home" className="focus-ring inline-block rounded-xl">
+            <img
+              src={logoImage}
+              alt="ORÁ Suites"
+              width={160}
+              height={56}
+              loading="lazy"
+              decoding="async"
+              className="h-11 w-auto rounded-lg object-contain"
+            />
+          </Link>
+        </Reveal>
+
+        <Reveal inherit as="nav" aria-label="Footer">
+          <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            {explore.map((l) => (
+              <li key={l.href}>
+                <Link
+                  href={l.href}
+                  data-testid={`link-footer-${l.label.toLowerCase().replace(/\s+/g, "-")}`}
+                  className="focus-ring group relative inline-block text-[0.9rem] text-ora-cream/80 transition-colors duration-450 hover:text-ora-cream"
+                >
+                  {l.label}
+                  <span className="absolute -bottom-0.5 left-0 h-px w-full origin-left scale-x-0 bg-ora-bronze transition-transform duration-450 ease-luxury group-hover:scale-x-100" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+
+        <Reveal inherit>
+          <address className="not-italic text-[0.875rem] leading-relaxed text-ora-smoke">
+            49 Deansgate, Manchester M3 2AY
+            <span className="mx-2 text-ora-bronze/60">·</span>
+            Mon–Sat 9–7
+            <span className="mx-2 text-ora-bronze/60">·</span>
+            <a href="mailto:admin@orasuites.com" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
+              admin@orasuites.com
+            </a>
+          </address>
+        </Reveal>
+
+        <Reveal inherit>
+          <a
+            href={INSTAGRAM_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="link-instagram"
+            aria-label="ORÁ on Instagram"
+            className="focus-ring glass-pill inline-flex h-10 w-10 items-center justify-center text-ora-cream hover:text-ora-bronze"
+          >
+            <Instagram size={17} strokeWidth={1.5} />
+          </a>
+        </Reveal>
+      </Stagger>
+
+      {/* bottom bar */}
+      <div className="relative z-[2] border-t border-ora-cream/10">
+        <div className="mx-auto flex w-full max-w-content flex-col items-center justify-center gap-2 px-5 py-5 text-[0.8125rem] text-ora-smoke sm:flex-row sm:gap-6 sm:px-8 lg:px-12">
+          <p>© ORÁ Suites {year}</p>
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
+              Privacy
+            </Link>
+            <Link href="/terms" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
+              Terms
+            </Link>
           </div>
         </div>
       </div>

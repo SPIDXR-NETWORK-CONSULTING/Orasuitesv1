@@ -1,188 +1,69 @@
 import { Layout } from "@/components/layout/layout";
+import { motion } from "framer-motion";
 import { useSEO } from "@/hooks/use-seo";
 
 export default function TermsPage() {
   useSEO({
-    title: "Terms & Conditions | ORÁ. Suites Manchester",
-    description:
-      "Terms and conditions for booking treatments, using our services, and visiting Ora Suites in Manchester.",
+    title: "Terms of Service | ORÁ.",
+    description: "Terms of Service for ORÁ Suites — booking, cancellation, and deposit policies.",
   });
 
   return (
     <Layout>
-      {/* Hero */}
-      <section
-        className="pt-32 pb-16"
-        style={{ background: "hsl(var(--ora-bone))" }}
-      >
-        <div className="max-w-3xl mx-auto px-6 sm:px-10 lg:px-16">
-          <p
-            className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-            style={{ color: "var(--ora-bronze)" }}
-          >
-            Legal
-          </p>
-          <h1
-            className="font-display text-5xl sm:text-6xl text-foreground leading-tight"
-            style={{ fontWeight: 300, letterSpacing: "0.02em" }}
-          >
-            Terms &amp; Conditions
-          </h1>
-          <p className="text-ora-fog text-base font-light mt-4">
-            Last updated: March 2026
-          </p>
-        </div>
-      </section>
+      <section className="pt-32 pb-16 bg-ora-milk">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <h1 className="font-serif text-3xl md:text-4xl text-foreground mb-3">Terms of Service</h1>
+            <p className="text-ora-smoke text-sm mb-10">Last updated: June 2026</p>
 
-      {/* Content */}
-      <section
-        className="py-16 pb-32"
-        style={{ background: "hsl(var(--ora-milk))" }}
-      >
-        <div
-          className="max-w-3xl mx-auto px-6 sm:px-10 lg:px-16"
-          style={{ color: "hsl(var(--ora-fog))" } as React.CSSProperties}
-        >
-          <div className="space-y-10 text-base font-light leading-relaxed">
+            <div className="prose prose-sm max-w-none text-ora-fog space-y-6">
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">1. Booking & Appointments</h2>
+                <p>All appointments must be booked through our online booking system, by phone, or by email. A booking is only confirmed once a 20% deposit has been received. We reserve the right to release unconfirmed bookings.</p>
+              </section>
 
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                1. Introduction
-              </h2>
-              <p>
-                These Terms and Conditions govern your use of the Ora Suites website and the booking
-                and receipt of treatments and services. By booking a treatment or using our website,
-                you agree to these terms. Please read them carefully.
-              </p>
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">2. Deposits</h2>
+                <p>A non-refundable 20% deposit is required to secure all appointments. This deposit is deducted from the total treatment cost at the time of your appointment. The remaining balance is due on the day of your appointment.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">3. Cancellations & No-Shows</h2>
+                <p><strong className="text-foreground">24-hour cancellation policy:</strong> Cancellations made with less than 24 hours' notice will result in full forfeiture of the deposit. No refunds will be issued for late cancellations or no-shows.</p>
+                <p className="mt-2">Cancellations made more than 24 hours in advance may receive their deposit as credit toward a future appointment, at our discretion.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">4. Rescheduling</h2>
+                <p>Appointments may be rescheduled with at least 24 hours' notice at no charge. Rescheduling within 24 hours may incur a rescheduling fee at our discretion.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">5. Health & Safety</h2>
+                <p>Clients are responsible for disclosing any relevant medical conditions, allergies, or contraindications prior to treatment. ORÁ Suites reserves the right to refuse or modify treatments in the interest of client safety. We are not liable for adverse reactions arising from undisclosed conditions.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">6. Pricing</h2>
+                <p>All prices are displayed on our website and are subject to change without notice. Prices are inclusive of VAT where applicable.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">7. Room Rentals</h2>
+                <p>Room rental agreements are governed by separate contracts. Please contact us directly for terms relating to practitioner room hire.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">8. Complaints</h2>
+                <p>We take client satisfaction seriously. If you have a complaint, please contact us at <a href="mailto:hello@orasuites.com" className="text-ora-taupe underline">hello@orasuites.com</a> within 7 days of your appointment. We will investigate and respond within 5 working days.</p>
+              </section>
+
+              <section>
+                <h2 className="font-serif text-xl text-foreground mb-3">9. Governing Law</h2>
+                <p>These terms are governed by the laws of England and Wales.</p>
+              </section>
             </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                2. Bookings & Appointments
-              </h2>
-              <p>
-                All bookings are subject to availability. A booking is confirmed only once you receive
-                a written confirmation from us. We reserve the right to decline any booking at our
-                discretion.
-              </p>
-              <p className="mt-4">
-                For first-time clients, certain treatments may require a consultation or patch test
-                before proceeding. We will advise you of this at the time of booking.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                3. Cancellation & No-Show Policy
-              </h2>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Cancellations made 48+ hours before your appointment: no charge.</li>
-                <li>Cancellations made 24–48 hours before: 50% of treatment price.</li>
-                <li>Cancellations made less than 24 hours before, or no-shows: full treatment price charged.</li>
-                <li>Korean Head Spa rituals and packages require 72 hours' notice for cancellation.</li>
-              </ul>
-              <p className="mt-4">
-                We understand circumstances change — if you experience an emergency, please contact us
-                as soon as possible and we will do our best to accommodate you.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                4. Pricing & Payments
-              </h2>
-              <p>
-                All prices are listed in GBP and include VAT where applicable. Prices are subject to
-                change without notice, but confirmed bookings will honour the price at the time of
-                booking. Payment is due at the time of treatment unless otherwise agreed.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                5. Health & Safety
-              </h2>
-              <p>
-                It is your responsibility to disclose any relevant medical conditions, allergies, or
-                medications before your treatment. Ora Suites reserves the right to refuse or modify a
-                treatment if we believe it poses a risk to your health or the health of our staff.
-              </p>
-              <p className="mt-4">
-                Certain treatments are not suitable during pregnancy. Please inform us at the time of
-                booking if you are pregnant or trying to conceive.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                6. Women-Only Policy
-              </h2>
-              <p>
-                Ora Suites is a women-only sanctuary. All clients and visitors must identify as women
-                to access our services and premises. We operate this policy to provide a safe and
-                comfortable environment for all our clients.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                7. Memberships
-              </h2>
-              <p>
-                Membership terms are as agreed at the point of sign-up. Memberships are
-                non-transferable. Monthly memberships require 30 days' notice for cancellation.
-                Unused sessions within a membership period do not carry over.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                8. Room Rental Terms
-              </h2>
-              <p>
-                Practitioners renting space at Ora Suites are bound by a separate Practitioner
-                Agreement issued upon acceptance. Key terms include: practitioners are responsible
-                for their own insurance, client interactions, and professional standards; Ora Suites
-                is not liable for client outcomes from a visiting practitioner's treatments.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                9. Liability
-              </h2>
-              <p>
-                Ora Suites is not liable for any loss, damage, or injury arising from treatments
-                where you have failed to disclose relevant health information. Our liability is
-                limited to the value of the treatment received. Nothing in these terms excludes
-                liability for death or personal injury caused by negligence.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                10. Governing Law
-              </h2>
-              <p>
-                These terms are governed by the laws of England and Wales. Any disputes shall be
-                subject to the exclusive jurisdiction of the English courts.
-              </p>
-            </div>
-
-            <div>
-              <h2 className="font-display text-2xl text-foreground mb-3" style={{ fontWeight: 400 }}>
-                11. Contact
-              </h2>
-              <p>
-                For any questions about these terms, please email us at{" "}
-                <a href="mailto:hello@orasuites.co.uk" style={{ color: "var(--ora-bronze)" }}>
-                  hello@orasuites.co.uk
-                </a>
-                .
-              </p>
-            </div>
-
-          </div>
+          </motion.div>
         </div>
       </section>
     </Layout>

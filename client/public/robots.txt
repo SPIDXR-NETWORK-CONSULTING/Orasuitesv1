@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /api/
 
-Sitemap: https://orasuites.com/sitemap.xml
+Sitemap: https://www.orasuites.com/sitemap.xml

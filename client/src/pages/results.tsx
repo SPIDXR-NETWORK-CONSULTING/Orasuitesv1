@@ -1,309 +1,213 @@
-import { useState, useRef } from "react";
-import { Layout } from "@/components/layout/layout";
-import { motion, AnimatePresence, useInView } from "framer-motion";
+import * as React from "react";
+import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Link } from "wouter";
-import { ArrowRight } from "lucide-react";
-import { useSEO } from "@/hooks/use-seo";
+import { ArrowRight, Maximize2 } from "lucide-react";
 
-import profhiloImg from "@assets/result-profhilo-skin_ora.png";
-import polyImg from "@assets/result-polynucleotide-antiaging_ora.png";
-import fillersImg from "@assets/result-dermal-fillers_ora.png";
-import scalpImg from "@assets/result-scalp-health_ora.png";
-import hairGrowthImg from "@assets/result-hair-growth_ora.png";
-import balayageImg from "@assets/result-balayage-hair_ora.png";
-import laserImg from "@assets/result-laser-removal_ora.png";
-import antiAgingImg from "@assets/result-anti-aging_ora.png";
-import densityImg from "@assets/result-hair-density_ora.png";
+import { Layout } from "@/components/layout/layout";
+import { Section } from "@/components/ui/section";
+import { Button } from "@/components/ui/button";
+import { GlassCard, DisplayHeading, BeforeAfterSlider } from "@/components/ui/glass";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Reveal, useMotionSafe, spring, easeLuxury } from "@/lib/motion";
+import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd } from "@/hooks/use-seo";
 
-const results = [
-  { id: 1, treatment: "Profhilo Treatment", description: "Visibly plumper, hydrated skin with restored elasticity after 2 sessions", category: "Aesthetics", image: profhiloImg, tall: true },
-  { id: 2, treatment: "Polynucleotide Therapy", description: "Reduced fine lines and improved skin texture over 6 weeks", category: "Aesthetics", image: polyImg, tall: false },
-  { id: 3, treatment: "Scalp Health Restoration", description: "Rebalanced scalp microbiome and visibly reduced flaking", category: "Korean Head Spa", image: scalpImg, tall: false },
-  { id: 4, treatment: "Dermal Fillers", description: "Natural enhancement — symmetry restored with zero-overfill technique", category: "Aesthetics", image: fillersImg, tall: false },
-  { id: 5, treatment: "Hair Growth Protocol", description: "Measurable density improvement over 4-week ritual programme", category: "Korean Head Spa", image: hairGrowthImg, tall: true },
-  { id: 6, treatment: "Balayage & Colour", description: "Seamless colour melt with zero brassy tones", category: "Hair", image: balayageImg, tall: false },
-  { id: 7, treatment: "Laser Hair Removal", description: "Smooth, lasting results after a 6-session course", category: "Laser", image: laserImg, tall: false },
-  { id: 8, treatment: "Anti-Aging Treatment", description: "Reduced wrinkles and improved skin elasticity after rejuvenation protocol", category: "Aesthetics", image: antiAgingImg, tall: true },
-  { id: 9, treatment: "Density & Shine", description: "Monthly membership client — 3-month hair transformation", category: "Korean Head Spa", image: densityImg, tall: false },
-];
+import lipFillerImg from "@assets/result-lip-filler-new.jpg";
+import polynucleotideImg from "@assets/service-polynucleotide.jpg";
+import hydrofacialImg from "@assets/result-hydrofacial.jpg";
+import underEyeImg from "@assets/result-under-eye-new.jpg";
+import microneedlingImg from "@assets/result-microneedling.jpg";
+import chinFillerImg from "@assets/result-chin-filler.jpg";
 
-const categories = ["All", "Aesthetics", "Korean Head Spa", "Hair", "Laser"];
+/* ── data ──────────────────────────────────────────────── */
+type Category = "Aesthetics" | "Skin";
+type Kind = "compare" | "single";
 
-const categoryTints: Record<string, string> = {
-  Aesthetics: "rgba(180,120,80,0.3)",
-  "Korean Head Spa": "rgba(100,130,160,0.3)",
-  Hair: "rgba(160,140,100,0.3)",
-  Laser: "rgba(120,100,160,0.3)",
-};
-
-interface ResultCardProps {
-  result: (typeof results)[0];
-  index: number;
+interface ResultItem {
+  id: string;
+  treatment: string;
+  category: Category;
+  /** compare = stacked before (top) / after (bottom) pair → slider in the lightbox */
+  kind: Kind;
+  image: string;
+  width: number;
+  height: number;
+  alt: string;
+  caption: string;
 }
 
-function ResultCard({ result, index }: ResultCardProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-40px" });
-  const tint = categoryTints[result.category] ?? "rgba(185,136,103,0.2)";
+/* 6 items = full rows at 3-up (All) and 3 each per filter — no orphans. */
+const RESULTS: ResultItem[] = [
+  { id: "lip-filler", treatment: "Lip filler", category: "Aesthetics", kind: "compare", image: lipFillerImg, width: 1206, height: 1198, alt: "Lip filler before and after: subtle added volume and a more defined lip border", caption: "Before and after — natural volume and definition." },
+  { id: "under-eye", treatment: "Under-eye filler", category: "Aesthetics", kind: "compare", image: underEyeImg, width: 736, height: 736, alt: "Under-eye filler before and after: hollows softened, area looks brighter and more rested", caption: "Before and after — tear-trough correction." },
+  { id: "chin-filler", treatment: "Chin filler", category: "Aesthetics", kind: "compare", image: chinFillerImg, width: 1206, height: 1210, alt: "Chin filler before and after: improved projection and a more balanced profile", caption: "Before and after — profile balance." },
+  { id: "polynucleotide", treatment: "Polynucleotides", category: "Skin", kind: "single", image: polynucleotideImg, width: 2048, height: 1536, alt: "A practitioner injecting polynucleotide treatment into a client's cheek", caption: "Treatment in progress — not a before/after." },
+  { id: "hydrafacial", treatment: "HydraFacial", category: "Skin", kind: "single", image: hydrofacialImg, width: 1206, height: 1297, alt: "A client relaxing during a HydraFacial treatment at ORÁ Suites", caption: "Treatment in progress — results build over sessions." },
+  { id: "microneedling", treatment: "Microneedling", category: "Skin", kind: "single", image: microneedlingImg, width: 1206, height: 1522, alt: "A client's face immediately after microneedling, showing the expected temporary flush", caption: "Immediately after — the flush settles in 24–48 hours." },
+];
+
+const FILTERS: ("All" | Category)[] = ["All", "Aesthetics", "Skin"];
+
+/* Stacked composites: top half = before, bottom half = after. */
+const STACKED_SLIDER_CLASSES = "[&_img:nth-of-type(1)]:object-top [&_img:nth-of-type(2)]:object-bottom rounded-xl";
+const STACKED_RATIO = "aspect-[2.06/1]";
+
+/* ── card ──────────────────────────────────────────────── */
+function ResultCard({ item, onOpen }: { item: ResultItem; onOpen: () => void }) {
+  const m = useMotionSafe();
+  const isCompare = item.kind === "compare";
 
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 32 }}
-      animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.8, delay: (index % 3) * 0.1, ease: [0.16, 1, 0.3, 1] }}
-      data-testid={`card-result-${result.id}`}
-      className="group break-inside-avoid mb-5"
+    <motion.article
+      layout
+      initial={m.reduced ? false : { opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={m.reduced ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.5, ease: easeLuxury }}
+      className="group relative h-full"
+      data-testid={`card-result-${item.id}`}
     >
-      <div className="relative overflow-hidden rounded-xl img-zoom">
-        <div className={`overflow-hidden ${result.tall ? "aspect-[3/4]" : "aspect-square"}`}>
-          <img
-            src={result.image}
-            alt={`${result.treatment} result`}
-            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            loading="lazy"
-          />
-          <div
-            className="absolute inset-0 transition-opacity duration-500 group-hover:opacity-60"
-            style={{ background: tint, mixBlendMode: "overlay" }}
-          />
-        </div>
-
-        <div
-          className="absolute inset-0"
-          style={{ background: "linear-gradient(to top, rgba(18,12,8,0.88) 0%, rgba(18,12,8,0.15) 50%, transparent 100%)" }}
-        />
-
-        <div className="absolute top-4 left-4 flex flex-col gap-1.5">
-          <span className="glass-card-sm px-3 py-1 text-[9px] tracking-[0.25em] uppercase font-light text-white/75">
-            Before → After
-          </span>
-          <span
-            className="self-start text-[9px] tracking-[0.2em] uppercase font-light px-2.5 py-1 rounded-full"
-            style={{
-              background: "rgba(185,136,103,0.15)",
-              border: "1px solid rgba(185,136,103,0.25)",
-              color: "var(--ora-bronze)",
-            }}
-          >
-            {result.category}
-          </span>
-        </div>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <div className="glass-card p-4">
-            <h3
-              className="font-display text-base text-white mb-1"
-              data-testid={`text-result-title-${result.id}`}
-              style={{ fontWeight: 300, letterSpacing: "0.02em" }}
-            >
-              {result.treatment}
-            </h3>
-            <p className="text-white/45 text-xs font-light leading-relaxed mb-2">{result.description}</p>
-            <span
-              className="inline-flex items-center gap-1.5 text-[10px] tracking-widest uppercase font-light transition-all duration-300 group-hover:gap-2.5"
-              style={{ color: "var(--ora-bronze)" }}
-            >
-              View gallery <ArrowRight size={9} />
-            </span>
+      <GlassCard staticCard hover tone="light" padding="none" radius="lg" className="flex h-full flex-col overflow-hidden bg-white/55">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`Open ${item.treatment} ${isCompare ? "before and after" : "photo"}`}
+          className="relative block w-full overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ora-bronze"
+        >
+          <div className="aspect-square">
+            <img src={item.image} alt={item.alt} width={item.width} height={item.height} loading="lazy" decoding="async" className="h-full w-full object-cover" />
           </div>
+          {isCompare && (
+            <>
+              <span className="pointer-events-none absolute left-3 top-3 glass-pill px-3 py-1 font-sans text-[0.6875rem] font-medium uppercase tracking-[0.2em] text-ora-cream">Before</span>
+              <span className="pointer-events-none absolute left-3 top-1/2 mt-3 glass-pill px-3 py-1 font-sans text-[0.6875rem] font-medium uppercase tracking-[0.2em] text-ora-cream">After</span>
+            </>
+          )}
+          <span className="pointer-events-none absolute bottom-3 right-3 inline-flex h-9 w-9 items-center justify-center rounded-full glass-strong text-ora-cream opacity-0 transition-opacity duration-450 ease-luxury group-hover:opacity-100 group-focus-within:opacity-100">
+            <Maximize2 className="h-4 w-4" aria-hidden />
+          </span>
+        </button>
+
+        <div className="flex flex-1 flex-col p-5 text-center">
+          <p className="font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">{item.category}</p>
+          <h3 className="mt-1.5 font-display text-[1.1rem] text-foreground" data-testid={`text-result-title-${item.id}`}>
+            {item.treatment}
+          </h3>
+          <p className="mt-1.5 font-sans text-[0.875rem] leading-[1.5] text-ora-fog">{item.caption}</p>
         </div>
-      </div>
-    </motion.div>
+      </GlassCard>
+    </motion.article>
   );
 }
 
+/* ── lightbox ──────────────────────────────────────────── */
+function Lightbox({ item, onClose }: { item: ResultItem | null; onClose: () => void }) {
+  return (
+    <Dialog open={!!item} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-4xl gap-0 border-0 bg-transparent p-0 shadow-none text-ora-cream focus:outline-none [&>button]:right-3 [&>button]:top-3 [&>button]:z-20 [&>button]:h-10 [&>button]:w-10 [&>button]:rounded-full [&>button]:glass-strong [&>button]:opacity-100 [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button_svg]:h-4 [&>button_svg]:w-4">
+        {item && (
+          <div className="on-dark overflow-hidden rounded-2xl border border-white/15 bg-ora-deep/85 shadow-glow-bronze-lg backdrop-blur-glass">
+            {item.kind === "compare" ? (
+              <div className="p-2 sm:p-4">
+                <BeforeAfterSlider
+                  before={{ src: item.image, alt: `Before — ${item.alt}`, width: item.width, height: item.height }}
+                  after={{ src: item.image, alt: `After — ${item.alt}`, width: item.width, height: item.height }}
+                  ratioClassName={STACKED_RATIO}
+                  className={STACKED_SLIDER_CLASSES}
+                />
+              </div>
+            ) : (
+              <div className="max-h-[70vh] p-2 sm:p-4">
+                <img src={item.image} alt={item.alt} width={item.width} height={item.height} className="mx-auto max-h-[66vh] w-auto max-w-full rounded-xl object-contain" />
+              </div>
+            )}
+            <div className="px-6 pb-6 pt-2 text-center">
+              <p className="font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">{item.category}</p>
+              <DialogTitle className="mt-1 font-display text-xl font-normal text-ora-cream">{item.treatment}</DialogTitle>
+              <DialogDescription className="mt-1 font-sans text-[0.9rem] text-ora-smoke">
+                {item.caption}
+                {item.kind === "compare" ? " Drag to compare." : ""}
+              </DialogDescription>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ── page ──────────────────────────────────────────────── */
 export default function ResultsPage() {
+  const m = useMotionSafe();
+  const [filter, setFilter] = React.useState<(typeof FILTERS)[number]>("All");
+  const [open, setOpen] = React.useState<ResultItem | null>(null);
+
+  const visible = React.useMemo(() => (filter === "All" ? RESULTS : RESULTS.filter((r) => r.category === filter)), [filter]);
+
   useSEO({
-    title: "Client Results & Transformations | ORÁ. Manchester",
+    title: "Results | Aesthetics & Skin at ORÁ Suites, Manchester",
     description:
-      "See real before and after results from Ora Suites clients. Aesthetics, Korean Head Spa, hair, and laser treatments. Real results, real confidence.",
+      "Before-and-after results and treatment photos from ORÁ Suites, 49 Deansgate, Manchester — lip, chin and under-eye filler, polynucleotides, HydraFacial and microneedling. Shared with consent; results vary.",
+    jsonLd: [defaultBusinessJsonLd(), breadcrumbJsonLd([{ name: "Results", path: "/results" }])],
   });
 
-  const [activeCategory, setActiveCategory] = useState("All");
-
-  const filtered =
-    activeCategory === "All"
-      ? results
-      : results.filter((r) => r.category === activeCategory);
-
-  const heroRef = useRef<HTMLDivElement>(null);
-  const isHeroInView = useInView(heroRef, { once: true });
-  const ctaRef = useRef<HTMLDivElement>(null);
-  const isCtaInView = useInView(ctaRef, { once: true, margin: "-80px" });
-
   return (
-    <Layout>
-      <section className="pt-32 pb-16 relative overflow-hidden" style={{ background: "hsl(var(--ora-bone))" }}>
-        <div className="absolute inset-0 dot-grid-bg opacity-40" aria-hidden="true" />
-        <div ref={heroRef} className="relative max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-            style={{ color: "var(--ora-bronze)" }}
-          >
-            Client Transformations
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.9, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="font-display text-5xl sm:text-6xl text-foreground leading-tight mb-6"
-            style={{ fontWeight: 300, letterSpacing: "0.02em" }}
-          >
-            Real results.{" "}
-            <span style={{ fontStyle: "italic" }}>Real confidence.</span>
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={isHeroInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-ora-fog text-lg font-light max-w-2xl"
-          >
-            Every transformation tells a story. Real outcomes from our clients across aesthetics, Korean Head Spa, hair, and laser.
-          </motion.p>
-        </div>
-      </section>
+    <Layout padTop lightHeader>
+      <Section tone="milk" mesh grain pad="sm" className="pt-6 md:pt-10" animate={false}>
+        <Reveal className="mx-auto mb-8 max-w-2xl text-center">
+          <DisplayHeading as="h1" size="xl" plain>
+            Results
+          </DisplayHeading>
+          <p className="mt-3 font-sans text-[0.95rem] leading-[1.55] text-ora-fog sm:text-base">Real photos from our treatment rooms. Shared with consent — results vary.</p>
+        </Reveal>
 
-      <section
-        className="py-5 sticky top-[60px] z-30"
-        style={{ background: "hsl(var(--ora-milk))", borderBottom: "1px solid rgba(185,136,103,0.12)" }}
-      >
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                data-testid={`button-filter-${cat.toLowerCase().replace(/\s+/g, "-")}`}
-                onClick={() => setActiveCategory(cat)}
-                className="px-3 sm:px-5 py-1.5 sm:py-2 text-xs font-light tracking-widest uppercase transition-all duration-300 rounded-full"
-                style={{
-                  background: activeCategory === cat ? "var(--ora-bronze)" : "transparent",
-                  color: activeCategory === cat ? "white" : "hsl(var(--ora-fog))",
-                  border: activeCategory === cat
-                    ? "1px solid var(--ora-bronze)"
-                    : "1px solid rgba(185,136,103,0.22)",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                {cat}
-              </button>
-            ))}
+        <Reveal className="mb-8 flex justify-center md:mb-10">
+          <div role="group" aria-label="Filter results by category" className="flex flex-wrap justify-center gap-2.5">
+            {FILTERS.map((f) => {
+              const active = f === filter;
+              return (
+                <motion.button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  aria-pressed={active}
+                  whileHover={m.reduced ? undefined : { scale: 1.03 }}
+                  whileTap={m.reduced ? undefined : { scale: 0.97 }}
+                  transition={spring.snappy}
+                  className={[
+                    "inline-flex items-center rounded-full border px-4 py-2 font-sans text-[0.8125rem] font-medium transition-[background-color,color,border-color,box-shadow] duration-450 ease-luxury focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ora-bronze",
+                    active ? "border-ora-bronze bg-ora-deep text-ora-cream shadow-glow-bronze" : "border-ora-greige/80 bg-white/50 text-foreground hover:border-ora-taupe/70",
+                  ].join(" ")}
+                >
+                  {f}
+                </motion.button>
+              );
+            })}
           </div>
-        </div>
-      </section>
+        </Reveal>
 
-      <section className="py-16 md:py-24" style={{ background: "hsl(var(--ora-milk))" }}>
-        <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeCategory}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="columns-1 sm:columns-2 lg:columns-3 gap-5"
-            >
-              {filtered.map((result, i) => (
-                <ResultCard key={result.id} result={result} index={i} />
+        <LayoutGroup>
+          <motion.div layout className="mx-auto grid max-w-5xl grid-cols-1 gap-5 md:grid-cols-3">
+            <AnimatePresence mode="popLayout" initial={false}>
+              {visible.map((item) => (
+                <ResultCard key={item.id} item={item} onOpen={() => setOpen(item)} />
               ))}
-            </motion.div>
-          </AnimatePresence>
-
-          {filtered.length === 0 && (
-            <div className="text-center py-20">
-              <p className="text-ora-fog font-light">No results in this category yet.</p>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="py-12" style={{ background: "hsl(var(--ora-bone))" }}>
-        <div className="max-w-4xl mx-auto px-6 sm:px-10 lg:px-16">
-          <div
-            className="glass-card-warm p-6 md:p-8 space-y-4 text-sm font-light"
-            data-testid="text-disclaimer"
-            style={{ color: "hsl(var(--ora-fog))" }}
-          >
-            <p>
-              <span className="text-foreground font-normal">Individual Results May Vary:</span>{" "}
-              Results shown are representative of outcomes our treatments can achieve. Individual results depend on skin type, age, lifestyle, and aftercare adherence.
-            </p>
-            <p>
-              <span className="text-foreground font-normal">Consultation Required:</span>{" "}
-              All aesthetic treatments begin with a thorough practitioner consultation. Realistic expectations are always discussed in advance.
-            </p>
-            <p>
-              <span className="text-foreground font-normal">Client Consent:</span>{" "}
-              All images are shared with express written permission from our clients.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section ref={ctaRef} className="py-24" style={{ background: "hsl(var(--ora-milk))" }}>
-        <div className="max-w-2xl mx-auto px-6 sm:px-10 text-center">
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={isCtaInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-            className="text-xs tracking-[0.25em] uppercase mb-4 font-light"
-            style={{ color: "var(--ora-bronze)" }}
-          >
-            Begin Yours
-          </motion.p>
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            animate={isCtaInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.9, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="font-display text-4xl sm:text-5xl text-foreground mb-6 leading-tight"
-            style={{ fontWeight: 300, letterSpacing: "0.02em" }}
-          >
-            Your transformation{" "}
-            <span style={{ fontStyle: "italic" }}>awaits.</span>
-          </motion.h2>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={isCtaInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="text-ora-fog text-base font-light mb-10"
-          >
-            Book a consultation and let us build a personalised treatment plan for your goals.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={isCtaInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <Link href="/contact">
-              <button
-                data-testid="button-results-book"
-                className="px-8 py-4 text-sm font-medium transition-all"
-                style={{
-                  background: "var(--ora-bronze)",
-                  color: "white",
-                  borderRadius: "9999px",
-                  letterSpacing: "0.06em",
-                  border: "1px solid var(--ora-bronze)",
-                }}
-              >
-                Book Your Consultation
-              </button>
-            </Link>
-            <Link href="/korean-head-spa">
-              <button
-                className="glass-pill px-8 py-4 text-sm font-medium hover-bronze transition-all inline-flex items-center gap-2"
-                style={{ color: "hsl(var(--ora-fog))", letterSpacing: "0.06em" }}
-              >
-                Reserve a Ritual <ArrowRight size={13} />
-              </button>
-            </Link>
+            </AnimatePresence>
           </motion.div>
-        </div>
-      </section>
+        </LayoutGroup>
+
+        <Reveal className="mt-10 text-center">
+          <p className="mx-auto max-w-xl font-sans text-[0.8rem] leading-[1.55] text-ora-fog">
+            Individual results vary. Every aesthetic treatment starts with a consultation. All images shared with client permission.
+          </p>
+          <Button asChild variant="link" className="mt-4 h-auto py-1 text-[0.85rem] uppercase tracking-[0.16em]">
+            <Link href="/book" data-testid="button-results-book">
+              Book a consultation <ArrowRight aria-hidden />
+            </Link>
+          </Button>
+        </Reveal>
+      </Section>
+
+      <Lightbox item={open} onClose={() => setOpen(null)} />
     </Layout>
   );
 }

@@ -1,56 +1,54 @@
+/**
+ * /book — ORÁ Suites online booking (v2, restraint pass).
+ * Light page (milk mesh + grain), header in light mode, centred 4-step flow
+ * (Service → Time → Details → Confirm) with a slim summary rail on lg+ and a
+ * bottom sheet on mobile.
+ */
 import { Layout } from "@/components/layout/layout";
+import { Container } from "@/components/ui/section";
+import { useSEO, servicesJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
+import { allServices } from "@/lib/catalogue";
+import { BookingFlow } from "@/components/booking/booking-flow";
 import { motion } from "framer-motion";
-import { Link } from "wouter";
-import { useSEO } from "@/hooks/use-seo";
+import { useMotionSafe } from "@/lib/motion";
 
 export default function BookPage() {
+  const m = useMotionSafe();
+
   useSEO({
-    title: "Book an Appointment | ORÁ Suites",
-    description: "Book your treatment at ORÁ Suites, Manchester's premier wellness sanctuary at 45 Deansgate.",
+    title: "Book an Appointment | ORÁ Suites Manchester",
+    description:
+      "Book nurse-led aesthetics and luxury nail treatments online at ORÁ Suites, 49 Deansgate, Manchester. Choose your treatment and a time in four quick steps.",
+    path: "/book",
+    jsonLd: [
+      breadcrumbJsonLd([{ name: "Book", path: "/book" }]),
+      servicesJsonLd(
+        allServices()
+          .filter((s) => s.live)
+          .map((s) => ({ name: s.name, price: s.price, category: s.categoryTitle, url: `${SITE_URL}/book?service=${encodeURIComponent(s.id)}` })),
+        `${SITE_URL}/book`,
+      ),
+    ],
   });
 
   return (
-    <Layout>
-      <div className="min-h-screen bg-ora-milk pt-24 pb-16 flex items-center justify-center">
-        <div className="max-w-lg mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <p className="text-ora-smoke text-xs tracking-widest uppercase mb-6">ORÁ Suites · 45 Deansgate, Manchester</p>
+    <Layout lightHeader padTop>
+      <div className="mesh-bg grain relative min-h-screen pb-28 lg:pb-20">
+        <Container className="pt-4 md:pt-8">
+          <motion.header variants={m.stagger(0.06)} initial="hidden" animate="show" className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+            <motion.h1
+              variants={m.fadeUp}
+              className="font-display text-[clamp(1.9rem,3.2vw,2.75rem)] font-normal leading-[1.15] tracking-[-0.01em] text-foreground"
+            >
+              Book an appointment
+            </motion.h1>
+            <motion.p variants={m.fadeUp} className="mt-2 font-sans text-[0.9375rem] text-ora-fog">
+              49 Deansgate, Manchester · four quick steps.
+            </motion.p>
+          </motion.header>
 
-            <div className="w-10 h-px bg-ora-greige mx-auto mb-8" />
-
-            <h1 className="font-serif text-3xl md:text-4xl text-foreground mb-5">
-              Online Booking<br />Coming Soon
-            </h1>
-
-            <p className="text-ora-fog text-sm leading-relaxed mb-8 max-w-sm mx-auto">
-              Our online booking system is currently being updated. In the meantime, please get in touch and we'll arrange your appointment directly.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Link href="/contact">
-                <span className="inline-flex items-center justify-center px-7 py-3 bg-ora-taupe text-white text-sm font-medium rounded-md hover:bg-ora-chocolate transition-colors duration-200 cursor-pointer">
-                  Send an Enquiry
-                </span>
-              </Link>
-              <a
-                href="mailto:admin@orasuites.com"
-                className="inline-flex items-center justify-center px-7 py-3 bg-ora-bone text-ora-taupe text-sm font-medium rounded-md hover:bg-ora-greige transition-colors duration-200"
-              >
-                Email Us
-              </a>
-            </div>
-
-            <div className="mt-12 pt-8 border-t border-ora-greige">
-              <p className="text-ora-smoke text-xs">
-                admin@orasuites.com · 45 Deansgate, Manchester
-              </p>
-            </div>
-          </motion.div>
-        </div>
+          <BookingFlow />
+        </Container>
       </div>
     </Layout>
   );

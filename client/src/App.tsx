@@ -1,64 +1,115 @@
-import { motion } from "framer-motion";
-import logoImage from "@assets/WhatsApp_Image_2025-08-06_at_17.22.03_(1)_1770213670965.jpeg";
+import { Switch, Route, useLocation } from "wouter";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { pageTransition } from "@/lib/motion";
+import NotFound from "@/pages/not-found";
+import HomePage from "@/pages/home";
+import ServicesPage from "@/pages/services";
+import RoomRentalsPage from "@/pages/room-rentals";
+import AboutPage from "@/pages/about";
+import ResultsPage from "@/pages/results";
+import ContactPage from "@/pages/contact";
+import BookPage from "@/pages/book";
+import PrivacyPage from "@/pages/privacy";
+import TermsPage from "@/pages/terms";
 
-export default function App() {
+/**
+ * Scroll handling on route change: runs AFTER the exit transition (so the old
+ * page doesn't jump), scrolls to top — unless there's a hash, in which case the
+ * anchor is scrolled into view once the new page has mounted.
+ */
+function scrollForRoute() {
+  const hash = window.location.hash;
+  if (hash) {
+    const id = decodeURIComponent(hash.slice(1));
+    // allow the new page a frame to mount
+    window.requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ block: "start" });
+      else window.scrollTo({ top: 0, left: 0 });
+    });
+    return;
+  }
+  window.scrollTo({ top: 0, left: 0 });
+}
+
+function Router() {
+  const [location] = useLocation();
+  const reduced = useReducedMotion();
+  const first = useRef(true);
+
+  // Reduced motion: no exit animation, so scroll immediately on change.
+  useLayoutEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (reduced) scrollForRoute();
+  }, [location, reduced]);
+
+  // Ensure the browser doesn't fight our scroll handling on navigation
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+  }, []);
+
+  // Same-page hash navigation (e.g. /services → /services#nails): wouter's location
+  // (pathname) doesn't change, so handle the anchor jump on its pushState/replaceState events.
+  useEffect(() => {
+    let last = window.location.pathname;
+    const onNav = () => {
+      const now = window.location.pathname;
+      if (now === last && window.location.hash) scrollForRoute();
+      last = now;
+    };
+    window.addEventListener("pushState", onNav);
+    window.addEventListener("replaceState", onNav);
+    window.addEventListener("hashchange", onNav);
+    return () => {
+      window.removeEventListener("pushState", onNav);
+      window.removeEventListener("replaceState", onNav);
+      window.removeEventListener("hashchange", onNav);
+    };
+  }, []);
+
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        backgroundColor: "#0e0c0a",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem",
-        fontFamily: "Georgia, 'Times New Roman', serif",
-      }}
-    >
+    <AnimatePresence mode="wait" initial={false} onExitComplete={scrollForRoute}>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        style={{ textAlign: "center" }}
+        key={location}
+        initial={reduced ? false : pageTransition.initial}
+        animate={pageTransition.animate}
+        exit={reduced ? undefined : pageTransition.exit}
+        className="min-h-screen"
       >
-        <img
-          src={logoImage}
-          alt="ORÁ Suites"
-          style={{
-            width: "clamp(120px, 30vw, 220px)",
-            height: "auto",
-            marginBottom: "2.5rem",
-            opacity: 0.95,
-          }}
-        />
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          style={{
-            width: "40px",
-            height: "1px",
-            backgroundColor: "#c5a882",
-            margin: "0 auto 2rem",
-          }}
-        />
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.7 }}
-          style={{
-            color: "#c5a882",
-            fontSize: "clamp(0.65rem, 2vw, 0.75rem)",
-            letterSpacing: "0.25em",
-            textTransform: "uppercase",
-            fontFamily: "Georgia, serif",
-          }}
-        >
-          Coming Soon
-        </motion.p>
+        <Switch location={location}>
+          <Route path="/" component={HomePage} />
+          <Route path="/services" component={ServicesPage} />
+          <Route path="/room-rentals" component={RoomRentalsPage} />
+          <Route path="/about" component={AboutPage} />
+          <Route path="/results" component={ResultsPage} />
+          <Route path="/contact" component={ContactPage} />
+          <Route path="/book" component={BookPage} />
+          <Route path="/privacy" component={PrivacyPage} />
+          <Route path="/terms" component={TermsPage} />
+          <Route component={NotFound} />
+        </Switch>
       </motion.div>
-    </div>
+    </AnimatePresence>
   );
 }
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Router />
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

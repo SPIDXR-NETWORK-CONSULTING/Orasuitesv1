@@ -1,321 +1,414 @@
+import * as React from "react";
+import { motion } from "framer-motion";
+import { z } from "zod";
+import { ArrowRight, Check } from "lucide-react";
+
 import { Layout } from "@/components/layout/layout";
-import { Section, SectionHeader } from "@/components/ui/section";
-import { motion, useInView } from "framer-motion";
-import { useRef } from "react";
-import { Link } from "wouter";
+import { Section, Container } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
-import { Check, ArrowRight, Calendar, Users, Sparkles, Shield } from "lucide-react";
-import { useSEO } from "@/hooks/use-seo";
+import { GlassCard, GlassPill, DisplayHeading, IconOrb } from "@/components/ui/glass";
+import { Reveal, Stagger, useMotionSafe, easeLuxury } from "@/lib/motion";
+import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
+import {
+  SpaStoneIcon,
+  StarClusterIcon,
+  InfinityLoopIcon,
+  DiamondLeafIcon,
+  WaterDropIcon,
+  OraMarkIcon,
+  CrescentIcon,
+  LotusIcon,
+} from "@/components/icons/OraIcons";
+import {
+  FloatingInput,
+  FloatingSelect,
+  FloatingTextarea,
+  ChoiceGroup,
+  SubmitButton,
+  SuccessPanel,
+  type SubmitState,
+} from "@/components/forms/floating-field";
 
-import roomRentalImage from "@assets/room-rental_1770215241478.png";
-import roomRentalImage2 from "@assets/room-rental_1770213665899.png";
-import receptionImage from "@assets/reception-area_1770213665902.png";
+import roomRentalHero from "@assets/ora-hallway.jpg";
+import roomRentalPractitioner from "@assets/room-rental-practitioner.jpg";
+import roomRentalIncluded from "@assets/room-rental-included.jpg";
+import roomRentalWelcome from "@assets/room-rental-welcome.jpg";
 
-const features = [
+/* ── content (prices unchanged from the live page) ─────── */
+interface Plan {
+  id: string;
+  name: string;
+  price: string;
+  period: string;
+  popular?: boolean;
+  features: string[];
+  image: string;
+  imageAlt: string;
+}
+const PLANS: Plan[] = [
   {
-    icon: Sparkles,
-    title: "Fully Equipped Rooms",
-    description:
-      "State-of-the-art treatment rooms with premium equipment, linens, and amenities included.",
+    id: "half-day",
+    name: "Half day",
+    price: "£75",
+    period: "per half day",
+    features: ["Up to 4 hours", "All amenities included", "Same-day booking available"],
+    image: roomRentalPractitioner,
+    imageAlt: "A practitioner performing a treatment in a private ORÁ room",
   },
   {
-    icon: Users,
-    title: "Client Base Access",
-    description:
-      "Tap into Ora's established client base and benefit from our marketing and referrals.",
-  },
-  {
-    icon: Calendar,
-    title: "Flexible Terms",
-    description:
-      "Choose from hourly, daily, or monthly rentals to match your practice needs.",
-  },
-  {
-    icon: Shield,
-    title: "Professional Support",
-    description:
-      "Reception services, booking management, and administrative support included.",
-  },
-];
-
-const includedAmenities = [
-  "Fully furnished treatment room",
-  "Professional-grade treatment bed",
-  "Storage facilities",
-  "High-speed WiFi",
-  "Reception and waiting area access",
-  "Booking and scheduling support",
-  "Marketing exposure on Ora channels",
-  "Access to shared facilities",
-  "Towels and linens provided",
-  "Climate-controlled environment",
-];
-
-const pricingPlans = [
-  {
-    name: "Hourly",
-    price: "£25",
-    period: "per hour",
-    description: "Perfect for occasional use",
-    features: ["Minimum 2 hours", "All amenities included", "Same-day booking available"],
-  },
-  {
-    name: "Daily",
-    price: "£150",
+    id: "day",
+    name: "Full day",
+    price: "£130",
     period: "per day",
-    description: "Ideal for weekly practitioners",
     popular: true,
-    features: ["Full day access (9am-7pm)", "Priority booking", "Marketing inclusion"],
+    features: ["Full day access, 9am–7pm", "Priority booking", "Marketing inclusion"],
+    image: roomRentalIncluded,
+    imageAlt: "A fully equipped ORÁ treatment room with bed, storage and soft lighting",
   },
   {
+    id: "month",
     name: "Monthly",
     price: "£1,200",
     period: "per month",
-    description: "Best for established practitioners",
     features: ["Dedicated room", "Full access", "Premium marketing", "Client referrals"],
+    image: roomRentalWelcome,
+    imageAlt: "The welcoming ORÁ reception where practitioners' clients are greeted",
   },
 ];
 
+const INCLUDED = [
+  { Icon: StarClusterIcon, title: "Marketing exposure", line: "Featured across ORÁ channels" },
+  { Icon: InfinityLoopIcon, title: "Automated booking system", line: "Clients book online, 24/7" },
+  { Icon: SpaStoneIcon, title: "Furnished treatment rooms", line: "Bed, storage, soft lighting" },
+  { Icon: LotusIcon, title: "Community access", line: "Practitioner network and events" },
+  { Icon: CrescentIcon, title: "Wi-Fi", line: "High-speed throughout" },
+  { Icon: WaterDropIcon, title: "Shared facilities", line: "Kitchenette and staff areas" },
+  { Icon: OraMarkIcon, title: "Around-the-clock concierge", line: "Support whenever you need it" },
+  { Icon: DiamondLeafIcon, title: "Clinic-app integration", line: "Manage everything in one place" },
+];
+
+const PRACTICE_TYPES = ["Aesthetic treatments", "Massage therapy", "IV drip therapy", "Hair & beauty", "Holistic wellness", "Consultations", "Other"];
+const PLAN_OPTIONS = ["Half day", "Full day", "Monthly rental"];
+
+/* ── schema ────────────────────────────────────────────── */
+const schema = z.object({
+  name: z.string().trim().min(2, "Please tell us your name."),
+  email: z.string().trim().email("That email doesn't look right."),
+  phone: z.string().trim().min(7, "A phone number helps us call you back."),
+  practiceType: z.string().min(1, "Choose your practice type."),
+  plan: z.string().min(1, "Choose a preferred plan."),
+  startDate: z.string().min(1, "Pick a preferred start date."),
+  hasInsurance: z.enum(["yes", "no"], { errorMap: () => ({ message: "Let us know about insurance." }) }),
+  message: z.string().trim().max(1000, "Keep it under 1000 characters.").optional().or(z.literal("")),
+});
+type Values = z.infer<typeof schema>;
+type Errors = Partial<Record<keyof Values, string>>;
+const EMPTY: Values = { name: "", email: "", phone: "", practiceType: "", plan: "", startDate: "", hasInsurance: "" as unknown as "yes", message: "" };
+
+function zodErrors(v: unknown): Errors {
+  const r = schema.safeParse(v);
+  if (r.success) return {};
+  const out: Errors = {};
+  for (const issue of r.error.issues) {
+    const k = issue.path[0] as keyof Values;
+    if (!out[k]) out[k] = issue.message;
+  }
+  return out;
+}
+
+/* ── form ──────────────────────────────────────────────── */
+function RoomEnquiryForm() {
+  const [values, setValues] = React.useState<Values>(EMPTY);
+  const [errors, setErrors] = React.useState<Errors>({});
+  const [state, setState] = React.useState<SubmitState>("idle");
+  const [serverError, setServerError] = React.useState<string | null>(null);
+
+  const minDate = React.useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().split("T")[0];
+  }, []);
+
+  const set = (k: keyof Values) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setValues((prev) => ({ ...prev, [k]: e.target.value }) as Values);
+    if (errors[k]) setErrors((er) => ({ ...er, [k]: undefined }));
+  };
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs = zodErrors(values);
+    setErrors(errs);
+    if (Object.keys(errs).length) return;
+    setState("loading");
+    setServerError(null);
+
+    const message = [
+      "[Room Rental Enquiry]",
+      `Name: ${values.name.trim()}`,
+      `Email: ${values.email.trim()}`,
+      `Phone: ${values.phone.trim()}`,
+      `Practice type: ${values.practiceType}`,
+      `Preferred plan: ${values.plan}`,
+      `Preferred start date: ${values.startDate}`,
+      `Professional insurance: ${values.hasInsurance}`,
+      values.message ? `Message: ${values.message.trim()}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: values.name.trim(),
+          email: values.email.trim(),
+          phone: values.phone.trim(),
+          service: "Room Rental",
+          message,
+        }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setState("success");
+    } catch {
+      setState("error");
+      setServerError("Something went wrong on our side. Please try again, or email admin@orasuites.com.");
+    }
+  }
+
+  if (state === "success") {
+    return (
+      <SuccessPanel
+        title="Enquiry received."
+        body={
+          <>
+            We'll reply to <span className="text-foreground">{values.email}</span> within one working day.
+          </>
+        }
+        onReset={() => {
+          setValues(EMPTY);
+          setErrors({});
+          setState("idle");
+        }}
+        resetLabel="Send another enquiry"
+      />
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="space-y-5">
+      <FloatingInput label="Full name" name="name" autoComplete="name" required value={values.name} onChange={set("name")} error={errors.name} />
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FloatingInput label="Email" name="email" type="email" inputMode="email" autoComplete="email" required value={values.email} onChange={set("email")} error={errors.email} />
+        <FloatingInput label="Phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" required value={values.phone} onChange={set("phone")} error={errors.phone} />
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FloatingSelect label="Practice type" name="practiceType" required value={values.practiceType} onChange={set("practiceType")} error={errors.practiceType} placeholder="Select">
+          {PRACTICE_TYPES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </FloatingSelect>
+        <FloatingSelect label="Preferred plan" name="plan" required value={values.plan} onChange={set("plan")} error={errors.plan} placeholder="Select">
+          {PLAN_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </FloatingSelect>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <FloatingInput label="Preferred start date" name="startDate" type="date" min={minDate} required value={values.startDate} onChange={set("startDate")} error={errors.startDate} />
+        <ChoiceGroup
+          label="Professional insurance?"
+          name="hasInsurance"
+          required
+          value={values.hasInsurance ?? ""}
+          onChange={(v) => {
+            setValues((prev) => ({ ...prev, hasInsurance: v as "yes" | "no" }));
+            setErrors((er) => ({ ...er, hasInsurance: undefined }));
+          }}
+          options={[
+            { value: "yes", label: "Yes" },
+            { value: "no", label: "No" },
+          ]}
+          error={errors.hasInsurance}
+        />
+      </div>
+      <FloatingTextarea label="Message (optional)" name="message" rows={4} value={values.message ?? ""} onChange={set("message")} error={errors.message} />
+
+      {serverError && (
+        <p role="alert" className="rounded-2xl border border-[#b5533c]/30 bg-[#b5533c]/[.06] px-4 py-3 font-sans text-[0.85rem] text-[#8f3f2c]">
+          {serverError}
+        </p>
+      )}
+
+      <div className="flex flex-col items-center gap-3 pt-1 sm:flex-row sm:justify-between">
+        <p className="font-sans text-[0.75rem] text-ora-fog">Insurance is required to rent a room. We reply within one working day.</p>
+        <SubmitButton state={state === "error" ? "idle" : state} idleLabel="Send enquiry" successLabel="Sent" icon={<ArrowRight className="h-4 w-4" aria-hidden />} className="w-full whitespace-nowrap sm:w-auto" />
+      </div>
+    </form>
+  );
+}
+
+/* ── page ──────────────────────────────────────────────── */
 export default function RoomRentalsPage() {
-  const heroRef = useRef<HTMLDivElement>(null);
-  const isHeroInView = useInView(heroRef, { once: true });
+  const m = useMotionSafe();
 
   useSEO({
-    title: "Room Rentals for Practitioners | ORÁ. Manchester",
-    description: "Rent a fully equipped treatment room at Ora Suites Manchester. Flexible hourly, daily, and monthly options for beauty and wellness practitioners.",
+    title: "Treatment Room Rental Manchester | Practitioner Rooms at ORÁ Suites, Deansgate",
+    description:
+      "Rent a fully equipped treatment room at ORÁ Suites, 49 Deansgate, Manchester. Half day from £75, full day £130, monthly £1,200 — furnished rooms, booking system, Wi-Fi and marketing included.",
+    jsonLd: [
+      defaultBusinessJsonLd(),
+      breadcrumbJsonLd([{ name: "Room rentals", path: "/room-rentals" }]),
+      {
+        "@context": "https://schema.org",
+        "@type": "Offer",
+        name: "Treatment room rental at ORÁ Suites",
+        url: `${SITE_URL}/room-rentals`,
+        priceCurrency: "GBP",
+        price: 75,
+        priceSpecification: [
+          { "@type": "UnitPriceSpecification", price: 75, priceCurrency: "GBP", unitText: "half day" },
+          { "@type": "UnitPriceSpecification", price: 130, priceCurrency: "GBP", unitText: "day" },
+          { "@type": "UnitPriceSpecification", price: 1200, priceCurrency: "GBP", unitText: "month" },
+        ],
+        offeredBy: { "@id": `${SITE_URL}/#business` },
+      },
+    ],
   });
 
   return (
     <Layout>
-      <section className="pt-32 pb-20 bg-ora-milk">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div ref={heroRef} className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -40 }}
-              animate={isHeroInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -40 }}
-              transition={{ duration: 0.8 }}
-            >
-              <span className="text-ora-taupe font-medium text-sm uppercase tracking-wider">
-                For Practitioners
-              </span>
-              <h1 className="font-serif text-display-sm md:text-display text-foreground mt-2 mb-6">
-                Your Space to Grow
-              </h1>
-              <p className="text-ora-fog text-lg leading-relaxed mb-6">
-                Ora Suites offers fully equipped, beautifully designed treatment
-                rooms for independent practitioners. Whether you're an aesthetician,
-                therapist, beautician, or holistic wellness coach, this is your
-                space to flourish.
-              </p>
-              <p className="text-ora-fog leading-relaxed mb-8">
-                Join a community of women-led wellness experts in the heart of
-                Manchester. Elevate your practice in a sanctuary designed for
-                success.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/contact">
-                  <Button
-                    data-testid="button-apply-now"
-                    className="bg-ora-taupe text-white hover:bg-ora-fog px-8"
-                  >
-                    Apply Now
-                    <ArrowRight size={16} className="ml-2" />
-                  </Button>
-                </Link>
-                <Link href="/contact">
-                  <Button
-                    data-testid="button-book-tour"
-                    variant="outline"
-                    className="border-ora-smoke text-ora-fog hover:bg-ora-bone px-8"
-                  >
-                    Book a Tour
-                  </Button>
-                </Link>
-              </div>
+      {/* ── 1. Hero ────────────────────────────────────────── */}
+      <section className="relative flex min-h-[52vh] items-center overflow-hidden band-dark">
+        <motion.img
+          src={roomRentalHero}
+          alt="The hallway at ORÁ Suites, Deansgate — private treatment rooms either side"
+          width={1206}
+          height={1609}
+          fetchPriority="high"
+          decoding="async"
+          initial={m.reduced ? false : { scale: 1.06, opacity: 0.6 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1.4, ease: easeLuxury }}
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        <div aria-hidden className="absolute inset-0 bg-[var(--overlay-dark)]" />
+        <Container className="relative z-[2] pb-16 pt-32 text-center md:pb-20 md:pt-36">
+          <motion.div variants={m.stagger(0.08)} initial="hidden" animate="show" className="mx-auto max-w-2xl">
+            <DisplayHeading as="h1" size="xl" tone="cream" inherit>
+              Room rentals
+            </DisplayHeading>
+            <motion.p variants={m.fadeUp} className="mt-4 font-sans text-[0.95rem] leading-[1.55] text-ora-smoke sm:text-base">
+              Furnished treatment rooms for practitioners at 49 Deansgate, Manchester.
+            </motion.p>
+            <motion.div variants={m.fadeUp} className="mt-7 flex flex-wrap justify-center gap-2.5">
+              {PLANS.map((p) => (
+                <GlassPill key={p.id} tone="light" as="a" href="#pricing" className="text-ora-cream">
+                  <span className="font-display text-base">{p.price}</span>
+                  <span className="text-ora-smoke">{p.name.toLowerCase()}</span>
+                </GlassPill>
+              ))}
             </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 40 }}
-              animate={isHeroInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 40 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-            >
-              <div className="relative">
-                <div className="absolute -inset-4 bg-ora-bone rounded-lg -z-10" />
-                <img
-                  src={roomRentalImage}
-                  alt="Ora Suites treatment room"
-                  className="w-full h-auto rounded-md shadow-lg"
-                />
-              </div>
-            </motion.div>
-          </div>
-        </div>
+          </motion.div>
+        </Container>
       </section>
 
-      <Section className="bg-ora-sand">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader
-            title="Why Choose Ora?"
-            subtitle="Everything you need to run a successful practice, all in one beautiful space."
-          />
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                data-testid={`card-feature-${feature.title.toLowerCase().replace(/\s+/g, "-")}`}
-                className="text-center p-6 bg-ora-milk rounded-md"
-              >
-                <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-ora-bone mb-4">
-                  <feature.icon size={24} className="text-ora-taupe" />
-                </span>
-                <h3 className="font-serif text-lg text-foreground mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-ora-fog text-sm">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      <Section className="bg-ora-milk">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            <div>
-              <img
-                src={roomRentalImage2}
-                alt="Treatment room interior"
-                className="w-full h-auto rounded-md shadow-lg"
-              />
-            </div>
-            <div>
-              <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-6">
-                What's Included
-              </h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {includedAmenities.map((amenity, index) => (
-                  <motion.div
-                    key={amenity}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: index * 0.05 }}
-                    className="flex items-center gap-3"
-                    data-testid={`amenity-${amenity.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-ora-taupe/20 flex items-center justify-center">
-                      <Check size={12} className="text-ora-taupe" />
-                    </span>
-                    <span className="text-ora-fog text-sm">{amenity}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      <Section id="pricing" className="bg-ora-bone">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <SectionHeader
-            title="Flexible Pricing"
-            subtitle="Choose the rental option that best fits your practice needs."
-          />
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {pricingPlans.map((plan, index) => (
-              <motion.div
-                key={plan.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                data-testid={`card-pricing-${plan.name.toLowerCase()}`}
-                className={`relative p-8 rounded-md bg-ora-milk ${
-                  plan.popular ? "ring-2 ring-ora-taupe" : ""
-                }`}
-              >
-                {plan.popular && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-ora-taupe text-white text-xs font-medium rounded-full">
-                    Most Popular
+      {/* ── 2. Pricing ─────────────────────────────────────── */}
+      <Section id="pricing" tone="milk" mesh grain pad="sm" className="scroll-mt-24" animate={false}>
+        <Reveal className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+          <DisplayHeading as="h2" size="lg" plain>
+            Pricing
+          </DisplayHeading>
+          <p className="mt-3 font-sans text-[0.95rem] leading-[1.55] text-ora-fog sm:text-base">Same room, same support — choose the rhythm that suits you.</p>
+        </Reveal>
+        <Stagger className="mx-auto grid max-w-5xl gap-5 md:grid-cols-3">
+          {PLANS.map((p) => (
+            <GlassCard
+              key={p.id}
+              inherit
+              hover
+              tone="light"
+              padding="none"
+              radius="lg"
+              className="flex flex-col overflow-hidden bg-white/55"
+              data-testid={`card-pricing-${p.id}`}
+            >
+              <div className="relative aspect-[16/10] overflow-hidden">
+                <img src={p.image} alt={p.imageAlt} width={2048} height={1536} loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                {p.popular && (
+                  <span className="absolute left-4 top-4 rounded-full border border-ora-bronze/50 bg-ora-deep px-3 py-1 font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-cream">
+                    Most popular
                   </span>
                 )}
-                <h3 className="font-serif text-xl text-foreground mb-1">
-                  {plan.name}
-                </h3>
-                <p className="text-ora-fog text-sm mb-4">{plan.description}</p>
-                <div className="mb-6">
-                  <span className="font-serif text-4xl text-foreground" data-testid={`price-${plan.name.toLowerCase()}`}>
-                    {plan.price}
+              </div>
+              <div className="flex flex-1 flex-col p-6 text-center text-foreground">
+                <p className="font-sans text-[0.6875rem] uppercase tracking-[0.2em] text-ora-bronze">{p.name}</p>
+                <div className="mt-2 flex items-baseline justify-center gap-2">
+                  <span className="font-display text-[2rem] leading-none tracking-[-0.02em]" data-testid={`price-${p.id}`}>
+                    {p.price}
                   </span>
-                  <span className="text-ora-fog text-sm ml-1">{plan.period}</span>
+                  <span className="font-sans text-[0.8125rem] text-ora-fog">{p.period}</span>
                 </div>
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-center gap-3 text-ora-fog text-sm">
-                      <Check size={14} className="text-ora-taupe flex-shrink-0" />
-                      {feature}
+                <ul className="mt-5 flex-1 space-y-2 border-t border-ora-bronze/25 pt-5 text-left">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-center gap-3 font-sans text-[0.9rem] text-ora-fog">
+                      <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-ora-bronze/15 text-ora-bronze ring-1 ring-ora-bronze/40">
+                        <Check className="h-3 w-3" aria-hidden />
+                      </span>
+                      {f}
                     </li>
                   ))}
                 </ul>
-                <Link href="/contact">
-                  <Button
-                    data-testid={`button-pricing-${plan.name.toLowerCase()}`}
-                    className={`w-full ${
-                      plan.popular
-                        ? "bg-ora-taupe text-white hover:bg-ora-fog"
-                        : "bg-ora-bone text-ora-fog hover:bg-ora-greige"
-                    }`}
-                  >
-                    Get Started
+                <div className="mt-6">
+                  <Button asChild variant={p.popular ? "primary" : "ghost"} className="w-full">
+                    <a href="#enquiry" data-testid={`button-pricing-${p.id}`}>
+                      Enquire <ArrowRight aria-hidden />
+                    </a>
                   </Button>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+                </div>
+              </div>
+            </GlassCard>
+          ))}
+        </Stagger>
       </Section>
 
-      <Section className="bg-ora-milk">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="font-serif text-2xl md:text-3xl text-foreground mb-6">
-                The Ora Community
-              </h2>
-              <p className="text-ora-fog leading-relaxed mb-4">
-                When you join Ora, you become part of a supportive community of
-                women-led wellness professionals. Share knowledge, collaborate on
-                projects, and grow together in an environment designed for success.
-              </p>
-              <p className="text-ora-fog leading-relaxed mb-6">
-                Our practitioners include aestheticians, massage therapists,
-                nutritionists, acupuncturists, and holistic wellness coaches—all
-                united by a commitment to excellence and client care.
-              </p>
-              <Link href="/contact">
-                <Button
-                  data-testid="button-join-community"
-                  className="bg-ora-taupe text-white hover:bg-ora-fog px-8"
-                >
-                  Join Our Community
-                </Button>
-              </Link>
-            </div>
-            <div>
-              <img
-                src={receptionImage}
-                alt="Ora Suites reception area"
-                className="w-full h-auto rounded-md shadow-lg"
-              />
-            </div>
-          </div>
-        </div>
+      {/* ── 3. What's included ─────────────────────────────── */}
+      <Section tone="sand" grain pad="sm" animate={false}>
+        <Reveal className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+          <DisplayHeading as="h2" size="lg" plain>
+            What's included
+          </DisplayHeading>
+        </Reveal>
+        <Stagger className="mx-auto grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {INCLUDED.map(({ Icon, title, line }) => (
+            <GlassCard key={title} inherit tone="light" padding="md" radius="lg" className="flex flex-col items-center bg-white/55 text-center">
+              <IconOrb size="md" tone="bronze">
+                <Icon size={22} />
+              </IconOrb>
+              <h3 className="mt-4 font-display text-[1.05rem] text-foreground">{title}</h3>
+              <p className="mt-1.5 font-sans text-[0.85rem] text-ora-fog">{line}</p>
+            </GlassCard>
+          ))}
+        </Stagger>
+      </Section>
+
+      {/* ── 4. Enquiry ─────────────────────────────────────── */}
+      <Section id="enquiry" tone="milk" mesh grain pad="sm" className="scroll-mt-20" animate={false}>
+        <Reveal className="mx-auto mb-8 max-w-2xl text-center md:mb-10">
+          <DisplayHeading as="h2" size="lg" plain>
+            Enquire about a room
+          </DisplayHeading>
+          <p className="mt-3 font-sans text-[0.95rem] leading-[1.55] text-ora-fog sm:text-base">Tell us a little about your practice and preferred plan.</p>
+        </Reveal>
+        <Reveal className="mx-auto max-w-2xl">
+          <GlassCard tone="strong" padding="lg" radius="lg" staticCard className="bg-white/60">
+            <RoomEnquiryForm />
+          </GlassCard>
+        </Reveal>
       </Section>
     </Layout>
   );
