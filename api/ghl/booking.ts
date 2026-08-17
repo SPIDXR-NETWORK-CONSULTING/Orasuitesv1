@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    const contactRes = await ghlFetch("/contacts/", {
+    const contactRes = await ghlFetch("/contacts/upsert", {
       method: "POST",
       body: JSON.stringify({
         locationId: GHL_LOCATION_ID,
@@ -46,7 +46,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     });
 
-    const contactId = contactRes?.contact?.id;
+    const contactId = contactRes?.contact?.id || contactRes?.meta?.contactId;
     if (!contactId) {
       console.error("GHL contact creation failed:", JSON.stringify(contactRes));
       return res.status(500).json({ error: "Failed to create contact in GHL" });
