@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { z } from "zod";
-import { processEnquiry } from "./_lib/ghl";
+import { processEnquiry } from "./_lib/ghl.js";
 
 /** Mirrors shared/schema insertContactSchema (name, email, phone?, service?, message). */
 const insertContactSchema = z.object({

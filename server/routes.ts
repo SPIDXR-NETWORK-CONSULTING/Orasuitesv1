@@ -4,6 +4,8 @@ import { storage } from "./storage";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
 import { processEnquiry } from "./ghl-notify";
+import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "./google-calendar";
+import { notifyBooking } from "../api/_lib/booking-notify";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -163,12 +165,42 @@ export async function registerRoutes(
         body: JSON.stringify(appointmentPayload),
       });
 
-      if (apptRes?.id || apptRes?.event?.id) {
+      const appointmentId = apptRes?.id || apptRes?.event?.id;
+      if (appointmentId) {
         res.json({
           success: true,
-          appointmentId: apptRes?.id || apptRes?.event?.id,
+          appointmentId,
           contactId,
         });
+
+        // Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar,
+        // after responding so the customer never waits on Google. Never throws;
+        // /api/cron/sync-calendar reconciles anything that slips through.
+        const assignedUserId = apptRes?.assignedUserId || apptRes?.event?.assignedUserId;
+        void mirrorAppointmentSafe({
+          ghlId: appointmentId,
+          ghlCalendarId: calendarId,
+          assignedUserId: assignedUserId ?? null,
+          serviceName: serviceName || null,
+          clientName: name,
+          clientEmail: email,
+          clientPhone: phone,
+          practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
+          notes: notes || null,
+          startTime,
+          endTime,
+          status: "confirmed",
+        });
+
+        void notifyBooking({
+          contactId,
+          clientName: name,
+          serviceName: serviceName || "Appointment",
+          startTime,
+          practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
+          practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
+          notes: notes || null,
+        }).catch(() => {});
       } else {
         console.error("GHL appointment creation failed:", JSON.stringify(apptRes));
         res.status(500).json({ error: "Failed to create appointment", detail: apptRes });

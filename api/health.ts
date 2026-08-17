@@ -1,9 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { pingCalendar } from "./_lib/google-calendar.js";
 
 /**
  * GET /api/health — live check that the booking pipeline can work RIGHT NOW.
  * Verifies: env present · GHL token accepted for contact reads (write scope) ·
- * calendars readable · a known service calendar returns free-slots.
+ * calendars readable · a known service calendar returns free-slots ·
+ * the "ORÁ — All Appointments" Google mirror (optional — reports ok when not
+ * connected, so health never fails just because Google isn't set up yet).
  * 200 = healthy, 503 = booking would fail. Safe to poll; no side effects.
  */
 const GHL_BASE = "https://services.leadconnectorhq.com";
@@ -56,6 +59,15 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     } catch (e) {
       checks.slots = { ok: false, detail: String(e).slice(0, 120) };
     }
+  }
+
+  // Google Calendar mirror — OPTIONAL. `ok:true` when the GOOGLE_* vars are
+  // absent (nothing to check), or when a token refresh + calendar GET succeed.
+  // Only a genuinely broken connection (revoked token, deleted calendar) fails.
+  try {
+    checks.googleCalendar = await pingCalendar();
+  } catch (e) {
+    checks.googleCalendar = { ok: false, detail: String(e).slice(0, 120) };
   }
 
   const bookingEnabled = process.env.BOOKING_ENABLED !== "false";

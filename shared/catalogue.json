@@ -8,23 +8,28 @@
     "team": {
       "meg": {
         "ghlUserId": "cE5h9SAvNHDxRTS6DuWh",
-        "name": "Meg Cauli"
+        "name": "Meg Cauli",
+        "email": "meg@orasuites.com"
       },
       "daniela": {
         "ghlUserId": "aoRb2In0y1fjT0IH9nGd",
-        "name": "Daniela Mehmeti"
+        "name": "Daniela Mehmeti",
+        "email": "daniela@orasuites.com"
       },
       "soheila": {
         "ghlUserId": "LZ9YI9CGmUBaliQ6nmfb",
-        "name": "Soheila (Soli) Sadhagat"
+        "name": "Soheila (Soli) Sadhagat",
+        "email": "soheila@orasuites.com"
       },
       "ruslana": {
         "ghlUserId": "xYcgQ8RYQUXhuzV710kR",
-        "name": "Ruslana Stupina"
+        "name": "Ruslana Stupina",
+        "email": "ruslana@orasuites.com"
       },
       "diana": {
         "ghlUserId": "H8uaGkwR0h2sFz9Ekd2O",
-        "name": "Diana Ann"
+        "name": "Diana Ann",
+        "email": "diana@orasuites.com"
       }
     },
     "depositPercent": 20
