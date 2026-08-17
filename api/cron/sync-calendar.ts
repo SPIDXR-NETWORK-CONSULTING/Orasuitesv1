@@ -34,7 +34,7 @@ import {
   teamUserIds,
   TEAM_BY_USER_ID,
   type MirrorAppointment,
-} from "../_lib/google-calendar";
+} from "../_lib/google-calendar.js";
 
 export const config = { maxDuration: 60 };
 

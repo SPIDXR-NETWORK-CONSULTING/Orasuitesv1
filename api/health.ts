@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { pingCalendar } from "./_lib/google-calendar";
+import { pingCalendar } from "./_lib/google-calendar.js";
 
 /**
  * GET /api/health — live check that the booking pipeline can work RIGHT NOW.

@@ -10,7 +10,7 @@
  *
  * Every function is non-throwing: a notification failure must never fail a booking.
  */
-import { ghlFetch } from "./ghl";
+import { ghlFetch } from "./ghl.js";
 
 const ADDRESS = "ORÁ Suites, 49 Deansgate, Manchester M3 2AY";
 const SIGNOFF = `<br><br>With love,<br>The ORÁ Suites team<br><a href="mailto:admin@orasuites.com">admin@orasuites.com</a>`;
