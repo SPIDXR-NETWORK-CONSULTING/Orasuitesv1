@@ -28,7 +28,7 @@
  * Run `node script/google-connect.mjs` once to populate them.
  */
 
-import catalogueRaw from "../../shared/catalogue.json";
+import catalogueRaw from "../../shared/catalogue.json" with { type: "json" };
 
 /* ── constants ───────────────────────────────────────────── */
 

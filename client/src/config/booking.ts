@@ -10,7 +10,7 @@
  * The server reads the same intent from env BOOKING_ENABLED ("true"/"false");
  * keep the two in step — deploy sets it for you if you use script/deploy.sh.
  */
-export const BOOKING_ENABLED = true;
+export const BOOKING_ENABLED = false;
 
 /** Shown on /book while booking is off. Keep it short. */
 export const BOOKING_SOON_COPY = {

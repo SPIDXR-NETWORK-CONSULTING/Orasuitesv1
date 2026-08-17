@@ -67,10 +67,18 @@ STAFF_EMAIL = {
 }
 
 def desired():
+    # OWNERSHIP MODEL (17 Aug 2026):
+    #   • Booking confirmation (client) and the practitioner alert are sent by OUR
+    #     code (api/_lib/booking-notify.ts) — deterministic and verifiable. GHL's
+    #     native confirmation is therefore DISABLED to avoid duplicate emails.
+    #   • The 1-hour reminder stays with GHL: it fires reliably and we would
+    #     otherwise have to build a scheduler.
+    #   • ALL SMS is disabled until a phone number is provisioned — without one
+    #     every SMS records as "failed" and clutters the client's timeline.
     return [
-        {"receiverType": "contact", "channel": "email", "notificationType": "confirmation", "isActive": True, **CONFIRM_EMAIL},
-        {"receiverType": "contact", "channel": "sms",   "notificationType": "confirmation", "isActive": True, **CONFIRM_SMS},
-        {"receiverType": "contact", "channel": "sms",   "notificationType": "reminder", "isActive": True,
+        {"receiverType": "contact", "channel": "email", "notificationType": "confirmation", "isActive": False, **CONFIRM_EMAIL},
+        {"receiverType": "contact", "channel": "sms",   "notificationType": "confirmation", "isActive": False, **CONFIRM_SMS},
+        {"receiverType": "contact", "channel": "sms",   "notificationType": "reminder", "isActive": False,
          "beforeTime": [{"timeOffset": 1, "unit": "hours"}], **REMIND_SMS},
         {"receiverType": "contact", "channel": "email", "notificationType": "reminder", "isActive": True,
          "beforeTime": [{"timeOffset": 1, "unit": "hours"}], **REMIND_EMAIL},
