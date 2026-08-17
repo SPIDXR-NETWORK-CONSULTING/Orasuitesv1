@@ -107,6 +107,9 @@ export async function registerRoutes(
 
   // ── GHL: Create booking (contact + appointment) ─────────────────────────
   app.post("/api/ghl/booking", async (req, res) => {
+    if (process.env.BOOKING_ENABLED === "false") {
+      return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
+    }
     const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime } = req.body;
 
     if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
