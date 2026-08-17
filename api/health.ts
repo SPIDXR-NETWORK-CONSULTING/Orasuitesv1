@@ -58,7 +58,12 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     }
   }
 
+  const bookingEnabled = process.env.BOOKING_ENABLED !== "false";
+  // When booking is intentionally switched off, health still reports the pipeline's
+  // real state but must NOT alert — `ok` stays true so monitors don't page.
   const ok = Object.values(checks).every((c) => c.ok);
   res.setHeader("Cache-Control", "no-store");
-  return res.status(ok ? 200 : 503).json({ ok, service: "ora-suites-booking", checkedAt: new Date().toISOString(), checks });
+  return res
+    .status(ok ? 200 : 503)
+    .json({ ok, bookingEnabled, service: "ora-suites-booking", checkedAt: new Date().toISOString(), checks });
 }

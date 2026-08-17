@@ -22,6 +22,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
+  // Master switch — booking can be turned off without a code change (env BOOKING_ENABLED=false).
+  if (process.env.BOOKING_ENABLED === "false") {
+    return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
+  }
+
   const { name, email, phone, notes, calendarId, serviceName, startTime, endTime } = req.body;
 
   if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
