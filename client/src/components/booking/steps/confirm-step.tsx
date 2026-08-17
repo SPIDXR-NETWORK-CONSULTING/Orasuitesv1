@@ -55,8 +55,19 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
         <div role="alert" className="mt-6 flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />
           <div className="font-sans text-[0.875rem]">
-            <p className="font-medium text-foreground">We couldn't place your booking</p>
-            <p className="mt-0.5 text-ora-fog">{error} — try again, or email <a href="mailto:admin@orasuites.com" className="text-ora-bronze underline-offset-4 hover:underline">admin@orasuites.com</a>.</p>
+            <p className="font-medium text-foreground">We couldn't confirm this online just now</p>
+            <p className="mt-0.5 text-ora-fog">
+              Please try again, or send us your request in one tap — we'll confirm it by email.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="primary">
+                <a href={fallbackMailto(state)} data-testid="link-booking-fallback-email">Email this booking request</a>
+              </Button>
+              <Button asChild size="sm" variant="ghost">
+                <a href="/contact">Contact page</a>
+              </Button>
+            </div>
+            <p className="mt-2 text-[0.75rem] text-ora-fog/80">Ref: {error}</p>
           </div>
         </div>
       )}
@@ -84,4 +95,24 @@ function ReviewRow({ label, children, onEdit }: { label: string; children: React
       </Button>
     </div>
   );
+}
+
+/** Zero-dependency fallback: if the booking API is unavailable, the client can still send us the exact request. */
+function fallbackMailto(state: Props["state"]): string {
+  const subject = `Booking request — ${state.service.name} — ${formatLongDate(state.date)} ${formatTime(state.slot)}`;
+  const body = [
+    `Hi ORÁ,`,
+    ``,
+    `I tried to book online but it couldn't be confirmed. Please book me in:`,
+    ``,
+    `Treatment: ${state.service.name} (${formatDuration(state.service.duration)}, ${state.service.price === 0 ? "complimentary" : formatPrice(state.service.price)})`,
+    `When: ${formatLongDate(state.date)} at ${formatTime(state.slot)}`,
+    `Name: ${state.details.name}`,
+    `Email: ${state.details.email}`,
+    `Phone: ${state.details.phone}`,
+    state.details.notes ? `Notes: ${state.details.notes}` : ``,
+    ``,
+    `Thank you`,
+  ].join("\n");
+  return `mailto:admin@orasuites.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
