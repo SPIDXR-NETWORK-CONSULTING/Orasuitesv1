@@ -61,7 +61,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         startTime,
         endTime,
         title: `${serviceName || "Booking"} — ${name}`,
-        appointmentStatus: "new",
+        appointmentStatus: "confirmed",
         toNotify: true,
         timezone: "Europe/London",
         notes: notes || "",

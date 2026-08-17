@@ -149,7 +149,7 @@ export async function registerRoutes(
         startTime,
         endTime,
         title: `${serviceName} — ${name}`,
-        appointmentStatus: "new",
+        appointmentStatus: "confirmed",
         toNotify: true,
         timezone: "Europe/London",
         notes: notes || "",
