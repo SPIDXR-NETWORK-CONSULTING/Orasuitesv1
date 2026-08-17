@@ -63,7 +63,7 @@ export async function registerRoutes(
       return res.status(400).json({ error: "Valid email required" });
     }
     try {
-      await ghlFetch("/contacts/upsert", {
+      await ghlFetch("/contacts/", {
         method: "POST",
         headers: { "Version": "2021-07-28" },
         body: JSON.stringify({
@@ -129,13 +129,13 @@ export async function registerRoutes(
         customFields: notes ? [{ key: "booking_notes", field_value: notes }] : [],
       };
 
-      const contactRes = await ghlFetch("/contacts/upsert", {
+      const contactRes = await ghlFetch("/contacts/", {
         method: "POST",
         headers: { "Version": "2021-07-28" },
         body: JSON.stringify(contactPayload),
       });
 
-      const contactId = contactRes?.contact?.id || contactRes?.meta?.contactId;
+      const contactId = contactRes?.contact?.id;
       if (!contactId) {
         console.error("GHL contact creation failed:", JSON.stringify(contactRes));
         return res.status(500).json({ error: "Failed to create contact in GHL" });

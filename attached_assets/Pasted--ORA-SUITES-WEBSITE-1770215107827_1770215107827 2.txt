@@ -1,0 +1,430 @@
+
+================================================================================
+ORA SUITES WEBSITE BUILD — REPLIT AI PROMPT (UPDATED)
+================================================================================
+
+CONTEXT:
+You are building a website for Ora Suites, a women-only beauty and wellness sanctuary in Manchester. This is NOT a transactional clinic—it is a refined, elevated space where women come to transform, not just treat. The brand is rooted in simplicity, luxury, and emotional resonance.
+
+CRITICAL: Avoid the mistakes of competitors like Derma Transform (generic messaging, weak visuals, transactional tone, poor UX). Ora must feel like a sanctuary, not a service provider.
+
+================================================================================
+BRAND IDENTITY & POSITIONING
+================================================================================
+
+BRAND ESSENCE:
+- Ora is a sanctuary for women—a space to pause, transform, and elevate
+- Positioning: "Where beauty meets intention. Where care becomes ritual."
+- NOT a clinic. NOT transactional. NOT generic.
+- Refined luxury through simplicity, warmth, and emotional depth
+
+BRAND VOICE:
+- Warm, grounded, intentional
+- Speaks to the woman's internal transformation, not just external results
+- Confident but never clinical
+- Elegant but never pretentious
+- Example: "This is your space. To breathe. To transform. To become."
+
+COLOR PALETTE:
+- Warm neutrals: Soft beige, cream, warm taupe
+- Soft nudes: Blush pink, muted rose
+- Muted tones: Sage green, soft terracotta
+- Accent: Deep charcoal or warm gold for contrast
+- NO harsh whites, NO clinical blues, NO sterile grays
+
+TYPOGRAPHY:
+- Headings: Serif font (elegant, refined) — e.g., Cormorant Garamond, Playfair Display
+- Body: Sans-serif (clean, readable) — e.g., Inter, Montserrat, Poppins
+- Hierarchy: Large, spacious headings with generous line height
+
+VISUAL STYLE:
+- High-quality, warm-toned photography
+- Natural light, soft shadows
+- Focus on women's faces, hands, textures, spaces
+- NO stock imagery, NO clinical white backgrounds
+- Use AI-generated images provided (hero, services, team, location, etc.)
+
+================================================================================
+SITE STRUCTURE & USER JOURNEY
+================================================================================
+
+HOMEPAGE FLOW (Critical — This is the emotional anchor):
+1. Hero Section — Immediate emotional impact
+2. Brand Story — "Why Ora exists"
+3. Services Overview — Visual, not text-heavy
+4. Dual Revenue Model — Beauty Services + Room Rentals
+5. Social Proof — Testimonials, Instagram feed
+6. Location & Community — Manchester as a benefit
+7. CTA — Book consultation or explore services
+
+NAVIGATION (Clean, minimal):
+- Home
+- Services (dropdown: Aesthetics, Hair, Nails, Massage, Laser)
+- Room Rentals (for practitioners)
+- About
+- Gallery
+- Contact / Book
+
+FOOTER:
+- Quick links (Services, Room Rentals, FAQs, Contact)
+- Social media icons (Instagram, Facebook, TikTok)
+- Address, phone, email
+- Newsletter signup
+- "Ora Suites © 2026. A sanctuary for women."
+
+================================================================================
+PAGE-BY-PAGE BREAKDOWN
+================================================================================
+
+---
+1. HOMEPAGE
+---
+
+HERO SECTION:
+- Full-screen, high-quality image (use provided hero-image.png)
+- Overlay text (large, serif):
+  "Where beauty meets intention."
+  "Your sanctuary. Your transformation."
+- CTA buttons:
+  [Book Your Consultation] [Explore Services]
+- Subtle scroll indicator
+
+BRAND STORY SECTION:
+- Heading: "This is Ora."
+- Copy (3-4 short paragraphs):
+  "Ora is not a clinic. It's a sanctuary. A space where women come to pause, breathe, and transform. Where every treatment is a ritual. Where care is intentional. Where you are seen, heard, and held.
+
+  We believe beauty is not something you chase—it's something you cultivate. From the inside out. With intention. With care. With time.
+
+  This is your space. To elevate. To evolve. To become."
+
+- Image: Soft, warm-toned photo of the space or a woman in reflection
+
+SERVICES OVERVIEW:
+- Heading: "Our Services"
+- Subheading: "Treatments designed for transformation, not transaction."
+- Grid layout (5 cards):
+  1. Aesthetics (image: service-aesthetics.png)
+  2. Hair (image: service-hair.png)
+  3. Nails (image: service-nails.png)
+  4. Massage & Wellness
+  5. Laser Treatments
+- Each card: Image + Service name + "Explore" link
+- NO pricing on homepage (pricing lives on service pages)
+
+ROOM RENTALS SECTION:
+- Heading: "For Practitioners: Your Space to Grow"
+- Copy: "Ora Suites offers fully equipped treatment rooms for independent practitioners. Join a community of women-led wellness experts in the heart of Manchester."
+- CTA: [Learn More About Room Rentals]
+- Image: room-rental.png
+
+SOCIAL PROOF:
+- Heading: "Transformations"
+- Carousel of client testimonials (text + photo)
+- Instagram feed integration (live feed from @orasuites)
+- Before/after gallery (use before-after-results.png)
+
+LOCATION & COMMUNITY:
+- Heading: "In the Heart of Manchester"
+- Copy: "Located in [specific area], Ora is easily accessible and surrounded by [local benefits]. Free parking. Calm. Central."
+- Image: manchester-location.png
+- Embedded Google Map
+
+FINAL CTA:
+- Heading: "Ready to begin?"
+- CTA buttons: [Book Consultation] [Explore Services]
+
+---
+2. SERVICES PAGE (MAIN)
+---
+
+HERO:
+- Heading: "Services"
+- Subheading: "Every treatment is a ritual. Every visit, a transformation."
+
+SERVICE CATEGORIES (Expandable sections or separate pages):
+1. Aesthetics
+2. Hair
+3. Nails
+4. Massage & Wellness
+5. Laser Treatments
+
+Each category:
+- Image
+- Description (emotional + functional)
+- List of specific treatments
+- Pricing (clean, simple table)
+- CTA: [Book This Treatment]
+
+EXAMPLE — AESTHETICS PAGE:
+- Hero image: service-aesthetics.png
+- Heading: "Aesthetics"
+- Copy: "Regenerative. Intentional. Transformative. Our aesthetic treatments are designed to enhance your natural beauty from the inside out."
+- Treatments offered:
+  - Polynucleotide Therapy
+  - Exosome Therapy
+  - Profhilo
+  - Microneedling
+  - LED Light Therapy
+  - IPL Skin Rejuvenation
+- Pricing table (clean, minimal)
+- CTA: [Book Consultation]
+
+---
+3. ROOM RENTALS PAGE
+---
+
+HERO:
+- Heading: "Room Rentals for Practitioners"
+- Subheading: "Your space. Your practice. Our community."
+
+COPY:
+"Ora Suites offers fully equipped, beautifully designed treatment rooms for independent practitioners. Whether you're an acupuncturist, therapist, nutritionist, or holistic health coach, this is your space to grow.
+
+What's included:
+- Fully furnished treatment rooms
+- Reception and booking support
+- Access to Ora's client base
+- Marketing and social media exposure
+- Flexible rental terms (hourly, daily, monthly)
+
+Join a community of women-led wellness experts in Manchester."
+
+PRICING & BOOKING:
+- Pricing table (hourly, daily, monthly rates)
+- CTA: [Book a Tour] [Apply Now]
+
+IMAGE: room-rental.png
+
+---
+4. ABOUT PAGE
+---
+
+HERO:
+- Heading: "About Ora"
+- Subheading: "A sanctuary built for women, by women."
+
+FOUNDER STORY:
+- Photo of founder (use team-photo.png)
+- Copy: [Founder's story — why Ora exists, personal journey, vision]
+
+TEAM SECTION:
+- Photos + bios of key team members
+- Highlight credentials, specialties, personality
+
+PHILOSOPHY:
+- Heading: "Our Philosophy"
+- Copy: "We believe beauty is not something you chase—it's something you cultivate. From the inside out. With intention. With care. With time."
+
+---
+5. GALLERY PAGE
+---
+
+- Grid of high-quality images (space, treatments, before/afters, team)
+- Filter by category (Space, Treatments, Results, Team)
+
+---
+6. CONTACT / BOOK PAGE
+---
+
+CONTACT FORM:
+- Name, Email, Phone, Service Interest, Message
+- CTA: [Send Message]
+
+BOOKING INTEGRATION:
+- Embed GoHighLevel booking form (separate forms for Beauty Services vs. Room Rentals)
+- OR link to external booking page
+
+CONTACT INFO:
+- Address, phone, email
+- Opening hours
+- Social media links
+
+================================================================================
+BOOKING SYSTEM INTEGRATION (GOHIGHLEVEL)
+================================================================================
+
+DUAL BOOKING SYSTEM:
+1. Beauty Services Booking (for clients)
+2. Room Rental Booking (for practitioners)
+
+IMPLEMENTATION:
+- Embed GoHighLevel forms on relevant pages
+- Use separate pipelines in GHL:
+  - Pipeline 1: Beauty Services (Aesthetics, Hair, Nails, etc.)
+  - Pipeline 2: Room Rentals (Practitioner inquiries)
+- Sync with Google Calendar
+- Automated confirmation emails + SMS reminders
+
+BOOKING FLOW:
+1. User clicks [Book Consultation] or [Book Treatment]
+2. Redirected to GHL booking form (embedded or external)
+3. User selects service, date, time
+4. Confirmation email sent
+5. Reminder SMS 24 hours before appointment
+
+================================================================================
+SEO STRATEGY
+================================================================================
+
+PRIMARY KEYWORDS:
+- Women's beauty clinic Manchester
+- Aesthetics Manchester
+- Polynucleotide therapy Manchester
+- Profhilo Manchester
+- Women-only wellness Manchester
+- Beauty sanctuary Manchester
+- Treatment room rental Manchester
+
+ON-PAGE SEO:
+- Meta titles and descriptions for every page
+- Alt text for all images
+- H1, H2, H3 hierarchy
+- Internal linking between service pages
+- Schema markup for local business
+
+CONTENT STRATEGY:
+- Blog section (optional but recommended):
+  - "What is Polynucleotide Therapy?"
+  - "The Science of Skin Regeneration"
+  - "Why Women Choose Ora"
+- FAQ page (SEO-rich)
+
+LOCAL SEO:
+- Google My Business listing
+- Embedded Google Map
+- NAP consistency (Name, Address, Phone)
+- Local backlinks (Manchester directories, wellness blogs)
+
+================================================================================
+UI/UX FEATURES
+================================================================================
+
+MOBILE-FIRST DESIGN:
+- Responsive on all devices
+- Thumb-friendly navigation
+- Fast load times (optimize images)
+
+ANIMATIONS (Subtle, elegant):
+- Fade-in on scroll
+- Smooth transitions between sections
+- Hover effects on buttons and cards
+
+ACCESSIBILITY:
+- WCAG 2.1 AA compliant
+- Keyboard navigation
+- Screen reader friendly
+- High contrast text
+
+PERFORMANCE:
+- Lazy loading for images
+- Minified CSS/JS
+- CDN for assets
+- Target: <3 second load time
+
+================================================================================
+TECHNICAL STACK RECOMMENDATIONS
+================================================================================
+
+FRONTEND:
+- React.js or Next.js (for SEO and performance)
+- Tailwind CSS (for rapid, clean styling)
+- Framer Motion (for animations)
+
+BACKEND (if needed):
+- Node.js + Express (for form handling)
+- OR use GoHighLevel API for booking
+
+HOSTING:
+- Vercel or Netlify (fast, reliable, free tier available)
+
+DOMAIN:
+- orasuites.co.uk or orasuites.com
+
+================================================================================
+CONTENT PLACEHOLDERS
+================================================================================
+
+IMAGES PROVIDED (Use these):
+1. hero-image.png — Homepage hero
+2. service-aesthetics.png — Aesthetics page
+3. service-hair.png — Hair page
+4. service-nails.png — Nails page
+5. room-rental.png — Room rentals page
+6. team-photo.png — About page
+7. manchester-location.png — Location section
+8. before-after-results.png — Social proof section
+9. reception-area.png — About or Gallery page
+
+VIDEOS (Placeholders for now):
+- Hero section: 10-second loop of space or treatment
+- About page: Founder introduction video
+- Services: Treatment process videos
+
+TESTIMONIALS (Placeholders):
+- "Ora is not just a clinic—it's a sanctuary. I leave feeling renewed every time." — Sarah M.
+- "The team at Ora truly cares. It's the only place I trust with my skin." — Amina K.
+- "I rent a room at Ora and it's been transformative for my practice. The community is incredible." — Dr. Leila R.
+
+================================================================================
+FUTURE-PROOFING
+================================================================================
+
+PHASE 1 (Launch):
+- Homepage, Services, Room Rentals, About, Contact
+- Booking integration (GHL)
+- Mobile-responsive
+- SEO optimized
+
+PHASE 2 (Post-Launch):
+- Blog section
+- Client portal (view appointments, history, loyalty points)
+- Membership tiers (VIP access, discounts)
+- Referral program
+
+PHASE 3 (Scale):
+- Mobile app (iOS/Android)
+- AI chatbot for booking and FAQs
+- Expanded services (workshops, events, retreats)
+- Multi-location expansion
+
+================================================================================
+FINAL NOTES FOR REPLIT AI
+================================================================================
+
+1. PRIORITIZE EMOTION OVER INFORMATION
+   - Lead with feeling, not features
+   - Every section should evoke transformation, not transaction
+
+2. SIMPLICITY IS LUXURY
+   - Clean layouts, generous white space
+   - Minimal text, maximum impact
+
+3. MOBILE-FIRST
+   - Most users will visit on mobile
+   - Ensure seamless experience on all devices
+
+4. SPEED MATTERS
+   - Optimize images, lazy load, minify code
+   - Target <3 second load time
+
+5. BRAND CONSISTENCY
+   - Every page should feel like Ora
+   - Warm, refined, intentional
+
+6. CONVERSION-FOCUSED
+   - Clear CTAs on every page
+   - Easy booking process
+   - Trust-building elements (testimonials, credentials, social proof)
+
+7. SEO FROM DAY ONE
+   - Meta tags, alt text, schema markup
+   - Local SEO for Manchester
+
+8. ACCESSIBILITY
+   - WCAG compliant
+   - Inclusive design
+
+================================================================================
+END OF PROMPT
+================================================================================
