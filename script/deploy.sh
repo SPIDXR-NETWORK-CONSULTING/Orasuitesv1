@@ -20,7 +20,7 @@ echo "▶ health on preview"
 H=$(curl -s -m 30 -o /tmp/ora-health.json -w '%{http_code}' "$PREVIEW/api/health" || true)
 if [ "$H" = "200" ]; then
   echo "  ✓ health 200: $(cat /tmp/ora-health.json | head -c 200)"
-elif [ "$H" = "401" ] || [ "$H" = "403" ]; then
+elif [ "$H" = "401" ] || [ "$H" = "403" ] || [ "$H" = "302" ] || [ "$H" = "307" ]; then
   echo "  (preview protected — skipping preview health, will verify on production)"
 else
   echo "  ✖ health $H: $(cat /tmp/ora-health.json 2>/dev/null | head -c 300)"; exit 1
