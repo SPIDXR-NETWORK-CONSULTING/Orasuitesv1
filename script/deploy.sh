@@ -26,17 +26,15 @@ else
   echo "  ✖ health $H: $(cat /tmp/ora-health.json 2>/dev/null | head -c 300)"; exit 1
 fi
 
-echo "▶ env parity (local .env vs Vercel production)"
-LOCAL_KEY=$(grep '^GHL_API_KEY=' .env | cut -d= -f2-)
-npx vercel env pull /tmp/ora-prod.env --environment=production --yes >/dev/null 2>&1
-PROD_KEY=$(grep '^GHL_API_KEY=' /tmp/ora-prod.env | cut -d= -f2- | tr -d '"'); rm -f /tmp/ora-prod.env
-if [ "$LOCAL_KEY" != "$PROD_KEY" ]; then
-  echo "  ✖ GHL_API_KEY differs between local .env and Vercel production — fix with: printf '%s' \"\$GHL_API_KEY\" | npx vercel env add GHL_API_KEY production --force"; exit 1
-fi
-echo "  ✓ keys match"
-
-echo "▶ promote to production"
+echo "▶ promote to production (with auto-rollback)"
+PREV=$(npx vercel ls --prod 2>/dev/null | grep -Eo 'https://[a-z0-9-]+\.vercel\.app' | head -1)
 npx vercel deploy --prod --yes >/dev/null
-sleep 5
+sleep 6
 P=$(curl -s -m 30 -o /tmp/ora-health.json -w '%{http_code}' "https://www.orasuites.com/api/health" || true)
-if [ "$P" = "200" ]; then echo "  ✓ PRODUCTION HEALTHY: $(head -c 240 /tmp/ora-health.json)"; else echo "  ✖ PRODUCTION UNHEALTHY ($P): $(head -c 300 /tmp/ora-health.json)"; exit 1; fi
+if [ "$P" = "200" ]; then
+  echo "  ✓ PRODUCTION HEALTHY (incl. GHL write scope): $(head -c 260 /tmp/ora-health.json)"
+else
+  echo "  ✖ PRODUCTION UNHEALTHY ($P): $(head -c 300 /tmp/ora-health.json)"
+  if [ -n "$PREV" ]; then echo "  ↩ rolling back to $PREV"; npx vercel rollback "$PREV" --yes >/dev/null && echo "  ✓ rolled back"; fi
+  exit 1
+fi

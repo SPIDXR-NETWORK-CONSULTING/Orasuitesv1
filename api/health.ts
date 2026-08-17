@@ -24,10 +24,16 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
 
   if (checks.env.ok) {
     try {
-      const r = await fetch(`${GHL_BASE}/contacts/?locationId=${loc}&limit=1`, { headers: H("2021-07-28") });
-      checks.contacts = { ok: r.ok, detail: r.ok ? undefined : `HTTP ${r.status} ${(await r.text()).slice(0, 120)}` };
+      // WRITE-scope proof: idempotent upsert of the internal admin contact (no new records, no notifications).
+      const r = await fetch(`${GHL_BASE}/contacts/upsert`, {
+        method: "POST",
+        headers: { ...H("2021-07-28"), "Content-Type": "application/json" },
+        body: JSON.stringify({ locationId: loc, firstName: "ORÁ", lastName: "Admin", email: "admin@orasuites.com", tags: ["internal-admin"] }),
+      });
+      const j: any = r.ok ? await r.json() : null;
+      checks.contactWrite = { ok: r.ok && !!j?.contact?.id, detail: r.ok ? undefined : `HTTP ${r.status} ${(await r.text()).slice(0, 120)}` };
     } catch (e) {
-      checks.contacts = { ok: false, detail: String(e).slice(0, 120) };
+      checks.contactWrite = { ok: false, detail: String(e).slice(0, 120) };
     }
     try {
       const r = await fetch(`${GHL_BASE}/calendars/?locationId=${loc}`, { headers: H("2021-04-15") });
