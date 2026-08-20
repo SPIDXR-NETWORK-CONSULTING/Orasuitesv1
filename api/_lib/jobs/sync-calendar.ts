@@ -26,6 +26,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
+
   isGoogleCalendarConfigured,
   isCancelled,
   listManagedEvents,
@@ -34,7 +35,15 @@ import {
   teamUserIds,
   TEAM_BY_USER_ID,
   type MirrorAppointment,
-} from "../_lib/google-calendar.js";
+} from "../google-calendar.js";
+
+/** Titles are "<Service> — <Client>"; service names may themselves contain " — ". */
+function serviceFromTitle(title?: string | null): string | undefined {
+  const t = (title || "").trim();
+  const i = t.lastIndexOf(" — ");
+  return (i > 0 ? t.slice(0, i) : t).trim() || undefined;
+}
+
 
 export const config = { maxDuration: 60 };
 
@@ -203,7 +212,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const contact = await contactFor(ev.contactId);
     // GHL titles are already "<Service> — <Client>" for website bookings; strip
     // the client half so the mirror rebuilds the summary consistently.
-    const titleService = (ev.title || "").split("—")[0]?.trim() || undefined;
+    const titleService = serviceFromTitle(ev.title);
 
     const appt: MirrorAppointment = {
       ghlId,

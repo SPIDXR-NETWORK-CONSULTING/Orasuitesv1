@@ -19,6 +19,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const CANCEL_PATH = "/api/booking/cancel";
+export const RESCHEDULE_PATH = "/api/booking/reschedule";
 
 /** Canonical public origin for links we put in emails. */
 export function publicBaseUrl(): string {
@@ -51,6 +52,23 @@ export function cancelLinkFor(appointmentId: string, contactId: string): string 
   if (!token) return null;
   const qs = new URLSearchParams({ a: appointmentId, c: contactId, t: token });
   return `${publicBaseUrl()}${CANCEL_PATH}?${qs.toString()}`;
+}
+
+/**
+ * Full self-service RESCHEDULE URL, or null when signing isn't configured.
+ *
+ * DELIBERATELY THE SAME TOKEN AS CANCEL. The token proves one thing — that the
+ * holder knows both ids AND the server secret, i.e. that they are the person
+ * this booking belongs to. That is exactly the authority a reschedule needs,
+ * and moving a booking is strictly less destructive than the cancellation the
+ * same token already permits, so a second secret would buy nothing. The two
+ * routes differ only in what they let that person do.
+ */
+export function rescheduleLinkFor(appointmentId: string, contactId: string): string | null {
+  const token = signCancelToken(appointmentId, contactId);
+  if (!token) return null;
+  const qs = new URLSearchParams({ a: appointmentId, c: contactId, t: token });
+  return `${publicBaseUrl()}${RESCHEDULE_PATH}?${qs.toString()}`;
 }
 
 /** Constant-time check of the staff-only secret used by `?clinic=1`. */

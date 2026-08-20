@@ -3,9 +3,15 @@
   "outputDirectory": "dist/public",
   "framework": null,
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.html" }
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
   ],
   "crons": [
-    { "path": "/api/cron/sync-calendar", "schedule": "0 3 * * *" }
+    {
+      "path": "/api/cron/run-all",
+      "schedule": "0 7 * * *"
+    }
   ]
 }

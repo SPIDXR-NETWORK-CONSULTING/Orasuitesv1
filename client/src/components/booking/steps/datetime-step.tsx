@@ -13,6 +13,7 @@ import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import { useSlots } from "../api";
 import { upcomingDays, formatTime, dayPart, formatLongDate, type DayPart } from "../time";
 import { StepHeader, StepNav } from "../step-shell";
+import { WaitlistPanel } from "../waitlist/waitlist-panel";
 
 interface Props {
   service: ResolvedService;
@@ -133,7 +134,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
             </Button>
           </EmptyState>
         ) : (slots.data?.length ?? 0) === 0 ? (
-          <EmptyState title="No times left this day" body="Try another date — mornings tend to have the most availability." />
+          date ? <WaitlistPanel service={service} date={date} /> : null
         ) : (
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
