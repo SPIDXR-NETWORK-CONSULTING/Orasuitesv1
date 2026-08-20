@@ -50,15 +50,34 @@ export interface BookingRequest {
   phone: string;
   notes: string;
   calendarId: string;
+  /** `${categoryId}/${slug}` — the server re-prices from this, never from the client */
+  serviceId: string;
   serviceName: string;
   /** ISO 8601 */
   startTime: string;
   /** ISO 8601 = start + duration */
   endTime: string;
+  /** Stripe PaymentIntent for the 20% deposit; absent for free consultations */
+  paymentIntentId?: string;
 }
 export interface BookingResponse {
   success: boolean;
   appointmentId?: string;
   contactId?: string;
+  /** deposit actually taken, in pence */
+  depositPence?: number;
+  /** true when a failed booking auto-refunded the deposit */
+  refunded?: boolean;
+  error?: string;
+}
+
+/** POST /api/booking/payment-intent */
+export interface PaymentIntentResponse {
+  clientSecret?: string;
+  paymentIntentId?: string;
+  depositPence: number;
+  fullPricePence: number;
+  serviceName?: string;
+  free?: boolean;
   error?: string;
 }

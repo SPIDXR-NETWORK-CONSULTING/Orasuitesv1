@@ -1,11 +1,20 @@
 /**
- * Step 4 — review + deposit (preview) + confirm. Fires POST /api/ghl/booking.
+ * Step 4 — review, take the 20% deposit, then confirm.
+ *
+ * ORDER: the card is charged FIRST, then POST /api/ghl/booking runs with the
+ * resulting paymentIntentId. If the card fails, no appointment is attempted. If
+ * the appointment fails after a successful charge, the server refunds
+ * automatically (see api/_lib/deposit-guard.ts).
+ *
+ * When Stripe isn't configured — or the treatment is complimentary — this is
+ * exactly the flow it has always been: no payment step at all.
  */
 import * as React from "react";
 import { AlertCircle, Clock, Pencil } from "lucide-react";
-import { formatDuration, formatPrice, type ResolvedService } from "@/lib/catalogue";
+import { formatDuration, formatPrice, depositFor, type ResolvedService } from "@/lib/catalogue";
 import { Button } from "@/components/ui/button";
 import { DepositPanel } from "../deposit-panel";
+import { useStripeDeposit } from "../use-stripe-deposit";
 import { StepHeader, StepNav } from "../step-shell";
 import { formatLongDate, formatTime } from "../time";
 import type { BookingState } from "../types";
@@ -14,7 +23,8 @@ interface Props {
   state: BookingState & { service: ResolvedService; date: string; slot: string };
   onBack: () => void;
   onEdit: (step: number) => void;
-  onConfirm: () => void;
+  /** paymentIntentId is undefined for free consultations and preview mode. */
+  onConfirm: (paymentIntentId?: string) => void;
   loading: boolean;
   error?: string | null;
 }
@@ -22,6 +32,36 @@ interface Props {
 export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }: Props) {
   const s = state.service;
   const free = s.price === 0;
+
+  const deposit = useStripeDeposit({
+    serviceId: s.id,
+    price: s.price,
+    email: state.details.email,
+    active: true,
+  });
+
+  const [paying, setPaying] = React.useState(false);
+  const [payError, setPayError] = React.useState<string | null>(null);
+
+  const handleConfirm = async () => {
+    if (!deposit.enabled) return onConfirm();
+    setPaying(true);
+    setPayError(null);
+    try {
+      const paymentIntentId = await deposit.confirm();
+      onConfirm(paymentIntentId);
+    } catch (err) {
+      setPayError(err instanceof Error ? err.message : "Your card couldn't be charged.");
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const depositAmount = depositFor(s.price);
+  const busy = loading || paying || deposit.status === "confirming";
+  const blocked = deposit.enabled && deposit.status !== "ready" && deposit.status !== "confirming";
+  /** Stripe.js or the PaymentIntent failed outright — retrying in place won't help. */
+  const paymentUnavailable = deposit.enabled && deposit.status === "error";
 
   return (
     <div>
@@ -49,15 +89,29 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
         </ReviewRow>
       </dl>
 
-      <DepositPanel mode="preview" price={s.price} className="mt-6" />
+      <DepositPanel
+        mode={deposit.enabled ? "live" : "preview"}
+        price={s.price}
+        className="mt-6"
+        loading={deposit.enabled && deposit.status === "loading"}
+        error={payError ?? deposit.error}
+      >
+        {deposit.enabled && <div ref={deposit.setMountNode} data-testid="stripe-payment-element" />}
+      </DepositPanel>
 
-      {error && (
+      {/* Also shown when the payment form itself can't load — otherwise the
+          Confirm button stays disabled and the customer has nowhere to go. */}
+      {(error || paymentUnavailable) && (
         <div role="alert" className="mt-6 flex items-start gap-3 rounded-2xl border border-destructive/40 bg-destructive/5 p-4">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" aria-hidden />
           <div className="font-sans text-[0.875rem]">
-            <p className="font-medium text-foreground">We couldn't confirm this online just now</p>
+            <p className="font-medium text-foreground">
+              {paymentUnavailable ? "We can't take payment online just now" : "We couldn't confirm this online just now"}
+            </p>
             <p className="mt-0.5 text-ora-fog">
-              Please try again, or send us your request in one tap — we'll confirm it by email.
+              {paymentUnavailable
+                ? "Send us your request in one tap instead — we'll confirm it by email and take the deposit at the clinic."
+                : "Please try again, or send us your request in one tap — we'll confirm it by email."}
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button asChild size="sm" variant="primary">
@@ -67,17 +121,26 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
                 <a href="/contact">Contact page</a>
               </Button>
             </div>
-            <p className="mt-2 text-[0.75rem] text-ora-fog/80">Ref: {error}</p>
+            <p className="mt-2 text-[0.75rem] text-ora-fog/80">Ref: {error ?? deposit.error}</p>
           </div>
         </div>
       )}
 
       <StepNav
         onBack={onBack}
-        onNext={onConfirm}
-        loading={loading}
-        nextLabel={free ? "Confirm consultation" : "Confirm booking"}
-        hint={free ? undefined : "Nothing is charged today"}
+        onNext={handleConfirm}
+        loading={busy}
+        nextDisabled={blocked}
+        nextLabel={
+          free ? "Confirm consultation" : deposit.enabled ? `Pay ${formatPrice(depositAmount)} & confirm` : "Confirm booking"
+        }
+        hint={
+          free
+            ? undefined
+            : deposit.enabled
+              ? `${formatPrice(depositAmount)} today · ${formatPrice(s.price - depositAmount)} at the clinic`
+              : "Nothing is charged today"
+        }
       />
     </div>
   );

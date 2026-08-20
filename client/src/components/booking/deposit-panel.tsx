@@ -1,15 +1,17 @@
 /**
- * DepositPanel — the payment surface for step 5.
+ * DepositPanel — the payment surface for step 4.
  *
- *  mode="preview"  Stripe is not connected yet. Shows the deposit maths honestly and a
+ *  mode="preview"  Stripe is not connected (no VITE_STRIPE_PUBLISHABLE_KEY, or the
+ *                  server has no secret key). Shows the deposit maths honestly and a
  *                  clearly-labelled "Payments launching soon" panel. No fake inputs.
- *  mode="live"     Reserved for the Stripe Payment Element: render `children` (the
- *                  <PaymentElement/> from @stripe/react-stripe-js) inside the same chrome.
+ *  mode="live"     The Stripe Payment Element lives in `children` — the mount node
+ *                  handed over by useStripeDeposit(). Same chrome either way.
  *
- * Swap-in later: <DepositPanel mode="live" price={…}><PaymentElement/></DepositPanel>
+ * The panel states the exact figures ("£16 deposit — balance £64 at the clinic")
+ * and, in live mode, the 24-hour refund rule BEFORE the customer confirms.
  */
 import * as React from "react";
-import { Lock, ShieldCheck } from "lucide-react";
+import { Lock, ShieldCheck, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { depositFor, formatPrice, DEPOSIT_PERCENT } from "@/lib/catalogue";
 import { Eyebrow, ComingSoonBadge } from "@/components/ui/glass";
@@ -19,14 +21,19 @@ export interface DepositPanelProps {
   /** full treatment price in GBP; 0 = complimentary */
   price: number;
   className?: string;
-  /** live mode: the Stripe Payment Element */
+  /** live mode: true while the Payment Element is still being prepared */
+  loading?: boolean;
+  /** live mode: a card or setup error to show in place of nothing */
+  error?: string | null;
+  /** live mode: the Stripe Payment Element mount node */
   children?: React.ReactNode;
 }
 
-export function DepositPanel({ mode, price, className, children }: DepositPanelProps) {
+export function DepositPanel({ mode, price, className, loading, error, children }: DepositPanelProps) {
   const free = price === 0;
   const deposit = depositFor(price);
   const balance = price - deposit;
+  const live = mode === "live";
 
   return (
     <section
@@ -54,8 +61,17 @@ export function DepositPanel({ mode, price, className, children }: DepositPanelP
             <div>
               <p className="font-display text-[1.75rem] leading-none text-foreground">{formatPrice(deposit)}</p>
               <p className="mt-2 font-sans text-[0.875rem] text-ora-fog">
-                {DEPOSIT_PERCENT}% deposit secures your booking · balance{" "}
-                <span className="text-foreground">{formatPrice(balance)}</span> at the clinic
+                {live ? (
+                  <>
+                    <span className="text-foreground">{formatPrice(deposit)} deposit</span> — balance{" "}
+                    <span className="text-foreground">{formatPrice(balance)}</span> at the clinic
+                  </>
+                ) : (
+                  <>
+                    {DEPOSIT_PERCENT}% deposit secures your booking · balance{" "}
+                    <span className="text-foreground">{formatPrice(balance)}</span> at the clinic
+                  </>
+                )}
               </p>
             </div>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-1 font-sans text-[0.8125rem]">
@@ -71,8 +87,21 @@ export function DepositPanel({ mode, price, className, children }: DepositPanelP
 
         {!free && (
           <div className="mt-5">
-            {mode === "live" ? (
-              <div className="rounded-2xl border border-glass-border-warm bg-ora-cream/70 p-4">{children}</div>
+            {live ? (
+              <div className="rounded-2xl border border-glass-border-warm bg-ora-cream/70 p-4">
+                {children}
+                {loading && (
+                  <p role="status" className="py-6 text-center font-sans text-[0.8125rem] text-ora-fog">
+                    Preparing secure payment…
+                  </p>
+                )}
+                {error && (
+                  <p role="alert" className="mt-3 flex items-start gap-2 font-sans text-[0.8125rem] text-destructive">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    <span>{error}</span>
+                  </p>
+                )}
+              </div>
             ) : (
               <div
                 role="status"
@@ -96,9 +125,17 @@ export function DepositPanel({ mode, price, className, children }: DepositPanelP
           </div>
         )}
 
+        {live && !free && (
+          <p className="mt-4 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+            Cancel more than <span className="text-foreground">24 hours</span> before your appointment and the{" "}
+            {formatPrice(deposit)} deposit is refunded in full. Within 24 hours the deposit is retained. Rescheduling keeps
+            your deposit — it moves with your booking.
+          </p>
+        )}
+
         <p className="mt-5 flex items-center gap-2 font-sans text-[0.75rem] text-ora-fog">
           <ShieldCheck className="h-3.5 w-3.5 text-ora-bronze" aria-hidden />
-          You'll receive a confirmation by email once your booking is placed.
+          {live ? "Card details are handled by Stripe — they never touch our servers." : "You'll receive a confirmation by email once your booking is placed."}
         </p>
       </div>
     </section>

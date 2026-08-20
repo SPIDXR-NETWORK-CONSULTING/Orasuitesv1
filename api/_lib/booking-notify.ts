@@ -11,6 +11,8 @@
  * Every function is non-throwing: a notification failure must never fail a booking.
  */
 import { ghlFetch } from "./ghl.js";
+import { cancelLinkFor } from "./cancel-token.js";
+import { formatPence } from "./catalogue.js";
 import catalogueRaw from "../../shared/catalogue.json" with { type: "json" };
 
 /** calendarId → { duration, price } so emails always carry the real numbers. */
@@ -35,6 +37,8 @@ const SIGNOFF = `<br><br>With love,<br>The ORÁ Suites team<br><a href="mailto:a
 
 export interface BookingNotice {
   contactId: string;
+  /** GHL appointment id — needed to build the self-service cancel link. */
+  appointmentId?: string | null;
   clientName: string;
   serviceName: string;
   /** ISO with offset, e.g. 2026-09-02T13:45:00+01:00 */
@@ -43,6 +47,8 @@ export interface BookingNotice {
   practitioner?: string | null;
   practitionerEmail?: string | null;
   price?: number | null;
+  /** Deposit actually taken, in pence. null/0 = nothing was charged. */
+  depositPence?: number | null;
   notes?: string | null;
 }
 
@@ -58,6 +64,10 @@ function when(iso: string): string {
 /** Client-facing confirmation. Sent by us, immediately, at booking time. */
 export async function sendClientConfirmation(b: BookingNotice): Promise<boolean> {
   const first = (b.clientName || "there").trim().split(" ")[0];
+  const paid = typeof b.depositPence === "number" && b.depositPence > 0;
+  const balance = paid && typeof b.price === "number" ? Math.round(b.price * 100) - b.depositPence! : null;
+  const cancelUrl = b.appointmentId ? cancelLinkFor(b.appointmentId, b.contactId) : null;
+
   const html = [
     `Hi ${first},`,
     ``,
@@ -68,9 +78,19 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
     `<b>Duration:</b> ${b.durationMins ? `${b.durationMins} minutes` : "confirmed at the clinic"}`,
     `<b>Your practitioner:</b> ${b.practitioner || "assigned — we'll confirm shortly"}`,
     typeof b.price === "number" ? `<b>Price:</b> ${b.price === 0 ? "Complimentary" : `£${b.price}`}` : "",
+    paid ? `<b>Deposit paid today:</b> ${formatPence(b.depositPence!)}` : "",
+    paid && balance !== null && balance > 0 ? `<b>Balance at the clinic:</b> ${formatPence(balance)}` : "",
     `<b>Where:</b> ${ADDRESS}`,
     ``,
-    `Need to change or cancel? Just reply to this email and we'll sort it.`,
+    cancelUrl
+      ? `Need to cancel? <a href="${cancelUrl}">Cancel this appointment</a>.`
+      : `Need to change or cancel? Just reply to this email and we'll sort it.`,
+    paid
+      ? `Cancel more than 24 hours before your appointment and your ${formatPence(b.depositPence!)} deposit is refunded in full. Within 24 hours the deposit is retained.`
+      : cancelUrl
+        ? `Please give us at least 24 hours' notice where you can.`
+        : "",
+    cancelUrl ? `To move your appointment to another time, reply to this email — your deposit moves with it.` : "",
   ].filter(Boolean).join("<br>") + SIGNOFF;
 
   const res = await ghlFetch("/conversations/messages", {
@@ -142,6 +162,64 @@ export async function sendPractitionerAlert(b: BookingNotice): Promise<boolean> 
     }),
   });
   if (!res.ok) console.error("[booking-notify] practitioner alert failed:", res.status, JSON.stringify(res.body));
+  return res.ok;
+}
+
+/* ── Cancellations ───────────────────────────────────────── */
+export interface CancellationNotice {
+  contactId: string;
+  clientName: string;
+  serviceName: string;
+  startTime: string;
+  /** Deposit refunded, in pence. 0/null = nothing refunded. */
+  refundedPence?: number | null;
+  /** Deposit retained because it was inside the 24-hour window. */
+  retainedPence?: number | null;
+  /** true when the clinic cancelled (always a full refund). */
+  byClinic?: boolean;
+}
+
+/**
+ * Tells the customer plainly what happened to their money. Never throws.
+ * Subject deliberately mirrors the confirmation format.
+ */
+export async function sendCancellationEmail(c: CancellationNotice): Promise<boolean> {
+  const first = (c.clientName || "there").trim().split(" ")[0];
+  const refunded = typeof c.refundedPence === "number" && c.refundedPence > 0;
+  const retained = typeof c.retainedPence === "number" && c.retainedPence > 0;
+
+  const money = refunded
+    ? `Your ${formatPence(c.refundedPence!)} deposit has been refunded in full. It usually reaches your account within 5–10 working days, depending on your bank.`
+    : retained
+      ? `As this cancellation is within 24 hours of your appointment, the ${formatPence(c.retainedPence!)} deposit is retained. If something unexpected came up, reply to this email and we'll look at it personally.`
+      : `There was no deposit on this booking, so there is nothing to refund.`;
+
+  const html = [
+    `Hi ${first},`,
+    ``,
+    c.byClinic
+      ? `We're very sorry — we've had to cancel your appointment at ORÁ Suites.`
+      : `Your appointment at ORÁ Suites has been cancelled.`,
+    ``,
+    `<b>Treatment:</b> ${c.serviceName}`,
+    `<b>Was booked for:</b> ${when(c.startTime)}`,
+    ``,
+    money,
+    ``,
+    `We'd love to see you another time — reply to this email or book again at <a href="https://www.orasuites.com/book">orasuites.com/book</a>.`,
+  ].filter(Boolean).join("<br>") + SIGNOFF;
+
+  const res = await ghlFetch("/conversations/messages", {
+    method: "POST",
+    version: "2021-04-15",
+    body: JSON.stringify({
+      type: "Email",
+      contactId: c.contactId,
+      subject: `Booking cancelled — ${c.serviceName} on ${when(c.startTime)}`,
+      html,
+    }),
+  });
+  if (!res.ok) console.error("[booking-notify] cancellation email failed:", res.status, JSON.stringify(res.body));
   return res.ok;
 }
 

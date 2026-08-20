@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { pingCalendar } from "./_lib/google-calendar.js";
+import { pingStripe } from "./_lib/stripe.js";
 
 /**
  * GET /api/health — live check that the booking pipeline can work RIGHT NOW.
@@ -68,6 +69,15 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
     checks.googleCalendar = await pingCalendar();
   } catch (e) {
     checks.googleCalendar = { ok: false, detail: String(e).slice(0, 120) };
+  }
+
+  // Stripe deposits — OPTIONAL, same contract as the Google mirror. `ok:true`
+  // when STRIPE_SECRET_KEY is absent (deposits simply aren't switched on); only
+  // a key that Stripe REJECTS is a failure.
+  try {
+    checks.stripe = await pingStripe();
+  } catch (e) {
+    checks.stripe = { ok: false, detail: String(e).slice(0, 120) };
   }
 
   const bookingEnabled = process.env.BOOKING_ENABLED !== "false";

@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
 import { notifyBooking, serviceMetaForCalendar } from "../_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
+import { verifyDeposit, notesWithPayment, refundAfterFailedBooking } from "../_lib/deposit-guard.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -30,11 +31,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
   }
 
-  const { name, email, phone, notes, calendarId, serviceName, startTime, endTime } = req.body;
+  const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime, paymentIntentId } = req.body;
 
   if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
     return res.status(400).json({ error: "Missing required booking fields" });
   }
+
+  // ── Deposit gate ────────────────────────────────────────────────────────
+  // The card is charged BEFORE the appointment exists, so this runs first: if
+  // the deposit isn't good, nothing at all is created. Free consultations and
+  // an unconfigured Stripe both pass straight through.
+  const deposit = await verifyDeposit({ serviceId, calendarId, serviceName, paymentIntentId });
+  if (!deposit.ok) {
+    return res.status(deposit.status).json({ error: deposit.error });
+  }
+  const paidIntentId = deposit.paymentIntentId;
 
   try {
     const nameParts = (name as string).trim().split(" ");
@@ -49,6 +60,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tags: ["website-booking"],
     });
     if (!resolved) {
+      await refundAfterFailedBooking(paidIntentId, "could not create the GHL contact");
       return res.status(500).json({ error: "Failed to create contact in GHL" });
     }
     const contactId = resolved.id;
@@ -65,14 +77,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         appointmentStatus: "confirmed",
         toNotify: true,
         timezone: "Europe/London",
-        notes: notes || "",
+        // The payment marker rides along in the notes so a later cancellation
+        // can find the deposit and refund it. See api/booking/cancel.ts.
+        notes: notesWithPayment(notes, paidIntentId),
       }),
     });
 
     const appointmentId = apptRes?.id || apptRes?.event?.id;
     if (!appointmentId) {
       console.error("GHL appointment creation failed:", JSON.stringify(apptRes));
-      return res.status(500).json({ error: "Failed to create appointment", detail: apptRes });
+      const refunded = await refundAfterFailedBooking(paidIntentId, "GHL rejected the appointment");
+      return res.status(500).json({
+        error: "Failed to create appointment",
+        detail: apptRes,
+        ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+      });
     }
 
     // 3. Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar.
@@ -99,6 +118,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //    API-created appointments and its SMS channel is unprovisioned).
     await notifyBooking({
       contactId,
+      appointmentId,
       clientName: name,
       serviceName: serviceName || "Appointment",
       startTime,
@@ -106,22 +126,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
       notes: notes || null,
       durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
-      price: serviceMetaForCalendar(calendarId)?.price ?? null,
+      price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+      depositPence: paidIntentId ? deposit.depositPence : null,
     }).catch(() => {});
 
     // 4. Every booking becomes an opportunity so the clinic can market to its
-    //    customers (Online Bookings → Booked).
+    //    customers (Online Bookings → Booked). monetaryValue stays the FULL
+    //    treatment price — the deposit is a part-payment, not the deal value.
     await createBookingOpportunity({
       contactId,
       clientName: name,
       serviceName: serviceName || "Appointment",
-      price: serviceMetaForCalendar(calendarId)?.price ?? null,
+      price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
       startTime,
     }).catch(() => null);
 
-    return res.json({ success: true, appointmentId, contactId });
+    return res.json({
+      success: true,
+      appointmentId,
+      contactId,
+      ...(paidIntentId ? { depositPence: deposit.depositPence } : {}),
+    });
   } catch (err) {
     console.error("Booking error:", err);
-    return res.status(500).json({ error: "Booking failed" });
+    const refunded = await refundAfterFailedBooking(paidIntentId, "unexpected error during booking");
+    return res.status(500).json({
+      error: "Booking failed",
+      ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+    });
   }
 }

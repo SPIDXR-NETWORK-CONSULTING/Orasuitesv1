@@ -2,10 +2,13 @@
  * TanStack Query hooks for the GHL booking endpoints.
  *
  *  useSlots(calendarId, ymd)   GET  /api/ghl/slots?calendarId&startDate=<ms>&endDate=<ms>
- *  useCreateBooking()          POST /api/ghl/booking { name,email,phone,notes,calendarId,serviceName,startTime,endTime }
+ *  useCreateBooking()          POST /api/ghl/booking { name,email,phone,notes,calendarId,serviceId,serviceName,startTime,endTime,paymentIntentId? }
+ *
+ * The deposit itself is taken by useStripeDeposit() BEFORE this mutation runs;
+ * only the resulting paymentIntentId is passed here, and the server re-verifies
+ * it against the catalogue price.
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { extractSlots, londonDayBounds } from "./time";
 import type { BookingRequest, BookingResponse, SlotsResponse } from "./types";
 
@@ -40,9 +43,19 @@ export function useSlots(calendarId: string | undefined, ymd: string | undefined
 export function useCreateBooking() {
   return useMutation<BookingResponse, Error, BookingRequest>({
     mutationFn: async (body) => {
-      const res = await apiRequest("POST", "/api/ghl/booking", body);
-      const json = (await res.json()) as BookingResponse;
-      if (!json.success) throw new Error(json.error || "Booking failed");
+      // Deliberately not apiRequest(): a 402 from the deposit gate carries a
+      // customer-facing message in `error`, and apiRequest would bury it inside
+      // a `"402: {json}"` string.
+      const res = await fetch("/api/ghl/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+      const json = (await res.json().catch(() => ({}))) as BookingResponse;
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || `${res.status}: Booking failed`);
+      }
       return json;
     },
   });
