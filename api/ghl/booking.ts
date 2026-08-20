@@ -1,8 +1,19 @@
+/**
+ * POST /api/ghl/booking — create the appointment, then take the deposit.
+ *
+ * ORDER OF OPERATIONS (mirrored exactly in the Express twin, server/routes.ts):
+ *   1. verify the deposit AUTHORISATION (money held, not taken)
+ *   2. create the contact and the GHL appointment
+ *   3. only once the appointment exists → CAPTURE (the money is taken)
+ *   4. appointment failed → RELEASE the hold; the customer is never charged
+ *   5. capture failed after the appointment was created → KEEP the booking,
+ *      log CRITICAL, still return success. Never lose a booking over a capture.
+ */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
 import { notifyBooking, serviceMetaForCalendar } from "../_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
-import { verifyDeposit, notesWithPayment, refundAfterFailedBooking } from "../_lib/deposit-guard.js";
+import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -27,7 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Master switch — booking can be turned off without a code change (env BOOKING_ENABLED=false).
-  if (process.env.BOOKING_ENABLED === "false") {
+  // Closed to the public, but a preview key lets the owner test the real flow.
+  const previewOk = (req.body?.preview ?? req.query?.preview) === (process.env.BOOKING_PREVIEW_KEY || "ora-preview-2026");
+  if (process.env.BOOKING_ENABLED === "false" && !previewOk) {
     return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
   }
 
@@ -38,14 +51,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── Deposit gate ────────────────────────────────────────────────────────
-  // The card is charged BEFORE the appointment exists, so this runs first: if
-  // the deposit isn't good, nothing at all is created. Free consultations and
-  // an unconfigured Stripe both pass straight through.
+  // The deposit is HELD on the card before we get here, not taken. This checks
+  // the hold is real, is for this treatment and is the right amount; if it is
+  // not, nothing at all is created. Free consultations and an unconfigured
+  // Stripe both pass straight through.
   const deposit = await verifyDeposit({ serviceId, calendarId, serviceName, paymentIntentId });
   if (!deposit.ok) {
     return res.status(deposit.status).json({ error: deposit.error });
   }
   const paidIntentId = deposit.paymentIntentId;
+  const intentStatus = deposit.intentStatus;
+  /** Set the moment the appointment exists. Once it does, the hold is NEVER released. */
+  let bookedAppointmentId: string | null = null;
 
   try {
     const nameParts = (name as string).trim().split(" ");
@@ -60,8 +77,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tags: ["website-booking"],
     });
     if (!resolved) {
-      await refundAfterFailedBooking(paidIntentId, "could not create the GHL contact");
-      return res.status(500).json({ error: "Failed to create contact in GHL" });
+      await releaseAfterFailedBooking(paidIntentId, intentStatus, "could not create the GHL contact");
+      return res.status(500).json({
+        error: "Failed to create contact in GHL",
+        ...(paidIntentId ? { deposit: "Your card has not been charged." } : {}),
+      });
     }
     const contactId = resolved.id;
 
@@ -86,13 +106,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const appointmentId = apptRes?.id || apptRes?.event?.id;
     if (!appointmentId) {
       console.error("GHL appointment creation failed:", JSON.stringify(apptRes));
-      const refunded = await refundAfterFailedBooking(paidIntentId, "GHL rejected the appointment");
+      const released = await releaseAfterFailedBooking(paidIntentId, intentStatus, "GHL rejected the appointment");
       return res.status(500).json({
         error: "Failed to create appointment",
         detail: apptRes,
-        ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+        ...(paidIntentId ? { released, deposit: "Your card has not been charged." } : {}),
       });
     }
+
+    bookedAppointmentId = appointmentId;
+
+    // 2b. The appointment is real → TAKE the deposit that was being held.
+    //     A capture failure must never undo a booking the customer already has:
+    //     it is logged as CRITICAL with the pi_… id and the booking stands.
+    const depositTaken = await captureDeposit(paidIntentId, intentStatus, `appointment ${appointmentId}`);
 
     // 3. Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar.
     //    Awaited (fire-and-forget work is killed once a serverless response is
@@ -127,7 +154,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       notes: notes || null,
       durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
       price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
-      depositPence: paidIntentId ? deposit.depositPence : null,
+      // Only claim a deposit was taken if it actually was.
+      depositPence: depositTaken ? deposit.depositPence : null,
     }).catch(() => {});
 
     // 4. Every booking becomes an opportunity so the clinic can market to its
@@ -145,14 +173,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       success: true,
       appointmentId,
       contactId,
-      ...(paidIntentId ? { depositPence: deposit.depositPence } : {}),
+      ...(paidIntentId ? { depositPence: deposit.depositPence, depositTaken } : {}),
     });
   } catch (err) {
     console.error("Booking error:", err);
-    const refunded = await refundAfterFailedBooking(paidIntentId, "unexpected error during booking");
+
+    // If the appointment already exists, the customer IS booked — the error was
+    // in the follow-up work (mirror, emails, opportunity). Never release the
+    // deposit in that case; report success instead.
+    if (bookedAppointmentId) {
+      console.error(`[booking] appointment ${bookedAppointmentId} exists — post-booking step failed, deposit left alone.`);
+      return res.json({
+        success: true,
+        appointmentId: bookedAppointmentId,
+        ...(paidIntentId ? { depositPence: deposit.depositPence } : {}),
+      });
+    }
+
+    const released = await releaseAfterFailedBooking(paidIntentId, intentStatus, "unexpected error during booking");
     return res.status(500).json({
       error: "Booking failed",
-      ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+      ...(paidIntentId ? { released, deposit: "Your card has not been charged." } : {}),
     });
   }
 }

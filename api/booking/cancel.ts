@@ -27,11 +27,19 @@
  * payment intent), but if only one can succeed, "cancelled, refund pending" is
  * recoverable by staff whereas "refunded, still on the calendar" silently blocks
  * a slot and sends a practitioner to an empty room.
+ *
+ * REFUND vs RELEASE: deposits are authorised at booking and captured seconds
+ * later, so by the time anyone cancels the money has almost always been TAKEN
+ * (`succeeded`) and giving it back means a refund. The rare exception is an
+ * intent still sitting at `requires_capture` — the capture never ran — where
+ * nothing was ever charged and the right move is to RELEASE the hold, which
+ * costs nothing and never touches the customer's statement. `settleDeposit()`
+ * below picks between the two; the four business rules above are unchanged.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ghlFetch } from "../_lib/ghl.js";
 import { findService, formatPence, depositPence } from "../_lib/catalogue.js";
-import { refundPaymentIntent, isStripeConfigured } from "../_lib/stripe.js";
+import { refundPaymentIntent, cancelPaymentIntent, capturePaymentIntent, retrievePaymentIntent, isStripeConfigured } from "../_lib/stripe.js";
 import { paymentIntentIdFromNotes } from "../_lib/deposit-guard.js";
 import { verifyCancelToken, verifyAdminSecret } from "../_lib/cancel-token.js";
 import { deleteEvent, isCancelled } from "../_lib/google-calendar.js";
@@ -184,20 +192,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
-  // 2. Refund per the rules. Idempotent per payment intent.
+  // 2. Settle the deposit per the rules — refund if it was taken, release the
+  //    hold if it never was. Idempotent per payment intent either way.
   let refunded = false;
+  let released = false;
   let refundError: string | undefined;
-  if (willRefund && paymentIntentId) {
-    const r = await refundPaymentIntent(
+  if (paymentIntentId && isStripeConfigured()) {
+    const settled = await settleDeposit(
       paymentIntentId,
+      willRefund,
       clinic ? "clinic-initiated cancellation" : `customer cancelled ${Math.round(hoursUntil)}h before start`,
+      appointmentId,
     );
-    refunded = Boolean(r.ok);
-    if (r.ok && r.alreadyRefunded) console.warn(`[cancel] ${paymentIntentId} was already refunded — treating as done.`);
-    if (!r.ok) {
-      refundError = r.error;
-      console.error(`[cancel] CRITICAL: appointment ${appointmentId} is cancelled but the refund of ${paymentIntentId} FAILED (${r.error}). Refund manually in Stripe.`);
-    }
+    refunded = settled.refunded;
+    released = settled.released;
+    refundError = settled.error;
   }
 
   // 3. Remove the Google mirror event (non-fatal).
@@ -218,24 +227,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       startTime,
       refundedPence: refunded ? depositAmount : 0,
       retainedPence: hasDeposit && !willRefund ? depositAmount : 0,
+      releasedPence: released ? depositAmount : 0,
       byClinic: clinic,
     }).catch(() => false);
   }
 
   const outcome = refunded
     ? `Your ${formatPence(depositAmount)} deposit has been refunded in full.`
-    : hasDeposit && !willRefund
-      ? `As this is within ${REFUND_WINDOW_HOURS} hours of the appointment, the ${formatPence(depositAmount)} deposit is retained.`
-      : refundError
-        ? "Your refund is being processed manually — we'll be in touch shortly."
-        : "There was no deposit on this booking.";
+    : released
+      ? `Your card was never charged — the ${formatPence(depositAmount)} hold on it has been released.`
+      : hasDeposit && !willRefund
+        ? `As this is within ${REFUND_WINDOW_HOURS} hours of the appointment, the ${formatPence(depositAmount)} deposit is retained.`
+        : refundError
+          ? "Your refund is being processed manually — we'll be in touch shortly."
+          : "There was no deposit on this booking.";
 
   return reply(200, {
     success: true,
     appointmentId,
     cancelled: true,
     refunded,
+    released,
     refundedPence: refunded ? depositAmount : 0,
+    releasedPence: released ? depositAmount : 0,
     retainedPence: hasDeposit && !willRefund ? depositAmount : 0,
     byClinic: clinic,
     ...(refundError ? { refundPending: true } : {}),
@@ -251,6 +265,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
+
+interface SettleResult {
+  /** money was given back (a real refund of a captured deposit) */
+  refunded: boolean;
+  /** an untaken authorisation was released — the customer was never charged */
+  released: boolean;
+  error?: string;
+}
+
+/**
+ * Give the deposit back, or keep it, according to `giveBack` — choosing refund
+ * vs release from the payment's actual state. Never throws.
+ *
+ *   held  + give back → release the hold (no charge ever happened)
+ *   taken + give back → refund
+ *   held  + keep      → CAPTURE it. "Retained" has to mean money we actually
+ *                       hold; a hold that is merely left alone expires in ~7
+ *                       days and the clinic ends up with nothing. Vanishingly
+ *                       rare — capture normally runs seconds after booking.
+ *   taken + keep      → nothing to do
+ */
+export async function settleDeposit(
+  paymentIntentId: string,
+  giveBack: boolean,
+  reason: string,
+  appointmentId: string,
+): Promise<SettleResult> {
+  const got = await retrievePaymentIntent(paymentIntentId).catch(() => ({ ok: false }) as const);
+  const status = got.ok ? (got as { intent?: { status?: string } }).intent?.status : undefined;
+
+  if (!giveBack) {
+    if (status === "requires_capture") {
+      const cap = await capturePaymentIntent(paymentIntentId).catch(() => ({ ok: false, error: "capture threw" }) as const);
+      if (!cap.ok) {
+        console.error(
+          `[cancel] appointment ${appointmentId} cancelled inside the window and the deposit ${paymentIntentId} was ` +
+            `still only held; capturing it FAILED (${(cap as { error?: string }).error ?? "unknown"}). Capture by hand in Stripe within 7 days.`,
+        );
+      }
+    }
+    return { refunded: false, released: false };
+  }
+
+  if (status === "canceled") {
+    console.warn(`[cancel] ${paymentIntentId} was already released — treating as done.`);
+    return { refunded: false, released: true };
+  }
+
+  if (status === "requires_capture") {
+    const rel = await cancelPaymentIntent(paymentIntentId, reason).catch(() => ({ ok: false, error: "cancel threw" }) as const);
+    if (rel.ok) return { refunded: false, released: true };
+    const err = (rel as { error?: string }).error;
+    console.error(
+      `[cancel] appointment ${appointmentId} is cancelled but releasing the hold ${paymentIntentId} FAILED (${err}). ` +
+        `The customer has NOT been charged; the hold expires by itself in about 7 days.`,
+    );
+    return { refunded: false, released: false, error: err };
+  }
+
+  // `succeeded`, or a status we could not read — treat as taken and refund.
+  const r = await refundPaymentIntent(paymentIntentId, reason);
+  if (r.ok && r.alreadyRefunded) console.warn(`[cancel] ${paymentIntentId} was already refunded — treating as done.`);
+  if (r.ok) return { refunded: true, released: false };
+
+  console.error(
+    `[cancel] CRITICAL: appointment ${appointmentId} is cancelled but the refund of ${paymentIntentId} FAILED (${r.error}). Refund manually in Stripe.`,
+  );
+  return { refunded: false, released: false, error: r.error };
+}
 
 /** Booking titles are `${serviceName} — ${clientName}`. */
 function stripClientFromTitle(title?: string): string | undefined {

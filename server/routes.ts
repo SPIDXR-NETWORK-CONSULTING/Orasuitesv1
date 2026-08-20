@@ -7,7 +7,7 @@ import { processEnquiry } from "./ghl-notify";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "./google-calendar";
 import { notifyBooking, serviceMetaForCalendar } from "../api/_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../api/_lib/ghl-contacts.js";
-import { verifyDeposit, notesWithPayment, refundAfterFailedBooking } from "../api/_lib/deposit-guard.js";
+import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../api/_lib/deposit-guard.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -111,7 +111,8 @@ export async function registerRoutes(
 
   // ── GHL: Create booking (contact + appointment) ─────────────────────────
   app.post("/api/ghl/booking", async (req, res) => {
-    if (process.env.BOOKING_ENABLED === "false") {
+    const previewOk = ((req.body as any)?.preview ?? (req.query as any)?.preview) === (process.env.BOOKING_PREVIEW_KEY || "ora-preview-2026");
+    if (process.env.BOOKING_ENABLED === "false" && !previewOk) {
       return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
     }
     const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime, paymentIntentId } = req.body;
@@ -121,14 +122,18 @@ export async function registerRoutes(
     }
 
     // ── Deposit gate ──────────────────────────────────────────────────────
-    // Identical rule to api/ghl/booking.ts (both call the same guard). The card
-    // is charged before the appointment exists, so an unverified deposit means
-    // nothing is created at all.
+    // Identical rule and identical ORDER to api/ghl/booking.ts (both call the
+    // same guard): verify the HOLD → create the appointment → capture. The
+    // deposit is only held at this point, never taken, so an unverified deposit
+    // means nothing is created at all and nothing is charged.
     const deposit = await verifyDeposit({ serviceId, calendarId, serviceName, paymentIntentId });
     if (!deposit.ok) {
       return res.status(deposit.status).json({ error: deposit.error });
     }
     const paidIntentId = deposit.paymentIntentId;
+    const intentStatus = deposit.intentStatus;
+    /** Set the moment the appointment exists. Once it does, the hold is NEVER released. */
+    let bookedAppointmentId: string | null = null;
 
     try {
       // 1. Create or update contact in GHL
@@ -148,8 +153,11 @@ export async function registerRoutes(
 
       const resolved = await resolveContact({ email, firstName, lastName, phone, tags: ["website-booking"] });
       if (!resolved) {
-        await refundAfterFailedBooking(paidIntentId, "could not create the GHL contact");
-        return res.status(500).json({ error: "Failed to create contact in GHL" });
+        await releaseAfterFailedBooking(paidIntentId, intentStatus, "could not create the GHL contact");
+        return res.status(500).json({
+          error: "Failed to create contact in GHL",
+          ...(paidIntentId ? { deposit: "Your card has not been charged." } : {}),
+        });
       }
       const contactId = resolved.id;
 
@@ -176,11 +184,19 @@ export async function registerRoutes(
 
       const appointmentId = apptRes?.id || apptRes?.event?.id;
       if (appointmentId) {
+        bookedAppointmentId = appointmentId;
+
+        // 3. The appointment is real → TAKE the deposit that was being held.
+        //    Awaited before responding so the answer reflects the money's real
+        //    state. A capture failure never undoes the booking: it is logged as
+        //    CRITICAL with the pi_… id and the booking stands.
+        const depositTaken = await captureDeposit(paidIntentId, intentStatus, `appointment ${appointmentId}`);
+
         res.json({
           success: true,
           appointmentId,
           contactId,
-          ...(paidIntentId ? { depositPence: deposit.depositPence } : {}),
+          ...(paidIntentId ? { depositPence: deposit.depositPence, depositTaken } : {}),
         });
 
         // Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar,
@@ -213,7 +229,8 @@ export async function registerRoutes(
           notes: notes || null,
           durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
           price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
-          depositPence: paidIntentId ? deposit.depositPence : null,
+          // Only claim a deposit was taken if it actually was.
+          depositPence: depositTaken ? deposit.depositPence : null,
         }).catch(() => {});
 
         // monetaryValue stays the FULL treatment price — the deposit is a
@@ -227,20 +244,35 @@ export async function registerRoutes(
         }).catch(() => null);
       } else {
         console.error("GHL appointment creation failed:", JSON.stringify(apptRes));
-        const refunded = await refundAfterFailedBooking(paidIntentId, "GHL rejected the appointment");
+        const released = await releaseAfterFailedBooking(paidIntentId, intentStatus, "GHL rejected the appointment");
         res.status(500).json({
           error: "Failed to create appointment",
           detail: apptRes,
-          ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+          ...(paidIntentId ? { released, deposit: "Your card has not been charged." } : {}),
         });
       }
     } catch (err) {
       console.error("Booking error:", err);
-      const refunded = await refundAfterFailedBooking(paidIntentId, "unexpected error during booking");
+
+      // The appointment already exists → the customer IS booked and the hold is
+      // never released; the failure was in the follow-up work.
+      if (bookedAppointmentId) {
+        console.error(`[booking] appointment ${bookedAppointmentId} exists — post-booking step failed, deposit left alone.`);
+        if (!res.headersSent) {
+          res.json({
+            success: true,
+            appointmentId: bookedAppointmentId,
+            ...(paidIntentId ? { depositPence: deposit.depositPence } : {}),
+          });
+        }
+        return;
+      }
+
+      const released = await releaseAfterFailedBooking(paidIntentId, intentStatus, "unexpected error during booking");
       if (!res.headersSent) {
         res.status(500).json({
           error: "Booking failed",
-          ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+          ...(paidIntentId ? { released, deposit: "Your card has not been charged." } : {}),
         });
       }
     }

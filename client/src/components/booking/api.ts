@@ -4,9 +4,10 @@
  *  useSlots(calendarId, ymd)   GET  /api/ghl/slots?calendarId&startDate=<ms>&endDate=<ms>
  *  useCreateBooking()          POST /api/ghl/booking { name,email,phone,notes,calendarId,serviceId,serviceName,startTime,endTime,paymentIntentId? }
  *
- * The deposit itself is taken by useStripeDeposit() BEFORE this mutation runs;
- * only the resulting paymentIntentId is passed here, and the server re-verifies
- * it against the catalogue price.
+ * The deposit is HELD by useStripeDeposit() BEFORE this mutation runs; only the
+ * resulting paymentIntentId is passed here. The server re-verifies the hold
+ * against the catalogue price and takes the money only after the appointment
+ * has been created.
  */
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { extractSlots, londonDayBounds } from "./time";

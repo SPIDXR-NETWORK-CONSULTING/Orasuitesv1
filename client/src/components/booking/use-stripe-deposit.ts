@@ -1,5 +1,11 @@
 /**
- * useStripeDeposit — the 20% deposit, taken with Stripe, with no npm dependency.
+ * useStripeDeposit — the 20% deposit, held with Stripe, with no npm dependency.
+ *
+ * HELD, NOT TAKEN: the PaymentIntent is created with manual capture, so
+ * confirming here only AUTHORISES the deposit — the intent lands on
+ * `requires_capture`. The money is taken by the server, seconds later, once the
+ * appointment really exists. If the appointment can't be created the hold is
+ * released and the customer is never charged at all.
  *
  * Stripe.js is loaded from https://js.stripe.com/v3 on demand (Stripe requires
  * the script to be served from their domain for PCI scope, so bundling it is not
@@ -100,7 +106,7 @@ export interface StripeDeposit {
   depositPence: number | null;
   /** attach to the div the Payment Element mounts into. */
   setMountNode: (el: HTMLDivElement | null) => void;
-  /** Charges the card. Resolves the paymentIntentId, throws with a readable message. */
+  /** Holds the deposit on the card. Resolves the paymentIntentId, throws with a readable message. */
   confirm: () => Promise<string>;
 }
 
@@ -212,7 +218,7 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
     };
   }, [payable, active, mountNode, serviceId, email]);
 
-  /* 2 — charge the card */
+  /* 2 — hold the deposit on the card (authorise; the server captures) */
   const confirm = React.useCallback(async (): Promise<string> => {
     if (!payable || !enabled) throw new Error("No payment is required for this booking.");
     const stripe = stripeRef.current;
@@ -226,14 +232,17 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
 
     if (result?.error) {
       const message: string =
-        result.error.message || "Your card couldn't be charged. Please check the details and try again.";
+        result.error.message || "We couldn't hold the deposit on your card. Please check the details and try again.";
       setStatus("ready");
       setError(message);
       throw new Error(message);
     }
 
     const intent = result?.paymentIntent;
-    if (!intent || intent.status !== "succeeded") {
+    // `requires_capture` is the expected outcome with manual capture (the money
+    // is held). `succeeded` is accepted too, so an intent created before manual
+    // capture — or any Stripe path that captures immediately — still works.
+    if (!intent || (intent.status !== "requires_capture" && intent.status !== "succeeded")) {
       const message = "Your payment didn't complete. Nothing has been booked — please try again.";
       setStatus("ready");
       setError(message);

@@ -8,6 +8,10 @@
  * shared/catalogue.json server-side and the 20% deposit is computed here, so a
  * tampered client cannot pay £0.30 for a £300 treatment.
  *
+ * The intent is created with MANUAL CAPTURE: confirming it in the browser only
+ * holds the deposit. It is taken once the appointment exists — see
+ * api/ghl/booking.ts.
+ *
  * 503 when Stripe isn't configured — the booking flow reads that as "stay in
  * preview mode" and keeps working exactly as it does today.
  */

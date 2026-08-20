@@ -8,11 +8,14 @@ Until `STRIPE_SECRET_KEY` is set, the site behaves exactly as it does today:
 bookings work, the deposit panel stays in "Payments launching soon" preview, and
 `/api/health` reports `stripe: not connected — optional`.
 
-> **Read this first:** the card is charged **before** the appointment is created.
-> If the card fails, no appointment exists and nothing is charged. If the card
-> succeeds but the appointment then fails, the code **refunds the deposit
-> automatically** and tells the customer. See "What happens if something goes
-> wrong" at the bottom.
+> **Read this first — the deposit is HELD, then TAKEN.**
+> When the customer confirms, the deposit is **authorised** on their card: the
+> money is held, not taken. The appointment is created next, and only if that
+> succeeds is the deposit **captured** (actually charged) — a second or two
+> later. If the appointment can't be created, the hold is **released** and the
+> customer is never charged at all. A release is not a refund: nothing reaches
+> their statement, there is no 5–10 day wait, and it costs nothing.
+> See "What happens if something goes wrong" at the bottom.
 
 ---
 
@@ -101,15 +104,17 @@ npm run health          # expect "stripe":{"ok":true,"detail":"live mode key OK"
    https://www.orasuites.com/api/webhooks/stripe
    ```
 
-3. **Select events** — add these two:
+3. **Select events** — add these three:
 
    - `charge.refunded`
    - `payment_intent.payment_failed`
+   - `payment_intent.canceled` — a released hold (booking failed, or an
+     authorisation expired uncaptured). The customer was never charged.
 
    (Nothing else is needed. The booking itself does **not** depend on the
    webhook — deposits are verified synchronously when the booking is made.
-   The webhook exists so refunds and declined cards are visible in the logs
-   for reconciliation.)
+   The webhook exists so refunds, released holds and declined cards are
+   visible in the logs for reconciliation.)
 
 4. Click **Add endpoint**, then **Reveal** the *Signing secret* (`whsec_…`).
 5. Add it:
@@ -145,7 +150,11 @@ Do this before you switch to live keys.
 
 4. Check, in order:
    - the deposit shows the right figure (20% of the menu price, e.g. £125 → £25);
-   - the charge appears at <https://dashboard.stripe.com/test/payments>;
+   - the payment appears at <https://dashboard.stripe.com/test/payments> as
+     **Succeeded**. It passes through *Uncaptured* on the way, usually too
+     quickly to see. A payment still sitting on **Uncaptured** minutes later
+     means the appointment was created but the capture failed — search the
+     Vercel logs for `CRITICAL` and that `pi_…` id, and capture it by hand;
    - the appointment exists in GHL and in the "ORÁ — All Appointments" Google calendar;
    - the confirmation email contains the deposit line, the **Cancel this appointment**
      link and the 24-hour policy sentence.
@@ -160,8 +169,9 @@ Do this before you switch to live keys.
 
 | Situation | Deposit |
 |---|---|
-| Customer books a paid treatment | 20% of the menu price is charged **now**; the balance is paid at the clinic. |
-| Customer books a free consultation | Nothing charged, no card asked for. |
+| Customer books a paid treatment | 20% of the menu price is **held** when they confirm and **taken** a second later, once the appointment exists. The balance is paid at the clinic. |
+| Booking couldn't be created | The hold is **released**. The customer is never charged and there is nothing to refund. |
+| Customer books a free consultation | Nothing held, nothing charged, no card asked for. |
 | Customer cancels **more than 24 h** before | **Refunded in full, automatically.** |
 | Customer cancels **within 24 h** | **Retained.** They are told this plainly before they confirm. |
 | **Clinic** cancels (any timing) | **Refunded in full, automatically.** |
@@ -192,23 +202,54 @@ moves the opportunity to **Online Bookings → Cancelled**, and emails the custo
   not returned.
 - **Your logs:** Vercel → Project → Logs. Search `[stripe-webhook] charge.refunded`.
 
+A cancellation that lands before the deposit was captured — rare, because
+capture runs seconds after booking — is **released** rather than refunded. It
+shows in Stripe as **Canceled**, not Refunded, and there is nothing for the
+customer to wait for because they were never charged. Some banks take a day or
+two to drop the pending line from the customer's app; that is the bank, not us.
+
 ---
 
 ## What happens if something goes wrong
 
-The card is charged **before** the appointment is created, so that a booking can
-never exist unpaid. The failure cases are handled explicitly:
+The exact order, every time:
+
+1. **Verify** the deposit is held on the card, is for this treatment and is the
+   right amount to the penny. If not, nothing is created.
+2. **Create** the contact and the GHL appointment.
+3. **Capture** — only now is the money actually taken.
+
+Nothing can be charged for a booking that doesn't exist, and no booking can
+exist without a verified hold behind it.
 
 | Failure | What the customer sees | What happens to the money |
 |---|---|---|
-| Card declined | "Your card couldn't be charged…" on the confirm step | Nothing charged. No appointment created. |
-| Card fine, but GHL rejects the appointment | "Your deposit has not been kept — no appointment was created." | **Automatically refunded.** |
-| Card fine, appointment created, email fails | Booking succeeds | Deposit kept, as normal. Emails are non-fatal. |
-| Card fine, appointment created, **automatic refund fails** | n/a | Logged as `CRITICAL` in Vercel logs with the `pi_…` id — refund it by hand in Stripe. |
+| Card declined | "We couldn't hold the deposit on your card…" on the confirm step | Nothing held, nothing charged. No appointment created. |
+| Hold fine, but GHL rejects the appointment | "Your card has not been charged." | **Hold released.** Never charged — so no refund is needed. |
+| Hold fine, appointment created, **capture fails** | Booking succeeds normally | Appointment **kept**. Logged as `CRITICAL` with the `pi_…` id — capture it by hand in Stripe (**within 7 days**, see below). The confirmation email omits the deposit line, so the customer is never told they paid something they didn't. |
+| Everything fine, email fails | Booking succeeds | Deposit taken, as normal. Emails are non-fatal. |
+| Appointment created, then a later step throws | Booking succeeds | Deposit left exactly as it is. A booking is never undone over follow-up work. |
+| Hold released and the release itself fails | "Your card has not been charged." | Still never charged. The hold expires by itself in ~7 days; you can also cancel it in Stripe. |
 
-Every refund is **idempotent per payment** (Stripe idempotency key
-`ora-refund-<payment intent id>`), so a customer clicking the cancel link twice
-cannot be refunded twice.
+Capture and release are **idempotent per payment** (`ora-capture-<pi id>`,
+`ora-cancel-<pi id>`), as are refunds (`ora-refund-<pi id>`), so a retry or a
+customer clicking cancel twice can never charge or refund twice.
+
+### The 7-day limit on an uncaptured hold
+
+Stripe releases an authorisation that has not been captured after about
+**7 days** (the exact window depends on the card network and the card type — it
+can be shorter for some cards). In this flow capture happens **within seconds**
+of the appointment being created, so it only matters in one situation: a
+capture that failed and was logged `CRITICAL`. If that hold is not captured
+before it expires, the money is gone — the customer keeps their appointment and
+the clinic never receives the deposit.
+
+**So: act on a `CRITICAL` capture log the same week.** Find the payment in
+Stripe, press **Capture**, or take the deposit at the clinic instead.
+
+To check for stragglers: <https://dashboard.stripe.com/payments> → filter
+**Status: Uncaptured**. In normal operation that list is empty.
 
 ---
 
@@ -226,4 +267,4 @@ Booking carries on working; the deposit panel returns to preview mode.
 
 ---
 
-*Last updated: 20 Aug 2026.*
+*Last updated: 20 Aug 2026 — deposits are now authorised at booking and captured once the appointment exists.*

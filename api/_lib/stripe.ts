@@ -7,6 +7,13 @@
  * a full refund and a webhook signature. No `stripe` npm package is installed
  * and none is required.
  *
+ * AUTHORISE THEN CAPTURE: deposits are created with `capture_method: "manual"`.
+ * Confirming in the browser only HOLDS the money (status `requires_capture`);
+ * it is actually taken by `capturePaymentIntent()` once the GHL appointment
+ * exists, and released with `cancelPaymentIntent()` if it does not. Releasing a
+ * hold is not a refund — nothing ever reaches the customer's statement and it
+ * costs nothing.
+ *
  * SECRETS: the key is read from process.env at CALL TIME and never stored,
  * logged, returned or embedded. `redact()` scrubs anything key-shaped out of
  * every log line as a second line of defence.
@@ -125,6 +132,11 @@ export interface CreatePaymentIntentInput {
 /**
  * Create a PaymentIntent for a deposit. Never throws.
  * Returns the client secret the browser needs to confirm the card.
+ *
+ * `capture_method: "manual"` is the whole point: confirming in the browser
+ * AUTHORISES the deposit (status becomes `requires_capture`) instead of taking
+ * it. The money is taken by capturePaymentIntent() only once the appointment
+ * exists — see api/ghl/booking.ts.
  */
 export async function createPaymentIntent(
   input: CreatePaymentIntentInput,
@@ -147,6 +159,7 @@ export async function createPaymentIntent(
     payload: {
       amount,
       currency: input.currency || "gbp",
+      capture_method: "manual",
       "automatic_payment_methods[enabled]": true,
       ...(input.description ? { description: input.description } : {}),
       ...(input.receiptEmail ? { receipt_email: input.receiptEmail } : {}),
@@ -170,6 +183,86 @@ export async function retrievePaymentIntent(
   const res = await stripeFetch<StripePaymentIntent>(`/payment_intents/${encodeURIComponent(id)}`);
   if (!res.ok || !res.body?.id) return { ok: false, error: res.error || "payment not found" };
   return { ok: true, intent: res.body };
+}
+
+/* ── Capture / release an authorisation ──────────────────── */
+export interface CaptureResult {
+  ok: boolean;
+  intent?: StripePaymentIntent;
+  /** true when the hold had already been captured (a retry, not a double charge). */
+  alreadyCaptured?: boolean;
+  error?: string;
+}
+
+/**
+ * TAKE the money that was held. Call this only once the appointment really
+ * exists. Idempotent per intent (`ora-capture-<id>`), so a retry of the same
+ * booking cannot charge twice.
+ *
+ * A `payment_intent_unexpected_state` error usually means it is ALREADY
+ * captured — that is a success from our point of view, so the intent is read
+ * back and reported as `alreadyCaptured` rather than as a failure.
+ */
+export async function capturePaymentIntent(id: string): Promise<CaptureResult> {
+  if (!isStripeConfigured()) return { ok: false, error: "stripe not configured" };
+  if (!/^pi_[A-Za-z0-9_]+$/.test(id)) return { ok: false, error: "malformed payment reference" };
+
+  const res = await stripeFetch<StripePaymentIntent>(`/payment_intents/${encodeURIComponent(id)}/capture`, {
+    method: "POST",
+    idempotencyKey: `ora-capture-${id}`,
+    payload: {},
+  });
+
+  if (res.ok && res.body?.id) return { ok: true, intent: res.body };
+
+  if ((res.body as any)?.error?.code === "payment_intent_unexpected_state") {
+    const back = await retrievePaymentIntent(id);
+    if (back.ok && back.intent?.status === "succeeded") {
+      return { ok: true, intent: back.intent, alreadyCaptured: true };
+    }
+  }
+  return { ok: false, error: res.error || "could not take the deposit" };
+}
+
+export interface CancelIntentResult {
+  ok: boolean;
+  intent?: StripePaymentIntent;
+  /** true when the hold was already released. */
+  alreadyCancelled?: boolean;
+  error?: string;
+}
+
+/**
+ * RELEASE a hold — the opposite of capture, and NOT a refund. The customer was
+ * never charged, so nothing appears on their statement, there is no 5–10 day
+ * wait and it costs nothing. Some banks take a day or two to drop the pending
+ * line from the customer's app; that is the bank, not us.
+ *
+ * `reason` is our own wording (logged); Stripe only accepts a fixed enum, and
+ * a booking that could not be created is "abandoned".
+ */
+export async function cancelPaymentIntent(id: string, reason: string): Promise<CancelIntentResult> {
+  if (!isStripeConfigured()) return { ok: false, error: "stripe not configured" };
+  if (!/^pi_[A-Za-z0-9_]+$/.test(id)) return { ok: false, error: "malformed payment reference" };
+
+  const res = await stripeFetch<StripePaymentIntent>(`/payment_intents/${encodeURIComponent(id)}/cancel`, {
+    method: "POST",
+    idempotencyKey: `ora-cancel-${id}`,
+    payload: { cancellation_reason: "abandoned" },
+  });
+
+  if (res.ok && res.body?.id) {
+    console.warn(`[stripe] released the hold on ${id} — ${redact(reason)}`);
+    return { ok: true, intent: res.body };
+  }
+
+  if ((res.body as any)?.error?.code === "payment_intent_unexpected_state") {
+    const back = await retrievePaymentIntent(id);
+    if (back.ok && back.intent?.status === "canceled") {
+      return { ok: true, intent: back.intent, alreadyCancelled: true };
+    }
+  }
+  return { ok: false, error: res.error || "could not release the hold" };
 }
 
 /* ── Refunds ─────────────────────────────────────────────── */

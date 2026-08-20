@@ -12,6 +12,10 @@
  *                                       the clinic's books can be reconciled.
  *   · payment_intent.payment_failed   — a card was declined at the deposit step.
  *                                       Logged; no booking was created.
+ *   · payment_intent.canceled         — a HOLD was released because the
+ *                                       appointment could not be created (or it
+ *                                       expired uncaptured after ~7 days). The
+ *                                       customer was never charged.
  *
  * RAW BODY: Stripe signs the exact bytes it sent, so Vercel's JSON body parser
  * has to be switched off and the stream read by hand. Parsing before verifying
@@ -78,6 +82,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         `[stripe-webhook] deposit failed — intent=${obj.id ?? "unknown"} ` +
           `amount=${obj.amount ?? 0}p service="${obj.metadata?.serviceId ?? "n/a"}" ` +
           `reason=${redact(obj.last_payment_error?.message ?? "unknown")} — no appointment was created.`,
+      );
+      break;
+    }
+    case "payment_intent.canceled": {
+      console.warn(
+        `[stripe-webhook] hold released — intent=${obj.id ?? "unknown"} ` +
+          `amount=${obj.amount ?? 0}p service="${obj.metadata?.serviceId ?? "n/a"}" ` +
+          `reason=${obj.cancellation_reason ?? "unknown"} — the customer was never charged.`,
       );
       break;
     }

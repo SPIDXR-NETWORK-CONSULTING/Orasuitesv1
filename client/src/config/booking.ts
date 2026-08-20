@@ -12,6 +12,19 @@
  */
 export const BOOKING_ENABLED = false;
 
+/**
+ * Private preview: /book?preview=<key> runs the REAL booking flow (real deposit,
+ * real appointment) while the public still sees the coming-soon panel.
+ * Used for owner testing before launch. The server enforces the same key.
+ */
+export const BOOKING_PREVIEW_KEY = "ora-preview-2026";
+
+export function bookingUnlocked(): boolean {
+  if (BOOKING_ENABLED) return true;
+  if (typeof window === "undefined") return false;
+  return new URLSearchParams(window.location.search).get("preview") === BOOKING_PREVIEW_KEY;
+}
+
 /** Shown on /book while booking is off. Keep it short. */
 export const BOOKING_SOON_COPY = {
   eyebrow: "Online booking",

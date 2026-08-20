@@ -10,7 +10,7 @@ import { useSEO, servicesJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-
 import { allServices } from "@/lib/catalogue";
 import { BookingFlow } from "@/components/booking/booking-flow";
 import { BookingSoon } from "@/components/booking/booking-soon";
-import { BOOKING_ENABLED } from "@/config/booking";
+import { BOOKING_ENABLED, bookingUnlocked } from "@/config/booking";
 import { motion } from "framer-motion";
 import { useMotionSafe } from "@/lib/motion";
 
@@ -45,11 +45,11 @@ export default function BookPage() {
               Book an appointment
             </motion.h1>
             <motion.p variants={m.fadeUp} className="mt-2 font-sans text-[0.9375rem] text-ora-fog">
-              {BOOKING_ENABLED ? "49 Deansgate, Manchester · four quick steps." : "49 Deansgate, Manchester"}
+              {bookingUnlocked() ? "49 Deansgate, Manchester · four quick steps." : "49 Deansgate, Manchester"}
             </motion.p>
           </motion.header>
 
-          {BOOKING_ENABLED ? <BookingFlow /> : <BookingSoon />}
+          {bookingUnlocked() ? <BookingFlow /> : <BookingSoon />}
         </Container>
       </div>
     </Layout>

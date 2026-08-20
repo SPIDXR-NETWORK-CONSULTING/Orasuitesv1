@@ -7,10 +7,11 @@ _Last verified end-to-end on production: 20 Aug 2026._
 2. Times shown are only slots where a practitioner qualified for **that exact service** is free
    (each service has its own GHL calendar; 15-min reset buffer between appointments).
 3. On confirm, in order:
-   - **Deposit** — 20% of the menu price is charged to the card *first*, before anything is created. Free consultations skip this entirely. (See §8.)
+   - **Deposit held** — 20% of the menu price is *held* on the card (authorised, not taken) before anything is created. Free consultations skip this entirely. (See §8.)
    - **Contact** — matched by email. Existing customer → reused. New → created. *Never overwrites anyone.*
    - **Appointment** — created `confirmed`, auto-assigned round-robin to an available qualified practitioner.
-   - **Client email** — subject `Booking confirmed — <Service> on <date/time>`; body has treatment, date & time, duration, practitioner name, price, deposit paid, balance due, address, a cancel link and the 24-hour refund policy.
+   - **Deposit taken** — only now, with the appointment in place, is the held deposit actually charged. If the appointment could not be created, the hold is released instead and the customer is never charged.
+   - **Client email** — subject `Booking confirmed — <Service> on <date/time>`; body has treatment, date & time, duration, practitioner name, price, deposit taken, balance due, address, a cancel link and the 24-hour refund policy.
    - **Practitioner email** — client name, treatment, time, duration, notes.
    - **Google Calendar** — event on the admin "ORÁ — All Appointments" calendar, with the practitioner invited as an attendee (so it appears on *their* Google Calendar too).
    - **Opportunity** — created in **Online Bookings → Booked** with the price, so every customer is captured for marketing.
@@ -89,8 +90,12 @@ Set both to `false` to close. While closed, /book shows "Booking opens soon" and
 ## 8. Deposits & refunds
 
 A **20% deposit** is taken at the moment of booking; the balance is paid at the clinic.
-The card is charged **before** the appointment is created — a booking can never exist unpaid,
-and if the appointment then fails to create, the deposit is refunded automatically.
+
+**Held, then taken.** When the customer confirms, the deposit is *held* on their card —
+authorised, not charged. The appointment is created next, and only then is the deposit
+actually taken, a second or two later. If the appointment can't be created, the hold is
+**released**: the customer is never charged, so there is nothing to refund and nothing
+lands on their statement. Nobody is ever charged for a booking that doesn't exist.
 
 **Free consultations take no deposit and never ask for a card.**
 
@@ -105,10 +110,18 @@ The four rules, in full:
 
 - Customers cancel themselves via the **"Cancel this appointment"** link in their confirmation email.
   The page tells them whether they'll be refunded *before* they confirm.
+- In the rare case where a cancellation arrives before the deposit was taken, it is **released**
+  rather than refunded — Stripe shows it as **Canceled**, and the customer has nothing to wait
+  for because they were never charged. The rules above are unaffected.
 - **Reschedule in GHL as usual** — do NOT use the cancel link for a reschedule, or the deposit
   will be refunded and you'd have to take it again.
 - **Cancelling for the clinic** (always refunds in full) — see "Cancelling as the clinic" in `STRIPE_SETUP.md`.
 - Refunds appear in Stripe within seconds and on the customer's statement in 5–10 working days.
+- **Check for stuck holds now and then** — Stripe → Payments → filter **Status: Uncaptured**.
+  That list should be empty. A payment sitting there means the appointment was created but
+  the deposit was never taken (search the Vercel logs for `CRITICAL` and that `pi_…` id).
+  **Capture it by hand within 7 days** — after roughly a week Stripe releases an uncaptured
+  hold by itself and the deposit is gone for good. Alternatively take it at the clinic.
 - `/api/health` reports a `stripe` check. `"not connected — optional"` means deposits aren't
   switched on and booking works exactly as it did before — that is not a fault.
 

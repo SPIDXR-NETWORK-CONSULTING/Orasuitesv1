@@ -1,10 +1,11 @@
 /**
- * Step 4 — review, take the 20% deposit, then confirm.
+ * Step 4 — review, hold the 20% deposit, then confirm.
  *
- * ORDER: the card is charged FIRST, then POST /api/ghl/booking runs with the
- * resulting paymentIntentId. If the card fails, no appointment is attempted. If
- * the appointment fails after a successful charge, the server refunds
- * automatically (see api/_lib/deposit-guard.ts).
+ * ORDER: the deposit is HELD on the card first (authorised, not taken), then
+ * POST /api/ghl/booking runs with the resulting paymentIntentId. The server
+ * takes the money only once the appointment exists; if it can't be created the
+ * hold is released and the customer is never charged (see
+ * api/_lib/deposit-guard.ts).
  *
  * When Stripe isn't configured — or the treatment is complimentary — this is
  * exactly the flow it has always been: no payment step at all.
@@ -51,7 +52,7 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
       const paymentIntentId = await deposit.confirm();
       onConfirm(paymentIntentId);
     } catch (err) {
-      setPayError(err instanceof Error ? err.message : "Your card couldn't be charged.");
+      setPayError(err instanceof Error ? err.message : "We couldn't hold the deposit on your card.");
     } finally {
       setPaying(false);
     }
@@ -131,14 +132,12 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
         onNext={handleConfirm}
         loading={busy}
         nextDisabled={blocked}
-        nextLabel={
-          free ? "Confirm consultation" : deposit.enabled ? `Pay ${formatPrice(depositAmount)} & confirm` : "Confirm booking"
-        }
+        nextLabel={free ? "Confirm consultation" : "Confirm booking"}
         hint={
           free
             ? undefined
             : deposit.enabled
-              ? `${formatPrice(depositAmount)} today · ${formatPrice(s.price - depositAmount)} at the clinic`
+              ? `${formatPrice(depositAmount)} held now, taken when your booking is confirmed`
               : "Nothing is charged today"
         }
       />
