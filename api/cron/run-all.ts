@@ -39,10 +39,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const fromVercel = Boolean(req.headers["x-vercel-signature"]) || String(req.headers["user-agent"] || "").includes("vercel-cron");
   if (!fromVercel && provided !== secret) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
+  // Vercel Hobby permits only ONE daily cron, so a scheduled run does everything.
+  // An external scheduler (or Pro) can call this hourly with ?jobs=hourly to run
+  // just the time-sensitive pair.
   const hour = new Date().getUTCHours();
-  const due = [...HOURLY];
-  if (hour === 3) due.push("sync-calendar" as (typeof HOURLY)[number]);
-  if (hour === 10) due.push("review-requests" as (typeof HOURLY)[number]);
+  const hourlyOnly = String(req.query.jobs || "") === "hourly";
+  const due: string[] = hourlyOnly ? [...HOURLY] : [...HOURLY, "sync-calendar", "review-requests"];
 
   const base = baseUrl(req);
   const results: Record<string, unknown> = {};
