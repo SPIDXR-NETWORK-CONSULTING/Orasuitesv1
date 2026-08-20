@@ -25,11 +25,13 @@ _Last verified end-to-end on production: 20 Aug 2026._
 |---|---|---|
 | Customer | Booking confirmed email (instant) | Our code |
 | Customer | 1-hour reminder email | GHL |
-| Customer | Cancellation email — states whether the deposit was refunded or retained | Our code |
+| Customer | Cancellation email — states whether the deposit was refunded, retained, released, or is being checked by hand | Our code |
 | Practitioner | New-booking email + Google Calendar invite | Our code |
+| **Practitioner** | **Cancellation email — `Cancelled — <Service>, <when>`, with the client, treatment, date & time, duration and a plain line that the slot is now free.** Added 20 Aug 2026, so nobody comes in for a client who cancelled | Our code |
 | Practitioner | In-app GHL notification | GHL |
 | **Admin / reception** | **Every booking → admin@orasuites.com, instantly.** Client name, email, phone, treatment, date & time, duration, practitioner, price, deposit taken (or "none"), the client's notes and the appointment id | Our code |
-| **Admin / reception** | **Every cancellation → admin@orasuites.com.** Says who cancelled and whether the deposit was refunded, retained or released | Our code |
+| **Admin / reception** | **Every cancellation → admin@orasuites.com.** Says who cancelled and whether the deposit was refunded, retained, released or NOT FOUND | Our code |
+| **Admin / reception** | **`ACTION NEEDED — manual refund check`** → admin@orasuites.com, **only** when a deposit was due but no payment could be found. Carries the client's name, email and phone, the appointment id, the expected deposit, and what to do in Stripe | Our code |
 | Admin | Every website enquiry → admin@orasuites.com | Our code |
 
 SMS is **off** — the GHL location has no phone number. Buy an LC Phone number in GHL → Settings → Phone Numbers, then re-enable in `script/ghl-sync-notifications.py`.
@@ -124,6 +126,12 @@ The four rules, in full:
   metadata (`ghlAppointmentId`), written the moment the appointment is created. Cancelling looks
   the payment up by that. Bookings made **before 20 Aug 2026** have no such link — if one of those
   needs refunding, find it in Stripe → Payments by the customer's name or card and refund it by hand.
+- **When the payment cannot be found, nobody is told they didn't pay.** The customer sees "your £X
+  deposit isn't showing against this booking automatically — we'll check it by hand and refund you
+  if it's due", the appointment is still cancelled, and an **ACTION NEEDED — manual refund check**
+  email lands at admin@orasuites.com. Act on those the same day. The phrase *"there's no deposit on
+  this booking"* is now used **only** for services that genuinely carry no deposit (complimentary
+  consultations) — never because a lookup came back empty.
 - Refunds appear in Stripe within seconds and on the customer's statement in 5–10 working days.
 - **Check for stuck holds now and then** — Stripe → Payments → filter **Status: Uncaptured**.
   That list should be empty. A payment sitting there means the appointment was created but

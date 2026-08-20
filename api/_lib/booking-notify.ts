@@ -120,36 +120,46 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
 }
 
 /**
+ * Find (or create) the lightweight internal-team contact that carries a
+ * practitioner's work email, so we can email them through GHL conversations.
+ * Returns undefined if GHL will not give us one. Never throws for the caller
+ * beyond what ghlFetch itself throws.
+ */
+async function resolveStaffContactId(email: string, displayName?: string | null): Promise<string | undefined> {
+  const locationId = process.env.GHL_LOCATION_ID;
+
+  const found = await ghlFetch(
+    `/contacts/?locationId=${locationId}&query=${encodeURIComponent(email)}`,
+    { version: "2021-07-28" },
+  );
+  const existing: string | undefined = found.ok
+    ? found.body?.contacts?.find((c: any) => (c.email || "").toLowerCase() === email.toLowerCase())?.id
+    : undefined;
+  if (existing) return existing;
+
+  const created = await ghlFetch("/contacts/upsert", {
+    method: "POST",
+    version: "2021-07-28",
+    body: JSON.stringify({
+      locationId,
+      firstName: (displayName || "ORÁ").split(" ")[0],
+      lastName: "(team)",
+      email,
+      tags: ["internal-team"],
+    }),
+  });
+  return created.body?.contact?.id;
+}
+
+/**
  * Practitioner alert. Sent to their work inbox via GHL so it does not depend on
  * GHL's in-app "assigned user" notification, which cannot be verified by API.
  * Uses a lightweight internal contact keyed on the practitioner's email.
  */
 export async function sendPractitionerAlert(b: BookingNotice): Promise<boolean> {
   if (!b.practitionerEmail) return false;
-  const locationId = process.env.GHL_LOCATION_ID;
 
-  const found = await ghlFetch(
-    `/contacts/?locationId=${locationId}&query=${encodeURIComponent(b.practitionerEmail)}`,
-    { version: "2021-07-28" },
-  );
-  let staffContactId: string | undefined = found.ok
-    ? found.body?.contacts?.find((c: any) => (c.email || "").toLowerCase() === b.practitionerEmail!.toLowerCase())?.id
-    : undefined;
-
-  if (!staffContactId) {
-    const created = await ghlFetch("/contacts/upsert", {
-      method: "POST",
-      version: "2021-07-28",
-      body: JSON.stringify({
-        locationId,
-        firstName: (b.practitioner || "ORÁ").split(" ")[0],
-        lastName: "(team)",
-        email: b.practitionerEmail,
-        tags: ["internal-team"],
-      }),
-    });
-    staffContactId = created.body?.contact?.id;
-  }
+  const staffContactId = await resolveStaffContactId(b.practitionerEmail, b.practitioner);
   if (!staffContactId) return false;
 
   const html = [
@@ -272,6 +282,36 @@ export interface CancellationNotice {
   releasedPence?: number | null;
   /** true when the clinic cancelled (always a full refund). */
   byClinic?: boolean;
+  /**
+   * TRUE when the catalogue says this service carries a deposit (or we could not
+   * even identify the service) but no payment could be located automatically.
+   *
+   * This is NOT "no deposit". A real £9 deposit that our lookup cannot see must
+   * never be described to the customer as money they did not pay — see the
+   * header of api/booking/cancel.ts.
+   */
+  depositLookupFailed?: boolean;
+  /** What the catalogue says the deposit SHOULD be, in pence. 0 = genuinely none. */
+  expectedDepositPence?: number | null;
+  /** Practitioner, for their own cancellation alert. */
+  practitioner?: string | null;
+  practitionerEmail?: string | null;
+  durationMins?: number | null;
+}
+
+/**
+ * The one and only wording for "we can't see your deposit, but that does not
+ * mean you didn't pay one". Shared by the cancel page, the customer's email and
+ * the admin alert so the three can never drift apart.
+ */
+export function manualCheckLine(expectedDepositPence?: number | null, tense: "past" | "future" = "past"): string {
+  const subject =
+    typeof expectedDepositPence === "number" && expectedDepositPence > 0
+      ? `Your ${formatPence(expectedDepositPence)} deposit`
+      : "Any deposit you paid";
+  return tense === "future"
+    ? `${subject} isn't showing against this booking automatically. If you go ahead, we'll check it by hand and refund you if it's due, and we'll alert the clinic to look at it.`
+    : `${subject} isn't showing against this booking automatically — we'll check it by hand and refund you if it's due. We've alerted the clinic.`;
 }
 
 /**
@@ -290,7 +330,9 @@ export async function sendCancellationEmail(c: CancellationNotice): Promise<bool
       ? `Your card was never charged — the ${formatPence(c.releasedPence!)} we were holding has been released. If your bank still shows it as pending, it will drop off within a day or two.`
       : retained
         ? `As this cancellation is within 24 hours of your appointment, the ${formatPence(c.retainedPence!)} deposit is retained. If something unexpected came up, reply to this email and we'll look at it personally.`
-        : `There was no deposit on this booking, so there is nothing to refund.`;
+        : c.depositLookupFailed
+          ? manualCheckLine(c.expectedDepositPence)
+          : `There's no deposit on this booking, so there's nothing to refund.`;
 
   const html = [
     `Hi ${first},`,
@@ -337,7 +379,11 @@ export async function sendAdminCancellationAlert(c: CancellationNotice): Promise
       ? `RELEASED ${formatPence(c.releasedPence!)} — the hold was never captured, so the customer was not charged.`
       : retained
         ? `RETAINED ${formatPence(c.retainedPence!)} — cancelled inside the 24-hour window, the clinic keeps the deposit.`
-        : "No deposit on this booking — nothing to refund or retain.";
+        : c.depositLookupFailed
+          ? `NOT FOUND — the payment could not be located automatically. Expected ${
+              typeof c.expectedDepositPence === "number" && c.expectedDepositPence > 0 ? formatPence(c.expectedDepositPence) : "unknown"
+            }. Check Stripe by hand and refund if it is due. A separate ACTION NEEDED email has the detail.`
+          : "No deposit on this booking — nothing to refund or retain.";
 
   const rows: [string, string][] = [
     ["Client", c.clientName || "—"],
@@ -357,6 +403,140 @@ export async function sendAdminCancellationAlert(c: CancellationNotice): Promise
   const res = await sendAdminEmail(`Cancelled — ${c.serviceName} — ${when(c.startTime)}`, html);
   if (!res.ok) console.error("[booking-notify] admin cancellation alert failed:", res.status, JSON.stringify(res.body).slice(0, 300));
   return res.ok;
+}
+
+/**
+ * The practitioner's own copy of a cancellation.
+ *
+ * WHY THIS EXISTS: until 20 Aug 2026 a cancellation told the client and
+ * reception and nobody else. The practitioner whose diary the slot sat in was
+ * never told, so they would come in for a client who was not coming. Mirrors
+ * sendPractitionerAlert() exactly — same internal-team contact, same channel.
+ * Never throws for the caller.
+ */
+export async function sendPractitionerCancellationAlert(c: CancellationNotice): Promise<boolean> {
+  if (!c.practitionerEmail) return false;
+
+  const staffContactId = await resolveStaffContactId(c.practitionerEmail, c.practitioner);
+  if (!staffContactId) return false;
+
+  const html = [
+    c.byClinic ? `A booking in your diary has been cancelled by the clinic.` : `A booking in your diary has been cancelled.`,
+    ``,
+    // Escaped: the client name reaches us from the booking form.
+    `<b>Client:</b> ${escapeHtml(c.clientName || "—")}`,
+    `<b>Treatment:</b> ${escapeHtml(c.serviceName)}`,
+    `<b>Date &amp; time:</b> ${escapeHtml(when(c.startTime))}`,
+    `<b>Duration:</b> ${c.durationMins ? `${c.durationMins} minutes` : "not set"}`,
+    ``,
+    `<b>This slot is now free — you are no longer expected for this appointment.</b>`,
+    `It has been removed from your ORÁ calendar and your Google Calendar.`,
+  ].filter(Boolean).join("<br>");
+
+  const res = await ghlFetch("/conversations/messages", {
+    method: "POST",
+    version: "2021-04-15",
+    body: JSON.stringify({
+      type: "Email",
+      contactId: staffContactId,
+      subject: `Cancelled — ${c.serviceName}, ${when(c.startTime)}`,
+      html,
+    }),
+  });
+  if (!res.ok) console.error("[booking-notify] practitioner cancellation alert failed:", res.status, JSON.stringify(res.body));
+  return res.ok;
+}
+
+/**
+ * ACTION NEEDED: a deposit was expected but no payment could be found, so no
+ * refund could be issued automatically. Somebody has to look in Stripe by hand.
+ *
+ * This is the email that stops a paying customer being told they never paid.
+ * It is deliberately loud, and it is sent IN ADDITION to the normal admin
+ * cancellation alert. Never throws for the caller.
+ */
+export async function sendManualRefundCheckAlert(c: CancellationNotice): Promise<boolean> {
+  const expected =
+    typeof c.expectedDepositPence === "number" && c.expectedDepositPence > 0
+      ? formatPence(c.expectedDepositPence)
+      : "unknown — the service could not be identified";
+
+  const rows: [string, string][] = [
+    ["Client", c.clientName || "—"],
+    ["Email", c.clientEmail || "—"],
+    ["Phone", c.clientPhone || "—"],
+    ["Treatment", c.serviceName],
+    ["Was booked for", when(c.startTime)],
+    ["Cancelled by", c.byClinic ? "the clinic (staff-initiated)" : "the customer"],
+    ["Expected deposit", expected],
+    ["Payment found", "NO — no Stripe payment could be located for this appointment"],
+    ["Appointment ID", c.appointmentId || "—"],
+    ["Contact ID", c.contactId || "—"],
+  ];
+
+  const html = opsEmail("ACTION NEEDED · manual refund check", `${c.serviceName} — ${c.clientName}`, rows, [
+    {
+      label: "What happened",
+      text:
+        `The appointment HAS been cancelled. The deposit has NOT been settled, because no payment could be found ` +
+        `for it automatically (older bookings have no Stripe metadata link, and GHL discards appointment notes).\n\n` +
+        `Do NOT assume the customer paid nothing. The catalogue says this booking carries a deposit of ${expected}.`,
+    },
+    {
+      label: "What to do now",
+      text:
+        `1. Search Stripe for the customer by name, email or card, around the date they booked.\n` +
+        `2. If a deposit was taken and the cancellation qualifies for a refund (more than 24 hours' notice, or the ` +
+        `clinic cancelled), refund it in Stripe by hand.\n` +
+        `3. Email the customer either way, so they know where they stand.\n` +
+        `4. If nothing was ever taken, no action is needed — the customer has been told we are checking.`,
+    },
+  ]);
+
+  const res = await sendAdminEmail(`ACTION NEEDED — manual refund check — ${c.serviceName} ${when(c.startTime)}`, html);
+  if (!res.ok) console.error("[booking-notify] manual refund check alert FAILED:", res.status, JSON.stringify(res.body).slice(0, 300));
+  else console.warn(`[booking-notify] manual refund check raised for appointment ${c.appointmentId} (expected ${expected}).`);
+  return res.ok;
+}
+
+/**
+ * Everything a cancellation must trigger, in parallel; never throws.
+ *
+ *   · client       — what happened to their money, in plain words
+ *   · practitioner — their diary is now free (added 20 Aug 2026)
+ *   · admin        — reception's copy
+ *   · manual check — ONLY when a deposit was expected but no payment was found
+ */
+export async function notifyCancellation(
+  c: CancellationNotice,
+): Promise<{ client: boolean; practitioner: boolean; admin: boolean; manualCheck: boolean }> {
+  const [client, practitioner, admin, manualCheck] = await Promise.all([
+    (c.contactId ? sendCancellationEmail(c) : Promise.resolve(false)).catch((e) => {
+      console.error("[booking-notify] cancellation client:", e);
+      return false;
+    }),
+    sendPractitionerCancellationAlert(c).catch((e) => {
+      console.error("[booking-notify] cancellation practitioner:", e);
+      return false;
+    }),
+    sendAdminCancellationAlert(c).catch((e) => {
+      console.error("[booking-notify] cancellation admin:", e);
+      return false;
+    }),
+    (c.depositLookupFailed ? sendManualRefundCheckAlert(c) : Promise.resolve(false)).catch((e) => {
+      console.error("[booking-notify] manual refund check:", e);
+      return false;
+    }),
+  ]);
+
+  if (!admin) console.error(`[booking-notify] CRITICAL: nobody at ${ADMIN_EMAIL} was told about the cancellation for ${c.clientName}.`);
+  if (c.depositLookupFailed && !manualCheck) {
+    console.error(
+      `[booking-notify] CRITICAL: appointment ${c.appointmentId} was cancelled with an UNRESOLVED deposit and the ` +
+        `ACTION NEEDED email to ${ADMIN_EMAIL} could not be sent. Refund this by hand.`,
+    );
+  }
+  return { client, practitioner, admin, manualCheck };
 }
 
 /**

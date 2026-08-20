@@ -34,6 +34,26 @@
  * which broke automatic refunds silently. The notes marker is read only as a
  * fallback for legacy bookings. See resolvePayment() below.
  *
+ * "NO DEPOSIT" IS A CLAIM ABOUT THE CATALOGUE, NEVER ABOUT THE LOOKUP. Whether
+ * a deposit EXISTS is decided by the service's catalogue price; whether we can
+ * SEE the payment is a separate question. Conflating them told the owner, who
+ * had really paid £9, that "there is no deposit on this booking" — his booking
+ * predated the metadata link, so the lookup found nothing and the code asserted
+ * the money did not exist. Three states now, handled separately in the GET
+ * preview, the POST result, the HTML and the JSON:
+ *
+ *   none       expected deposit is 0 (complimentary) → the ONLY place the
+ *              sentence "there's no deposit on this booking" may be used
+ *   found      deposit due and the payment located → the four rules above
+ *   unverified deposit due (or the service could not even be identified) and no
+ *              payment located → say we are checking by hand, cancel anyway,
+ *              return `depositLookupFailed: true`, and email admin@orasuites.com
+ *              an ACTION NEEDED manual-refund-check alert
+ *
+ * WHO IS TOLD: every cancellation notifies the client, the assigned
+ * practitioner (their slot is free — they must not travel in for a client who
+ * cancelled) and reception. See notifyCancellation().
+ *
  * REFUND vs RELEASE: deposits are authorised at booking and captured seconds
  * later, so by the time anyone cancels the money has almost always been TAKEN
  * (`succeeded`) and giving it back means a refund. The rare exception is an
@@ -55,8 +75,8 @@ import {
 } from "../_lib/stripe.js";
 import { paymentIntentIdFromNotes } from "../_lib/deposit-guard.js";
 import { verifyCancelToken, verifyAdminSecret } from "../_lib/cancel-token.js";
-import { deleteEvent, isCancelled } from "../_lib/google-calendar.js";
-import { sendCancellationEmail, sendAdminCancellationAlert } from "../_lib/booking-notify.js";
+import { deleteEvent, isCancelled, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
+import { notifyCancellation, manualCheckLine, serviceMetaForCalendar } from "../_lib/booking-notify.js";
 
 const BOOKINGS_PIPELINE_ID = process.env.GHL_BOOKINGS_PIPELINE_ID || "6NsVFiUCxgAelJszMS1z";
 const CANCELLED_STAGE_ID = process.env.GHL_BOOKINGS_CANCELLED_STAGE_ID || "45d77107-9737-4898-afbf-1e4ed61ef9b9";
@@ -70,7 +90,21 @@ interface Appointment {
   title?: string;
   notes?: string;
   appointmentStatus?: string;
+  assignedUserId?: string;
 }
+
+/**
+ * What we actually KNOW about the deposit on this booking.
+ *
+ *   "none"       — the catalogue says this service carries no deposit at all
+ *                  (a complimentary consultation). The ONLY state in which it
+ *                  is true to say "there's no deposit on this booking".
+ *   "found"      — a deposit is due and we located the payment. Normal rules.
+ *   "unverified" — a deposit is due (or we cannot even identify the service)
+ *                  and we could NOT locate the payment. We must not claim
+ *                  either way; a human checks it.
+ */
+type DepositState = "none" | "found" | "unverified";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -131,14 +165,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const serviceName = service?.name ?? stripClientFromTitle(appt.title) ?? "Your appointment";
   const startTime = appt.startTime || "";
   const paymentIntentId = await resolvePayment(appointmentId, appt.notes);
-  // Same 20% maths as the charge, from the same source of truth.
-  const depositAmount = service ? depositPence(service.price) : 0;
   const resolvedContactId = contactId || appt.contactId || "";
+
+  /* ── What is owed, and what we can actually see ─────────
+   * The EXPECTED deposit comes from the catalogue — the same 20% maths, from
+   * the same source of truth, that charged the card in the first place. It is
+   * the only honest basis for telling a customer whether they paid a deposit.
+   * Whether we can FIND the payment is a separate question, and confusing the
+   * two is exactly the bug this replaced: a real £9 deposit whose PaymentIntent
+   * predates the Stripe-metadata link was reported to the payer as "no deposit
+   * on this booking". */
+  const expectedDepositPence = service ? depositPence(service.price) : 0;
+  const foundPayment = Boolean(paymentIntentId) && isStripeConfigured();
+  // No service resolved means we cannot prove the deposit is zero, so it is
+  // "unverified", never "none".
+  const depositState: DepositState = foundPayment ? "found" : service && expectedDepositPence === 0 ? "none" : "unverified";
+  const depositLookupFailed = depositState === "unverified";
+  // Kept for callers that already read it — true ONLY when we hold the payment.
+  const hasDeposit = depositState === "found";
+  const depositAmount = expectedDepositPence;
 
   const hoursUntil = startTime ? (new Date(startTime).getTime() - Date.now()) / 3_600_000 : Number.NaN;
   const outsideWindow = Number.isFinite(hoursUntil) ? hoursUntil > REFUND_WINDOW_HOURS : true;
-  const hasDeposit = Boolean(paymentIntentId) && isStripeConfigured();
   const willRefund = hasDeposit && (clinic || outsideWindow);
+
+  if (depositLookupFailed) {
+    console.warn(
+      `[cancel] appointment ${appointmentId}: expected deposit ${expectedDepositPence}p (${service?.name ?? "service unidentified"}) ` +
+        `but NO payment could be located. Saying nothing about whether it was paid; raising a manual check.`,
+    );
+  }
 
   /* ── Already cancelled → idempotent success ───────────── */
   if (isCancelled(appt.appointmentStatus)) {
@@ -156,11 +212,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   /* ── GET: preview only ────────────────────────────────── */
   if (req.method === "GET") {
-    const refundLine = !hasDeposit
-      ? "There is no deposit on this booking, so there is nothing to refund."
-      : willRefund
-        ? `Your ${formatPence(depositAmount || 0)} deposit will be refunded in full.`
-        : `This is within ${REFUND_WINDOW_HOURS} hours of your appointment, so the ${formatPence(depositAmount || 0)} deposit will NOT be refunded.`;
+    const refundLine =
+      depositState === "none"
+        ? "There's no deposit on this booking, so there's nothing to refund."
+        : depositState === "unverified"
+          ? manualCheckLine(expectedDepositPence, "future")
+          : willRefund
+            ? `Your ${formatPence(depositAmount || 0)} deposit will be refunded in full.`
+            : `This is within ${REFUND_WINDOW_HOURS} hours of your appointment, so the ${formatPence(depositAmount || 0)} deposit will NOT be refunded.`;
 
     return reply(200, {
       appointmentId,
@@ -168,6 +227,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       startTime,
       hoursUntilStart: Number.isFinite(hoursUntil) ? Math.round(hoursUntil * 10) / 10 : null,
       hasDeposit,
+      depositState,
+      depositLookupFailed,
+      expectedDepositPence,
       depositPence: hasDeposit ? depositAmount : 0,
       willRefund,
       refundPolicy: `Cancel more than ${REFUND_WINDOW_HOURS} hours before the appointment for a full refund of the deposit. Within ${REFUND_WINDOW_HOURS} hours the deposit is retained.`,
@@ -231,8 +293,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 4. Move the opportunity to Online Bookings → Cancelled (non-fatal).
   if (resolvedContactId) await moveOpportunityToCancelled(resolvedContactId, serviceName).catch(() => null);
 
-  // 5. Tell the customer exactly what happened to their money (non-fatal), and
-  //    tell reception the slot is free and what happened to the deposit.
+  // 5. Tell EVERYONE the cancellation touches (all non-fatal):
+  //      · the customer  — exactly what happened to their money
+  //      · the practitioner — their diary slot is free, so they don't come in
+  //                        for a client who isn't coming
+  //      · reception     — the usual copy
+  //      · reception again, loudly — only when a deposit was expected and no
+  //                        payment could be found, so a human settles it
   const clientName = stripServiceFromTitle(appt.title) || "there";
   const money = {
     refundedPence: refunded ? depositAmount : 0,
@@ -240,19 +307,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     releasedPence: released ? depositAmount : 0,
   };
 
-  if (resolvedContactId) {
-    await sendCancellationEmail({
-      contactId: resolvedContactId,
-      clientName,
-      serviceName,
-      startTime,
-      ...money,
-      byClinic: clinic,
-    }).catch(() => false);
-  }
-
   const brief = resolvedContactId ? await contactBrief(resolvedContactId) : {};
-  await sendAdminCancellationAlert({
+  const practitioner = (appt.assignedUserId && TEAM_BY_USER_ID.get(appt.assignedUserId)) || null;
+  const practitionerEmail = (appt.assignedUserId && TEAM_EMAIL_BY_USER_ID.get(appt.assignedUserId)) || null;
+
+  await notifyCancellation({
     contactId: resolvedContactId,
     clientName,
     clientEmail: brief.email ?? null,
@@ -262,7 +321,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     startTime,
     ...money,
     byClinic: clinic,
-  }).catch(() => false);
+    depositLookupFailed,
+    expectedDepositPence,
+    practitioner,
+    practitionerEmail,
+    durationMins: service?.duration ?? serviceMetaForCalendar(appt.calendarId)?.duration ?? null,
+  }).catch(() => null);
 
   const outcome = refunded
     ? `Your ${formatPence(depositAmount)} deposit has been refunded in full.`
@@ -272,7 +336,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? `As this is within ${REFUND_WINDOW_HOURS} hours of the appointment, the ${formatPence(depositAmount)} deposit is retained.`
         : refundError
           ? "Your refund is being processed manually — we'll be in touch shortly."
-          : "There was no deposit on this booking.";
+          : depositLookupFailed
+            ? manualCheckLine(expectedDepositPence)
+            : "There's no deposit on this booking, so there's nothing to refund.";
 
   return reply(200, {
     success: true,
@@ -283,6 +349,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     refundedPence: refunded ? depositAmount : 0,
     releasedPence: released ? depositAmount : 0,
     retainedPence: hasDeposit && !willRefund ? depositAmount : 0,
+    depositState,
+    depositLookupFailed,
+    expectedDepositPence,
     byClinic: clinic,
     ...(refundError ? { refundPending: true } : {}),
     message: outcome,
