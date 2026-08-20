@@ -9,12 +9,12 @@
       "meg": {
         "ghlUserId": "cE5h9SAvNHDxRTS6DuWh",
         "name": "Meg Cauli",
-        "email": "meg@orasuites.com"
+        "email": "megcauli@orasuites.com"
       },
       "daniela": {
         "ghlUserId": "aoRb2In0y1fjT0IH9nGd",
         "name": "Daniela Mehmeti",
-        "email": "daniela@orasuites.com"
+        "email": "danieladaniela@orasuites.com"
       },
       "soheila": {
         "ghlUserId": "LZ9YI9CGmUBaliQ6nmfb",
@@ -32,7 +32,10 @@
         "email": "diana@orasuites.com"
       }
     },
-    "depositPercent": 20
+    "depositPercent": 20,
+    "notes": {
+      "emailSource": "Google Workspace admin (verified 20 Aug 2026). These are the addresses used for practitioner alerts and Google Calendar invites."
+    }
   },
   "categories": [
     {
