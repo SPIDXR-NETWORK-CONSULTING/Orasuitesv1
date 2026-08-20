@@ -185,6 +185,87 @@ export async function retrievePaymentIntent(
   return { ok: true, intent: res.body };
 }
 
+/**
+ * Attach (or overwrite) metadata on an existing PaymentIntent. Never throws.
+ *
+ * WHY THIS MATTERS: Stripe is the DURABLE index between a booking and its
+ * money. GHL silently discards appointment `notes` written through the API
+ * (verified 20 Aug 2026 — a note written at creation reads back as `null`), so
+ * the `[stripe:pi_…]` marker in the appointment notes cannot be relied on to
+ * find the deposit at cancellation time. Writing `ghlAppointmentId` here, on
+ * the payment itself, is what makes automatic refunds work.
+ *
+ * Metadata is writable in every PaymentIntent state, including `succeeded`,
+ * so this is safe to call after the deposit has been captured.
+ */
+export async function updatePaymentIntent(
+  id: string,
+  update: { metadata?: Record<string, string | number | undefined | null> },
+): Promise<{ ok: boolean; intent?: StripePaymentIntent; error?: string }> {
+  if (!isStripeConfigured()) return { ok: false, error: "stripe not configured" };
+  if (!/^pi_[A-Za-z0-9_]+$/.test(id)) return { ok: false, error: "malformed payment reference" };
+
+  const metadata: Record<string, string> = {};
+  for (const [k, v] of Object.entries(update.metadata ?? {})) {
+    if (v !== undefined && v !== null && String(v).length) metadata[k] = String(v).slice(0, 480);
+  }
+  if (!Object.keys(metadata).length) return { ok: false, error: "nothing to update" };
+
+  const res = await stripeFetch<StripePaymentIntent>(`/payment_intents/${encodeURIComponent(id)}`, {
+    method: "POST",
+    payload: { metadata },
+  });
+  if (!res.ok || !res.body?.id) return { ok: false, error: res.error || "could not update the payment" };
+  return { ok: true, intent: res.body };
+}
+
+export interface PaymentLookup {
+  ok: boolean;
+  intent?: StripePaymentIntent;
+  /** Which path found it — `list` means Stripe's search index had not caught up. */
+  via?: "search" | "list";
+  error?: string;
+}
+
+/**
+ * Find the deposit that belongs to a GHL appointment, using the metadata
+ * written by updatePaymentIntent(). Never throws.
+ *
+ * TWO PATHS, deliberately:
+ *   1. `/payment_intents/search` — the right tool, but Stripe's search index is
+ *      EVENTUALLY CONSISTENT (roughly a minute behind a write). A customer who
+ *      books and immediately cancels would find nothing.
+ *   2. fallback: list the 100 most recent intents and match in code. Bounded,
+ *      cheap, and covers exactly the window search cannot.
+ *
+ * The appointment id is interpolated into a Stripe query string, so it is
+ * whitelisted to `[A-Za-z0-9_-]` first — nothing else can reach the query.
+ */
+export async function findPaymentIntentByAppointment(appointmentId: string): Promise<PaymentLookup> {
+  if (!isStripeConfigured()) return { ok: false, error: "stripe not configured" };
+  const wanted = String(appointmentId || "").trim();
+  if (!wanted || !/^[A-Za-z0-9_-]{4,64}$/.test(wanted)) return { ok: false, error: "malformed appointment reference" };
+
+  const match = (list: StripePaymentIntent[] | undefined) =>
+    (list ?? []).find((pi) => pi?.metadata?.ghlAppointmentId === wanted);
+
+  const query = `metadata['ghlAppointmentId']:'${wanted}'`;
+  const search = await stripeFetch<{ data?: StripePaymentIntent[] }>(
+    `/payment_intents/search?limit=10&query=${encodeURIComponent(query)}`,
+  );
+  const found = search.ok ? match(search.body?.data) : undefined;
+  if (found) return { ok: true, intent: found, via: "search" };
+
+  const list = await stripeFetch<{ data?: StripePaymentIntent[] }>("/payment_intents?limit=100");
+  const recent = list.ok ? match(list.body?.data) : undefined;
+  if (recent) {
+    console.warn(`[stripe] payment for appointment ${wanted} found by recent-list scan — search index had not caught up.`);
+    return { ok: true, intent: recent, via: "list" };
+  }
+
+  return { ok: false, error: "no payment is linked to that appointment" };
+}
+
 /* ── Capture / release an authorisation ──────────────────── */
 export interface CaptureResult {
   ok: boolean;

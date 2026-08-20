@@ -54,12 +54,25 @@ export interface DepositCheckFail {
 }
 export type DepositCheck = DepositCheckOk | DepositCheckFail;
 
-/** Marker appended to the GHL appointment notes so refunds can find the payment later. */
+/**
+ * Marker appended to the GHL appointment notes.
+ *
+ * ⚠️ DO NOT DEPEND ON THIS. GHL does not persist appointment notes written
+ * through the API — a note sent at creation reads back as `null` (verified
+ * 20 Aug 2026), so this marker is lost the moment it is written and automatic
+ * refunds that relied on it could never find their payment. The durable link is
+ * `metadata.ghlAppointmentId` on the PaymentIntent itself; see
+ * updatePaymentIntent() / findPaymentIntentByAppointment() in stripe.ts.
+ *
+ * It is still written because it costs nothing and starts working again by
+ * itself if GHL ever fixes the API, and it is still READ as a fallback for
+ * legacy bookings.
+ */
 export function stripeNoteTag(paymentIntentId: string): string {
   return `[stripe:${paymentIntentId}]`;
 }
 
-/** Pull a PaymentIntent id back out of an appointment's notes. */
+/** Pull a PaymentIntent id back out of an appointment's notes. Legacy fallback only. */
 export function paymentIntentIdFromNotes(notes: string | null | undefined): string | null {
   const m = /\[stripe:(pi_[A-Za-z0-9_]+)\]/.exec(String(notes || ""));
   return m ? m[1] : null;

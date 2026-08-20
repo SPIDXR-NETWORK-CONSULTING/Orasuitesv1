@@ -14,6 +14,7 @@ import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from ".
 import { notifyBooking, serviceMetaForCalendar } from "../_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
+import { updatePaymentIntent } from "../_lib/stripe.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -121,6 +122,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //     it is logged as CRITICAL with the pi_… id and the booking stands.
     const depositTaken = await captureDeposit(paidIntentId, intentStatus, `appointment ${appointmentId}`);
 
+    // 2c. Link the payment to the appointment ON THE PAYMENT ITSELF.
+    //     The `[stripe:…]` marker in the notes above is written for continuity
+    //     but CANNOT be trusted: GHL discards appointment notes created through
+    //     the API (verified 20 Aug 2026 — they read back as null), which silently
+    //     broke automatic refunds. Stripe metadata is the durable index that
+    //     api/booking/cancel.ts searches.
+    if (paidIntentId) {
+      const linked = await updatePaymentIntent(paidIntentId, {
+        metadata: { ghlAppointmentId: appointmentId, ghlContactId: contactId },
+      }).catch(() => ({ ok: false, error: "metadata update threw" }));
+      if (!linked.ok) {
+        console.error(
+          `[booking] CRITICAL: appointment ${appointmentId} could not be linked to deposit ${paidIntentId} ` +
+            `(${linked.error ?? "unknown"}). A later cancellation may not find the payment — refund by hand in Stripe.`,
+        );
+      }
+    }
+
     // 3. Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar.
     //    Awaited (fire-and-forget work is killed once a serverless response is
     //    sent) but it can never throw or fail the booking — and the nightly
@@ -143,10 +162,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 3. Notifications we own (GHL's native confirmation is unreliable for
     //    API-created appointments and its SMS channel is unprovisioned).
+    //    This also emails admin@orasuites.com and saves the client's message to
+    //    their contact record — see notifyBooking().
     await notifyBooking({
       contactId,
       appointmentId,
       clientName: name,
+      clientEmail: email,
+      clientPhone: phone,
       serviceName: serviceName || "Appointment",
       startTime,
       practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,

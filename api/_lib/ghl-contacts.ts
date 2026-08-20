@@ -72,8 +72,35 @@ export async function resolveContact(input: ContactInput): Promise<ResolvedConta
 }
 
 /**
+ * Pull the existing opportunity id out of GHL's duplicate rejection.
+ *
+ * GHL allows ONE open opportunity per contact per pipeline. A returning
+ * customer therefore gets a 400:
+ *   {"statusCode":400,"message":"Can not create duplicate opportunity for the
+ *    contact.","code":"OPPORTUNITY_NO_DUPLICATE","meta":{"existingId":"…"}}
+ * The shape has moved around before, so the message is accepted as a fallback
+ * signal and the id is looked for in both plausible places.
+ */
+function duplicateOpportunityId(body: any): string | null {
+  const isDuplicate =
+    body?.code === "OPPORTUNITY_NO_DUPLICATE" ||
+    /duplicate opportunity/i.test(String(body?.message ?? ""));
+  if (!isDuplicate) return null;
+  const id = body?.meta?.existingId ?? body?.meta?.existingID ?? body?.existingId ?? null;
+  return typeof id === "string" && id.length ? id : null;
+}
+
+/**
  * Every booking becomes an opportunity in the Online Bookings pipeline so the
  * clinic can see and market to its customers. Non-throwing.
+ *
+ * A RETURNING CUSTOMER IS NOT AN ERROR. Before 20 Aug 2026 a second booking by
+ * the same person made GHL reject the create with OPPORTUNITY_NO_DUPLICATE and
+ * this function returned null — the booking never appeared in the pipeline and
+ * the owner had no record of it. Now that rejection is treated as "you already
+ * have one": the existing opportunity is UPDATED to this booking (name, value,
+ * back to the Booked stage, status open) and its id returned. Either way the
+ * customer ends up visible in Online Bookings, which is the actual requirement.
  */
 export async function createBookingOpportunity(args: {
   contactId: string;
@@ -84,6 +111,9 @@ export async function createBookingOpportunity(args: {
 }): Promise<string | null> {
   const pipelineId = process.env.GHL_BOOKINGS_PIPELINE_ID || "6NsVFiUCxgAelJszMS1z";
   const stageId = process.env.GHL_BOOKINGS_STAGE_ID || "ff701f68-6c63-4838-b4ff-ed37614df9f5"; // "Booked"
+  const name = `${args.serviceName} — ${args.clientName}`;
+  const value = typeof args.price === "number" && args.price > 0 ? { monetaryValue: args.price } : {};
+
   const res = await ghlFetch("/opportunities/", {
     method: "POST",
     version: "2021-07-28",
@@ -92,14 +122,71 @@ export async function createBookingOpportunity(args: {
       pipelineId,
       pipelineStageId: stageId,
       contactId: args.contactId,
-      name: `${args.serviceName} — ${args.clientName}`,
+      name,
       status: "open",
-      ...(typeof args.price === "number" && args.price > 0 ? { monetaryValue: args.price } : {}),
+      ...value,
     }),
   });
-  if (!res.ok) {
+
+  if (res.ok) {
+    const created = res.body?.opportunity?.id ?? null;
+    console.log(`[ghl-contacts] booking opportunity CREATED ${created ?? "(id missing)"} for contact ${args.contactId}`);
+    return created;
+  }
+
+  const existingId = duplicateOpportunityId(res.body);
+  if (!existingId) {
     console.error("[ghl-contacts] booking opportunity failed:", res.status, JSON.stringify(res.body));
     return null;
   }
-  return res.body?.opportunity?.id ?? null;
+
+  const updated = await ghlFetch(`/opportunities/${encodeURIComponent(existingId)}`, {
+    method: "PUT",
+    version: "2021-07-28",
+    body: JSON.stringify({
+      pipelineId,
+      pipelineStageId: stageId,
+      name,
+      status: "open",
+      ...value,
+    }),
+  });
+
+  if (updated.ok) {
+    console.log(
+      `[ghl-contacts] booking opportunity UPDATED ${existingId} (contact ${args.contactId} already had one) — ` +
+        `moved to Booked and renamed to "${name}".`,
+    );
+  } else {
+    console.error(
+      `[ghl-contacts] booking opportunity ${existingId} exists but could NOT be updated:`,
+      updated.status,
+      JSON.stringify(updated.body).slice(0, 300),
+    );
+  }
+  // The customer IS in the pipeline either way — that is what the id means here.
+  return existingId;
+}
+
+/**
+ * Attach a permanent note to the CLIENT's contact record. Non-throwing.
+ *
+ * WHY: GHL discards appointment notes created through the API, so anything the
+ * customer wrote at booking ("please use the quiet room") disappears from the
+ * appointment. A contact note survives, is visible to every staff member, and
+ * travels with the client rather than the single booking.
+ */
+export async function appendContactNote(contactId: string, body: string): Promise<boolean> {
+  const text = (body || "").trim();
+  if (!contactId || !text) return false;
+
+  const res = await ghlFetch(`/contacts/${encodeURIComponent(contactId)}/notes`, {
+    method: "POST",
+    version: "2021-07-28",
+    body: JSON.stringify({ body: text.slice(0, 5000) }),
+  });
+  if (!res.ok) {
+    console.error("[ghl-contacts] contact note failed:", res.status, JSON.stringify(res.body).slice(0, 300));
+  }
+  return res.ok;
 }

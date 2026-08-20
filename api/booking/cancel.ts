@@ -28,6 +28,12 @@
  * recoverable by staff whereas "refunded, still on the calendar" silently blocks
  * a slot and sends a practitioner to an empty room.
  *
+ * FINDING THE PAYMENT: the deposit is located by `metadata.ghlAppointmentId` on
+ * the PaymentIntent (written by the booking route), NOT by the `[stripe:…]`
+ * marker in the appointment notes — GHL discards API-written appointment notes,
+ * which broke automatic refunds silently. The notes marker is read only as a
+ * fallback for legacy bookings. See resolvePayment() below.
+ *
  * REFUND vs RELEASE: deposits are authorised at booking and captured seconds
  * later, so by the time anyone cancels the money has almost always been TAKEN
  * (`succeeded`) and giving it back means a refund. The rare exception is an
@@ -39,11 +45,18 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ghlFetch } from "../_lib/ghl.js";
 import { findService, formatPence, depositPence } from "../_lib/catalogue.js";
-import { refundPaymentIntent, cancelPaymentIntent, capturePaymentIntent, retrievePaymentIntent, isStripeConfigured } from "../_lib/stripe.js";
+import {
+  refundPaymentIntent,
+  cancelPaymentIntent,
+  capturePaymentIntent,
+  retrievePaymentIntent,
+  findPaymentIntentByAppointment,
+  isStripeConfigured,
+} from "../_lib/stripe.js";
 import { paymentIntentIdFromNotes } from "../_lib/deposit-guard.js";
 import { verifyCancelToken, verifyAdminSecret } from "../_lib/cancel-token.js";
 import { deleteEvent, isCancelled } from "../_lib/google-calendar.js";
-import { sendCancellationEmail } from "../_lib/booking-notify.js";
+import { sendCancellationEmail, sendAdminCancellationAlert } from "../_lib/booking-notify.js";
 
 const BOOKINGS_PIPELINE_ID = process.env.GHL_BOOKINGS_PIPELINE_ID || "6NsVFiUCxgAelJszMS1z";
 const CANCELLED_STAGE_ID = process.env.GHL_BOOKINGS_CANCELLED_STAGE_ID || "45d77107-9737-4898-afbf-1e4ed61ef9b9";
@@ -117,7 +130,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const service = findService(appt.calendarId) ?? findService(stripClientFromTitle(appt.title));
   const serviceName = service?.name ?? stripClientFromTitle(appt.title) ?? "Your appointment";
   const startTime = appt.startTime || "";
-  const paymentIntentId = paymentIntentIdFromNotes(appt.notes);
+  const paymentIntentId = await resolvePayment(appointmentId, appt.notes);
   // Same 20% maths as the charge, from the same source of truth.
   const depositAmount = service ? depositPence(service.price) : 0;
   const resolvedContactId = contactId || appt.contactId || "";
@@ -218,19 +231,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 4. Move the opportunity to Online Bookings → Cancelled (non-fatal).
   if (resolvedContactId) await moveOpportunityToCancelled(resolvedContactId, serviceName).catch(() => null);
 
-  // 5. Tell the customer exactly what happened to their money (non-fatal).
+  // 5. Tell the customer exactly what happened to their money (non-fatal), and
+  //    tell reception the slot is free and what happened to the deposit.
+  const clientName = stripServiceFromTitle(appt.title) || "there";
+  const money = {
+    refundedPence: refunded ? depositAmount : 0,
+    retainedPence: hasDeposit && !willRefund ? depositAmount : 0,
+    releasedPence: released ? depositAmount : 0,
+  };
+
   if (resolvedContactId) {
     await sendCancellationEmail({
       contactId: resolvedContactId,
-      clientName: stripServiceFromTitle(appt.title) || "there",
+      clientName,
       serviceName,
       startTime,
-      refundedPence: refunded ? depositAmount : 0,
-      retainedPence: hasDeposit && !willRefund ? depositAmount : 0,
-      releasedPence: released ? depositAmount : 0,
+      ...money,
       byClinic: clinic,
     }).catch(() => false);
   }
+
+  const brief = resolvedContactId ? await contactBrief(resolvedContactId) : {};
+  await sendAdminCancellationAlert({
+    contactId: resolvedContactId,
+    clientName,
+    clientEmail: brief.email ?? null,
+    clientPhone: brief.phone ?? null,
+    appointmentId,
+    serviceName,
+    startTime,
+    ...money,
+    byClinic: clinic,
+  }).catch(() => false);
 
   const outcome = refunded
     ? `Your ${formatPence(depositAmount)} deposit has been refunded in full.`
@@ -265,6 +297,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 /* ── helpers ─────────────────────────────────────────────── */
+
+/**
+ * Find the deposit that belongs to this appointment. Never throws.
+ *
+ * STRIPE IS THE SOURCE OF TRUTH, not GHL. The original design wrote a
+ * `[stripe:pi_…]` marker into the appointment notes and read it back here —
+ * but GHL does not persist appointment notes created through the API (verified
+ * 20 Aug 2026: they read back as `null`), so that marker was silently lost on
+ * every booking and no automatic refund could ever find its payment.
+ *
+ * Bookings made from 20 Aug 2026 carry `metadata.ghlAppointmentId` on the
+ * PaymentIntent itself, which is what we look up first. The notes marker is
+ * kept only as a fallback for any legacy booking where GHL did retain it.
+ */
+async function resolvePayment(appointmentId: string, notes: string | null | undefined): Promise<string | null> {
+  if (isStripeConfigured()) {
+    const found = await findPaymentIntentByAppointment(appointmentId).catch(() => ({ ok: false }) as const);
+    const id = found.ok ? (found as { intent?: { id?: string }; via?: string }).intent?.id : undefined;
+    if (id) {
+      console.log(`[cancel] deposit ${id} resolved from Stripe metadata (via ${(found as { via?: string }).via}) for appointment ${appointmentId}`);
+      return id;
+    }
+  }
+
+  const legacy = paymentIntentIdFromNotes(notes);
+  if (legacy) {
+    console.warn(`[cancel] appointment ${appointmentId}: no Stripe metadata link — falling back to the legacy notes marker ${legacy}.`);
+    return legacy;
+  }
+  return null;
+}
+
+/** Best-effort contact details for the admin alert only. Never throws. */
+async function contactBrief(contactId: string): Promise<{ email?: string | null; phone?: string | null }> {
+  try {
+    const got = await ghlFetch<any>(`/contacts/${encodeURIComponent(contactId)}`, { version: "2021-07-28" });
+    const c = got.body?.contact ?? got.body;
+    return got.ok && c ? { email: c.email ?? null, phone: c.phone ?? null } : {};
+  } catch {
+    return {};
+  }
+}
 
 interface SettleResult {
   /** money was given back (a real refund of a captured deposit) */

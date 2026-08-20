@@ -10,7 +10,8 @@
  *
  * Every function is non-throwing: a notification failure must never fail a booking.
  */
-import { ghlFetch } from "./ghl.js";
+import { ghlFetch, sendAdminEmail, ADMIN_EMAIL } from "./ghl.js";
+import { appendContactNote } from "./ghl-contacts.js";
 import { cancelLinkFor } from "./cancel-token.js";
 import { formatPence } from "./catalogue.js";
 import catalogueRaw from "../../shared/catalogue.json" with { type: "json" };
@@ -40,6 +41,9 @@ export interface BookingNotice {
   /** GHL appointment id — needed to build the self-service cancel link. */
   appointmentId?: string | null;
   clientName: string;
+  /** Reception needs to be able to reach the client without opening GHL. */
+  clientEmail?: string | null;
+  clientPhone?: string | null;
   serviceName: string;
   /** ISO with offset, e.g. 2026-09-02T13:45:00+01:00 */
   startTime: string;
@@ -54,6 +58,10 @@ export interface BookingNotice {
    */
   depositPence?: number | null;
   notes?: string | null;
+}
+
+function escapeHtml(s: unknown): string {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
 }
 
 function when(iso: string): string {
@@ -169,10 +177,88 @@ export async function sendPractitionerAlert(b: BookingNotice): Promise<boolean> 
   return res.ok;
 }
 
+/* ── Admin / reception ───────────────────────────────────── */
+/**
+ * The ORÁ palette, inline. Rendered inside a GHL conversation, so no stylesheet
+ * and no external asset can be relied on.
+ */
+function opsEmail(eyebrow: string, heading: string, rows: [string, string][], blocks: { label: string; text: string }[] = []): string {
+  const trs = rows
+    .filter(([, v]) => v !== "")
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:8px 14px 8px 0;color:#8a7d72;font-size:12px;letter-spacing:.14em;text-transform:uppercase;vertical-align:top;white-space:nowrap">${escapeHtml(k)}</td>` +
+        `<td style="padding:8px 0;color:#1a1008;font-size:15px">${escapeHtml(v)}</td></tr>`,
+    )
+    .join("");
+  const extra = blocks
+    .filter((b) => b.text.trim())
+    .map(
+      (b) =>
+        `<p style="margin:18px 0 6px;color:#8a7d72;font-size:12px;letter-spacing:.14em;text-transform:uppercase">${escapeHtml(b.label)}</p>` +
+        `<div style="padding:14px 16px;background:#f4efe8;border-radius:12px;color:#1a1008;font-size:15px;line-height:1.6">${escapeHtml(b.text).replace(/\n/g, "<br/>")}</div>`,
+    )
+    .join("");
+
+  return `<div style="margin:0;background:#f4efe8;padding:28px 16px;font-family:Helvetica,Arial,sans-serif">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;background:#fffdf9;border:1px solid #e6dccf;border-radius:16px">
+    <tr><td style="padding:26px 30px 6px">
+      <p style="margin:0 0 6px;color:#b98867;font-size:11px;letter-spacing:.25em;text-transform:uppercase">ORÁ Suites · ${escapeHtml(eyebrow)}</p>
+      <h1 style="margin:0;color:#1a1008;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:24px;line-height:1.2">${escapeHtml(heading)}</h1>
+    </td></tr>
+    <tr><td style="padding:10px 30px 0"><table role="presentation" cellspacing="0" cellpadding="0">${trs}</table></td></tr>
+    <tr><td style="padding:0 30px 26px">${extra}
+      <p style="margin:20px 0 0;color:#8a7d72;font-size:12px">Manage this in GHL → Calendars, or Opportunities → Online Bookings. Sent automatically by the ORÁ booking system.</p>
+    </td></tr>
+  </table></div>`;
+}
+
+/**
+ * Reception's copy of every booking, to admin@orasuites.com.
+ *
+ * WHY THIS EXISTS: until 20 Aug 2026 only the client and the ONE assigned
+ * practitioner were emailed. A live booking on that date reached the calendar
+ * correctly and the owner had no idea it had happened. Nobody can run a floor
+ * they cannot see. This carries everything reception needs to act without
+ * opening anything else: who, how to reach them, what, when, how long, with
+ * whom, the money, what the client asked for, and the appointment id.
+ */
+export async function sendAdminBookingAlert(b: BookingNotice): Promise<boolean> {
+  const paid = typeof b.depositPence === "number" && b.depositPence > 0;
+  const balance = paid && typeof b.price === "number" ? Math.round(b.price * 100) - b.depositPence! : null;
+
+  const rows: [string, string][] = [
+    ["Client", b.clientName || "—"],
+    ["Email", b.clientEmail || "—"],
+    ["Phone", b.clientPhone || "—"],
+    ["Treatment", b.serviceName],
+    ["Date & time", when(b.startTime)],
+    ["Duration", b.durationMins ? `${b.durationMins} minutes` : "not set"],
+    ["Practitioner", b.practitioner || "unassigned"],
+    ["Price", typeof b.price === "number" ? (b.price === 0 ? "Complimentary" : `£${b.price}`) : "not set"],
+    ["Deposit taken", paid ? formatPence(b.depositPence!) : "none"],
+    ["Balance at clinic", paid && balance !== null && balance > 0 ? formatPence(balance) : ""],
+    ["Appointment ID", b.appointmentId || "—"],
+  ];
+
+  const html = opsEmail("New booking", `${b.serviceName} — ${b.clientName}`, rows, [
+    { label: "Client's notes", text: b.notes || "" },
+  ]);
+
+  const res = await sendAdminEmail(`New booking — ${b.serviceName} — ${when(b.startTime)}`, html);
+  if (!res.ok) console.error("[booking-notify] admin booking alert failed:", res.status, JSON.stringify(res.body).slice(0, 300));
+  return res.ok;
+}
+
 /* ── Cancellations ───────────────────────────────────────── */
 export interface CancellationNotice {
   contactId: string;
   clientName: string;
+  /** Optional, for the admin copy only — reception may want to call them back. */
+  clientEmail?: string | null;
+  clientPhone?: string | null;
+  /** GHL appointment id, shown to reception so they can find it. */
+  appointmentId?: string | null;
   serviceName: string;
   startTime: string;
   /** Deposit refunded, in pence. 0/null = nothing refunded. */
@@ -235,11 +321,70 @@ export async function sendCancellationEmail(c: CancellationNotice): Promise<bool
   return res.ok;
 }
 
-/** Fire both; never throws. */
-export async function notifyBooking(b: BookingNotice): Promise<{ client: boolean; practitioner: boolean }> {
-  const [client, practitioner] = await Promise.all([
+/**
+ * Reception's copy of a cancellation, to admin@orasuites.com. States plainly
+ * who cancelled and what happened to the money, so a freed slot is never a
+ * surprise and a refund is never a mystery. Never throws.
+ */
+export async function sendAdminCancellationAlert(c: CancellationNotice): Promise<boolean> {
+  const refunded = typeof c.refundedPence === "number" && c.refundedPence > 0;
+  const retained = typeof c.retainedPence === "number" && c.retainedPence > 0;
+  const released = typeof c.releasedPence === "number" && c.releasedPence > 0;
+
+  const money = refunded
+    ? `REFUNDED ${formatPence(c.refundedPence!)} — the deposit has been returned to the customer.`
+    : released
+      ? `RELEASED ${formatPence(c.releasedPence!)} — the hold was never captured, so the customer was not charged.`
+      : retained
+        ? `RETAINED ${formatPence(c.retainedPence!)} — cancelled inside the 24-hour window, the clinic keeps the deposit.`
+        : "No deposit on this booking — nothing to refund or retain.";
+
+  const rows: [string, string][] = [
+    ["Client", c.clientName || "—"],
+    ["Email", c.clientEmail || "—"],
+    ["Phone", c.clientPhone || "—"],
+    ["Treatment", c.serviceName],
+    ["Was booked for", when(c.startTime)],
+    ["Cancelled by", c.byClinic ? "the clinic (staff-initiated)" : "the customer"],
+    ["Deposit", money],
+    ["Appointment ID", c.appointmentId || "—"],
+  ];
+
+  const html = opsEmail("Cancellation", `${c.serviceName} — ${c.clientName}`, rows, [
+    { label: "The slot is now free", text: "Remove it from the day sheet and offer the time to someone else." },
+  ]);
+
+  const res = await sendAdminEmail(`Cancelled — ${c.serviceName} — ${when(c.startTime)}`, html);
+  if (!res.ok) console.error("[booking-notify] admin cancellation alert failed:", res.status, JSON.stringify(res.body).slice(0, 300));
+  return res.ok;
+}
+
+/**
+ * Everything a new booking must trigger, in parallel; never throws.
+ *
+ *   · client      — confirmation email
+ *   · practitioner— their copy, with the client's notes
+ *   · admin       — reception's copy at admin@orasuites.com, so the owner can
+ *                   actually see the floor (added 20 Aug 2026)
+ *   · contactNote — the client's message written onto their GHL CONTACT, because
+ *                   GHL discards appointment notes created through the API and
+ *                   the message would otherwise be lost entirely
+ */
+export async function notifyBooking(
+  b: BookingNotice,
+): Promise<{ client: boolean; practitioner: boolean; admin: boolean; contactNote: boolean }> {
+  const [client, practitioner, admin, contactNote] = await Promise.all([
     sendClientConfirmation(b).catch((e) => { console.error("[booking-notify] client:", e); return false; }),
     sendPractitionerAlert(b).catch((e) => { console.error("[booking-notify] practitioner:", e); return false; }),
+    sendAdminBookingAlert(b).catch((e) => { console.error("[booking-notify] admin:", e); return false; }),
+    (b.notes && b.notes.trim()
+      ? appendContactNote(
+          b.contactId,
+          `Booking note — ${b.serviceName}, ${when(b.startTime)}${b.appointmentId ? ` (appt ${b.appointmentId})` : ""}:\n${b.notes.trim()}`,
+        )
+      : Promise.resolve(false)
+    ).catch((e) => { console.error("[booking-notify] contact note:", e); return false; }),
   ]);
-  return { client, practitioner };
+  if (!admin) console.error(`[booking-notify] CRITICAL: nobody at ${ADMIN_EMAIL} was told about the booking for ${b.clientName}.`);
+  return { client, practitioner, admin, contactNote };
 }
