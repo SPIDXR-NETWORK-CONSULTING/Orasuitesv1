@@ -8,6 +8,7 @@ import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from ".
 import { notifyBooking, serviceMetaForCalendar } from "../api/_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../api/_lib/ghl-contacts.js";
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../api/_lib/deposit-guard.js";
+import { updatePaymentIntent } from "../api/_lib/stripe.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -192,6 +193,23 @@ export async function registerRoutes(
         //    CRITICAL with the pi_… id and the booking stands.
         const depositTaken = await captureDeposit(paidIntentId, intentStatus, `appointment ${appointmentId}`);
 
+        // 3b. Link the payment to the appointment ON THE PAYMENT ITSELF. GHL
+        //     discards appointment notes written through the API, so the
+        //     `[stripe:…]` marker above cannot be trusted to find this deposit
+        //     at cancellation time. Stripe metadata is the durable index.
+        //     Mirrors api/ghl/booking.ts exactly.
+        if (paidIntentId) {
+          const linked = await updatePaymentIntent(paidIntentId, {
+            metadata: { ghlAppointmentId: appointmentId, ghlContactId: contactId },
+          }).catch(() => ({ ok: false, error: "metadata update threw" }));
+          if (!linked.ok) {
+            console.error(
+              `[booking] CRITICAL: appointment ${appointmentId} could not be linked to deposit ${paidIntentId} ` +
+                `(${linked.error ?? "unknown"}). A later cancellation may not find the payment — refund by hand in Stripe.`,
+            );
+          }
+        }
+
         res.json({
           success: true,
           appointmentId,
@@ -218,10 +236,14 @@ export async function registerRoutes(
           status: "confirmed",
         });
 
+        // Client + practitioner + admin@orasuites.com, and the client's message
+        // saved onto their contact record — see notifyBooking().
         void notifyBooking({
           contactId,
           appointmentId,
           clientName: name,
+          clientEmail: email,
+          clientPhone: phone,
           serviceName: serviceName || "Appointment",
           startTime,
           practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,

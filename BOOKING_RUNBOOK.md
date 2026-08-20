@@ -14,7 +14,9 @@ _Last verified end-to-end on production: 20 Aug 2026._
    - **Client email** — subject `Booking confirmed — <Service> on <date/time>`; body has treatment, date & time, duration, practitioner name, price, deposit taken, balance due, address, a cancel link and the 24-hour refund policy.
    - **Practitioner email** — client name, treatment, time, duration, notes.
    - **Google Calendar** — event on the admin "ORÁ — All Appointments" calendar, with the practitioner invited as an attendee (so it appears on *their* Google Calendar too).
-   - **Opportunity** — created in **Online Bookings → Booked** with the price, so every customer is captured for marketing.
+   - **Admin email** — the same booking, in full, to admin@orasuites.com so reception can run the floor.
+   - **Contact note** — anything the client typed in the notes box is written onto their GHL **contact** record. (GHL does not keep notes attached to an API-created appointment, so this is where to look for them.)
+   - **Opportunity** — created in **Online Bookings → Booked** with the price, so every customer is captured for marketing. A returning customer already has an opportunity in that pipeline — GHL allows only one open per contact — so theirs is updated to the new booking and moved back to **Booked** rather than duplicated.
 4. **1 hour before** — GHL emails the client a reminder.
 
 ## 2. Who is notified
@@ -26,6 +28,8 @@ _Last verified end-to-end on production: 20 Aug 2026._
 | Customer | Cancellation email — states whether the deposit was refunded or retained | Our code |
 | Practitioner | New-booking email + Google Calendar invite | Our code |
 | Practitioner | In-app GHL notification | GHL |
+| **Admin / reception** | **Every booking → admin@orasuites.com, instantly.** Client name, email, phone, treatment, date & time, duration, practitioner, price, deposit taken (or "none"), the client's notes and the appointment id | Our code |
+| **Admin / reception** | **Every cancellation → admin@orasuites.com.** Says who cancelled and whether the deposit was refunded, retained or released | Our code |
 | Admin | Every website enquiry → admin@orasuites.com | Our code |
 
 SMS is **off** — the GHL location has no phone number. Buy an LC Phone number in GHL → Settings → Phone Numbers, then re-enable in `script/ghl-sync-notifications.py`.
@@ -116,6 +120,10 @@ The four rules, in full:
 - **Reschedule in GHL as usual** — do NOT use the cancel link for a reschedule, or the deposit
   will be refunded and you'd have to take it again.
 - **Cancelling for the clinic** (always refunds in full) — see "Cancelling as the clinic" in `STRIPE_SETUP.md`.
+- **How a refund finds its payment:** each deposit carries the GHL appointment id in its Stripe
+  metadata (`ghlAppointmentId`), written the moment the appointment is created. Cancelling looks
+  the payment up by that. Bookings made **before 20 Aug 2026** have no such link — if one of those
+  needs refunding, find it in Stripe → Payments by the customer's name or card and refund it by hand.
 - Refunds appear in Stripe within seconds and on the customer's statement in 5–10 working days.
 - **Check for stuck holds now and then** — Stripe → Payments → filter **Status: Uncaptured**.
   That list should be empty. A payment sitting there means the appointment was created but
