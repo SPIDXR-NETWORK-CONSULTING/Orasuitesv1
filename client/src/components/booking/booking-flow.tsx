@@ -88,6 +88,9 @@ export function BookingFlow() {
         notes: state.details.notes.trim(),
         calendarId: s.ghlCalendarId,
         serviceId: s.id,
+        ...(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview")
+          ? { preview: new URLSearchParams(window.location.search).get("preview")! }
+          : {}),
         serviceName: s.name,
         startTime: state.slot,
         endTime: addMinutesIso(state.slot, s.duration),

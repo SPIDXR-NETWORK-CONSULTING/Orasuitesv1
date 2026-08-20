@@ -7,8 +7,9 @@
  *  mode="live"     The Stripe Payment Element lives in `children` — the mount node
  *                  handed over by useStripeDeposit(). Same chrome either way.
  *
- * The panel states the exact figures ("£16 deposit — balance £64 at the clinic")
- * and, in live mode, the 24-hour refund rule BEFORE the customer confirms.
+ * The panel states the exact figures, that the deposit is HELD now and taken
+ * once the booking is confirmed, and — in live mode — the 24-hour refund rule,
+ * all BEFORE the customer confirms.
  */
 import * as React from "react";
 import { Lock, ShieldCheck, AlertCircle } from "lucide-react";
@@ -63,8 +64,8 @@ export function DepositPanel({ mode, price, className, loading, error, children 
               <p className="mt-2 font-sans text-[0.875rem] text-ora-fog">
                 {live ? (
                   <>
-                    <span className="text-foreground">{formatPrice(deposit)} deposit</span> — balance{" "}
-                    <span className="text-foreground">{formatPrice(balance)}</span> at the clinic
+                    <span className="text-foreground">{formatPrice(deposit)} held now</span>, taken when your booking is
+                    confirmed
                   </>
                 ) : (
                   <>
@@ -77,7 +78,7 @@ export function DepositPanel({ mode, price, className, loading, error, children 
             <dl className="grid grid-cols-2 gap-x-6 gap-y-1 font-sans text-[0.8125rem]">
               <dt className="text-ora-fog">Treatment</dt>
               <dd className="text-right text-foreground">{formatPrice(price)}</dd>
-              <dt className="text-ora-fog">Due today</dt>
+              <dt className="text-ora-fog">{live ? "Held today" : "Due today"}</dt>
               <dd className="text-right font-medium text-foreground">{formatPrice(deposit)}</dd>
               <dt className="text-ora-fog">At the clinic</dt>
               <dd className="text-right text-foreground">{formatPrice(balance)}</dd>

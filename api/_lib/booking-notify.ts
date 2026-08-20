@@ -47,7 +47,11 @@ export interface BookingNotice {
   practitioner?: string | null;
   practitionerEmail?: string | null;
   price?: number | null;
-  /** Deposit actually taken, in pence. null/0 = nothing was charged. */
+  /**
+   * Deposit actually TAKEN, in pence — this email is sent after the deposit is
+   * captured, so a number here means the money has really left the card.
+   * null/0 = nothing was charged.
+   */
   depositPence?: number | null;
   notes?: string | null;
 }
@@ -78,7 +82,7 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
     `<b>Duration:</b> ${b.durationMins ? `${b.durationMins} minutes` : "confirmed at the clinic"}`,
     `<b>Your practitioner:</b> ${b.practitioner || "assigned — we'll confirm shortly"}`,
     typeof b.price === "number" ? `<b>Price:</b> ${b.price === 0 ? "Complimentary" : `£${b.price}`}` : "",
-    paid ? `<b>Deposit paid today:</b> ${formatPence(b.depositPence!)}` : "",
+    paid ? `<b>Deposit taken:</b> ${formatPence(b.depositPence!)}` : "",
     paid && balance !== null && balance > 0 ? `<b>Balance at the clinic:</b> ${formatPence(balance)}` : "",
     `<b>Where:</b> ${ADDRESS}`,
     ``,
@@ -175,6 +179,11 @@ export interface CancellationNotice {
   refundedPence?: number | null;
   /** Deposit retained because it was inside the 24-hour window. */
   retainedPence?: number | null;
+  /**
+   * A deposit that was only ever HELD and has now been released — the card was
+   * never charged, so this is not a refund and there is nothing to wait for.
+   */
+  releasedPence?: number | null;
   /** true when the clinic cancelled (always a full refund). */
   byClinic?: boolean;
 }
@@ -187,12 +196,15 @@ export async function sendCancellationEmail(c: CancellationNotice): Promise<bool
   const first = (c.clientName || "there").trim().split(" ")[0];
   const refunded = typeof c.refundedPence === "number" && c.refundedPence > 0;
   const retained = typeof c.retainedPence === "number" && c.retainedPence > 0;
+  const released = typeof c.releasedPence === "number" && c.releasedPence > 0;
 
   const money = refunded
     ? `Your ${formatPence(c.refundedPence!)} deposit has been refunded in full. It usually reaches your account within 5–10 working days, depending on your bank.`
-    : retained
-      ? `As this cancellation is within 24 hours of your appointment, the ${formatPence(c.retainedPence!)} deposit is retained. If something unexpected came up, reply to this email and we'll look at it personally.`
-      : `There was no deposit on this booking, so there is nothing to refund.`;
+    : released
+      ? `Your card was never charged — the ${formatPence(c.releasedPence!)} we were holding has been released. If your bank still shows it as pending, it will drop off within a day or two.`
+      : retained
+        ? `As this cancellation is within 24 hours of your appointment, the ${formatPence(c.retainedPence!)} deposit is retained. If something unexpected came up, reply to this email and we'll look at it personally.`
+        : `There was no deposit on this booking, so there is nothing to refund.`;
 
   const html = [
     `Hi ${first},`,

@@ -45,6 +45,8 @@ export type SlotsResponse = Record<string, { slots?: string[] } | unknown>;
 
 /** POST /api/ghl/booking */
 export interface BookingRequest {
+  /** Owner preview key — lets the real flow run while booking is closed publicly. */
+  preview?: string;
   name: string;
   email: string;
   phone: string;
@@ -57,16 +59,20 @@ export interface BookingRequest {
   startTime: string;
   /** ISO 8601 = start + duration */
   endTime: string;
-  /** Stripe PaymentIntent for the 20% deposit; absent for free consultations */
+  /** Stripe PaymentIntent holding the 20% deposit; absent for free consultations */
   paymentIntentId?: string;
 }
 export interface BookingResponse {
   success: boolean;
   appointmentId?: string;
   contactId?: string;
-  /** deposit actually taken, in pence */
+  /** deposit for this booking, in pence */
   depositPence?: number;
-  /** true when a failed booking auto-refunded the deposit */
+  /** true when the held deposit was actually captured (money taken) */
+  depositTaken?: boolean;
+  /** true when a failed booking released the hold — the card was never charged */
+  released?: boolean;
+  /** legacy: a failed booking refunded an already-captured deposit */
   refunded?: boolean;
   error?: string;
 }
