@@ -7,6 +7,7 @@ import { processEnquiry } from "./ghl-notify";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "./google-calendar";
 import { notifyBooking, serviceMetaForCalendar } from "../api/_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../api/_lib/ghl-contacts.js";
+import { verifyDeposit, notesWithPayment, refundAfterFailedBooking } from "../api/_lib/deposit-guard.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -113,11 +114,21 @@ export async function registerRoutes(
     if (process.env.BOOKING_ENABLED === "false") {
       return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
     }
-    const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime } = req.body;
+    const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime, paymentIntentId } = req.body;
 
     if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
       return res.status(400).json({ error: "Missing required booking fields" });
     }
+
+    // ── Deposit gate ──────────────────────────────────────────────────────
+    // Identical rule to api/ghl/booking.ts (both call the same guard). The card
+    // is charged before the appointment exists, so an unverified deposit means
+    // nothing is created at all.
+    const deposit = await verifyDeposit({ serviceId, calendarId, serviceName, paymentIntentId });
+    if (!deposit.ok) {
+      return res.status(deposit.status).json({ error: deposit.error });
+    }
+    const paidIntentId = deposit.paymentIntentId;
 
     try {
       // 1. Create or update contact in GHL
@@ -137,6 +148,7 @@ export async function registerRoutes(
 
       const resolved = await resolveContact({ email, firstName, lastName, phone, tags: ["website-booking"] });
       if (!resolved) {
+        await refundAfterFailedBooking(paidIntentId, "could not create the GHL contact");
         return res.status(500).json({ error: "Failed to create contact in GHL" });
       }
       const contactId = resolved.id;
@@ -152,7 +164,9 @@ export async function registerRoutes(
         appointmentStatus: "confirmed",
         toNotify: true,
         timezone: "Europe/London",
-        notes: notes || "",
+        // Payment marker rides along so a later cancellation can find and
+        // refund the deposit. See api/booking/cancel.ts.
+        notes: notesWithPayment(notes, paidIntentId),
       };
 
       const apptRes = await ghlFetch("/calendars/events/appointments", {
@@ -166,6 +180,7 @@ export async function registerRoutes(
           success: true,
           appointmentId,
           contactId,
+          ...(paidIntentId ? { depositPence: deposit.depositPence } : {}),
         });
 
         // Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar,
@@ -189,6 +204,7 @@ export async function registerRoutes(
 
         void notifyBooking({
           contactId,
+          appointmentId,
           clientName: name,
           serviceName: serviceName || "Appointment",
           startTime,
@@ -196,23 +212,37 @@ export async function registerRoutes(
           practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
           notes: notes || null,
           durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
-          price: serviceMetaForCalendar(calendarId)?.price ?? null,
+          price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+          depositPence: paidIntentId ? deposit.depositPence : null,
         }).catch(() => {});
 
+        // monetaryValue stays the FULL treatment price — the deposit is a
+        // part-payment, not the value of the deal.
         void createBookingOpportunity({
           contactId,
           clientName: name,
           serviceName: serviceName || "Appointment",
-          price: serviceMetaForCalendar(calendarId)?.price ?? null,
+          price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
           startTime,
         }).catch(() => null);
       } else {
         console.error("GHL appointment creation failed:", JSON.stringify(apptRes));
-        res.status(500).json({ error: "Failed to create appointment", detail: apptRes });
+        const refunded = await refundAfterFailedBooking(paidIntentId, "GHL rejected the appointment");
+        res.status(500).json({
+          error: "Failed to create appointment",
+          detail: apptRes,
+          ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+        });
       }
     } catch (err) {
       console.error("Booking error:", err);
-      res.status(500).json({ error: "Booking failed" });
+      const refunded = await refundAfterFailedBooking(paidIntentId, "unexpected error during booking");
+      if (!res.headersSent) {
+        res.status(500).json({
+          error: "Booking failed",
+          ...(paidIntentId ? { refunded, deposit: "Your deposit has not been kept — no appointment was created." } : {}),
+        });
+      }
     }
   });
 

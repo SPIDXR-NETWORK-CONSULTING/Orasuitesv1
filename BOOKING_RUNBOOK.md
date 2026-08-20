@@ -7,9 +7,10 @@ _Last verified end-to-end on production: 20 Aug 2026._
 2. Times shown are only slots where a practitioner qualified for **that exact service** is free
    (each service has its own GHL calendar; 15-min reset buffer between appointments).
 3. On confirm, in order:
+   - **Deposit** — 20% of the menu price is charged to the card *first*, before anything is created. Free consultations skip this entirely. (See §8.)
    - **Contact** — matched by email. Existing customer → reused. New → created. *Never overwrites anyone.*
    - **Appointment** — created `confirmed`, auto-assigned round-robin to an available qualified practitioner.
-   - **Client email** — subject `Booking confirmed — <Service> on <date/time>`; body has treatment, date & time, duration, practitioner name, price, address.
+   - **Client email** — subject `Booking confirmed — <Service> on <date/time>`; body has treatment, date & time, duration, practitioner name, price, deposit paid, balance due, address, a cancel link and the 24-hour refund policy.
    - **Practitioner email** — client name, treatment, time, duration, notes.
    - **Google Calendar** — event on the admin "ORÁ — All Appointments" calendar, with the practitioner invited as an attendee (so it appears on *their* Google Calendar too).
    - **Opportunity** — created in **Online Bookings → Booked** with the price, so every customer is captured for marketing.
@@ -21,6 +22,7 @@ _Last verified end-to-end on production: 20 Aug 2026._
 |---|---|---|
 | Customer | Booking confirmed email (instant) | Our code |
 | Customer | 1-hour reminder email | GHL |
+| Customer | Cancellation email — states whether the deposit was refunded or retained | Our code |
 | Practitioner | New-booking email + Google Calendar invite | Our code |
 | Practitioner | In-app GHL notification | GHL |
 | Admin | Every website enquiry → admin@orasuites.com | Our code |
@@ -43,7 +45,9 @@ Everything is done in GHL as an **Admin** user:
 |---|---|
 | See every practitioner's day | Calendars → filter by user |
 | Reassign a booking | Open appointment → change assigned user |
-| Cancel / reschedule | Open appointment → Cancel or edit time (client is emailed) |
+| Reschedule | Open appointment → edit time (client is emailed). **The deposit moves with it — never cancel-and-rebook.** |
+| Cancel with a full refund | Use the clinic cancel call in `STRIPE_SETUP.md` (refunds, cancels, clears the calendar and emails the client in one step) |
+| Cancel without refunding | Open appointment → Cancel in GHL (no refund is issued) |
 | Add a phone/walk-in booking | Calendars → + Add appointment (mirrors to Google nightly) |
 | See all customers | Contacts |
 | See all bookings as deals | Opportunities → Online Bookings |
@@ -82,7 +86,35 @@ npm run deploy
 ```
 Set both to `false` to close. While closed, /book shows "Booking opens soon" and the API refuses bookings.
 
-## 8. Reliability
+## 8. Deposits & refunds
+
+A **20% deposit** is taken at the moment of booking; the balance is paid at the clinic.
+The card is charged **before** the appointment is created — a booking can never exist unpaid,
+and if the appointment then fails to create, the deposit is refunded automatically.
+
+**Free consultations take no deposit and never ask for a card.**
+
+The four rules, in full:
+
+| Situation | Deposit |
+|---|---|
+| Customer cancels **more than 24 hours** before the appointment | **Full refund, automatic** |
+| Customer cancels **within 24 hours** | **Retained** — they're told plainly before they confirm |
+| **Clinic** cancels, whatever the timing | **Full refund, automatic** |
+| **Reschedule** | **Kept and carried to the new time** — never refunded, never re-charged |
+
+- Customers cancel themselves via the **"Cancel this appointment"** link in their confirmation email.
+  The page tells them whether they'll be refunded *before* they confirm.
+- **Reschedule in GHL as usual** — do NOT use the cancel link for a reschedule, or the deposit
+  will be refunded and you'd have to take it again.
+- **Cancelling for the clinic** (always refunds in full) — see "Cancelling as the clinic" in `STRIPE_SETUP.md`.
+- Refunds appear in Stripe within seconds and on the customer's statement in 5–10 working days.
+- `/api/health` reports a `stripe` check. `"not connected — optional"` means deposits aren't
+  switched on and booking works exactly as it did before — that is not a fault.
+
+Setup, keys, webhook and test-mode instructions: **`STRIPE_SETUP.md`**.
+
+## 9. Reliability
 
 - **`npm run deploy` is the only way to deploy.** It type-checks, deploys, health-checks production and **auto-rolls back** if anything is wrong.
 - **`/api/health`** proves the pipeline works right now (GHL write access, calendars, slots, Google). 200 = fine, 503 = broken.

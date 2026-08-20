@@ -72,7 +72,12 @@ export function BookingFlow() {
     go(1);
   };
 
-  const confirm = () => {
+  /**
+   * `paymentIntentId` arrives only when a deposit was actually charged (live
+   * Stripe + a priced treatment). The server re-verifies it against the
+   * catalogue price before anything is booked.
+   */
+  const confirm = (paymentIntentId?: string) => {
     const s = state.service;
     if (!s || !s.ghlCalendarId || !state.slot) return;
     booking.mutate(
@@ -82,9 +87,11 @@ export function BookingFlow() {
         phone: normaliseUkPhone(state.details.phone),
         notes: state.details.notes.trim(),
         calendarId: s.ghlCalendarId,
+        serviceId: s.id,
         serviceName: s.name,
         startTime: state.slot,
         endTime: addMinutesIso(state.slot, s.duration),
+        ...(paymentIntentId ? { paymentIntentId } : {}),
       },
       {
         onSuccess: (res) => {
