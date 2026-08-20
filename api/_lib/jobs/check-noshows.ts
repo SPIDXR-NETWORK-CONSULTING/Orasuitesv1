@@ -38,19 +38,19 @@
  * never an open write path.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { ghlFetch } from "../_lib/ghl.js";
-import { appendContactNote } from "../_lib/ghl-contacts.js";
-import { findService, depositPence } from "../_lib/catalogue.js";
+import { ghlFetch } from "../ghl.js";
+import { appendContactNote } from "../ghl-contacts.js";
+import { findService, depositPence } from "../catalogue.js";
 import {
   isStripeConfigured,
   retrievePaymentIntent,
   capturePaymentIntent,
   updatePaymentIntent,
   findPaymentIntentByAppointment,
-} from "../_lib/stripe.js";
-import { paymentIntentIdFromNotes } from "../_lib/deposit-guard.js";
-import { deleteEvent, teamUserIds, TEAM_BY_USER_ID } from "../_lib/google-calendar.js";
-import { sendNoShowAdminAlert, noShowDepositLine, when, type NoShowDepositOutcome, type NoShowNotice } from "../_lib/booking-notify-2.js";
+} from "../stripe.js";
+import { paymentIntentIdFromNotes } from "../deposit-guard.js";
+import { deleteEvent, teamUserIds, TEAM_BY_USER_ID } from "../google-calendar.js";
+import { sendNoShowAdminAlert, noShowDepositLine, when, type NoShowDepositOutcome, type NoShowNotice } from "../booking-notify-2.js";
 
 export const config = { maxDuration: 60 };
 

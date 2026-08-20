@@ -22,7 +22,7 @@
  * to run at all (503) rather than exposing an unauthenticated send path.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { findService } from "../_lib/catalogue.js";
+import { findService } from "../catalogue.js";
 import {
   MAX_CONTACT_SCAN,
   MAX_EMAILS_PER_RUN,
@@ -42,7 +42,7 @@ import {
   sendWaitlistOpeningEmail,
   writeContactNote,
   type WaitlistEntry,
-} from "../_lib/waitlist.js";
+} from "../waitlist.js";
 
 export const config = { maxDuration: 60 };
 

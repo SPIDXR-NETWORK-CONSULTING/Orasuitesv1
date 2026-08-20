@@ -16,7 +16,7 @@
  * $CRON_SECRET`. Without CRON_SECRET the endpoint refuses to run (503).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { teamUserIds } from "../_lib/google-calendar.js";
+import { teamUserIds } from "../google-calendar.js";
 import {
   MAX_CONTACT_LOOKUPS,
   MAX_REVIEW_EMAILS_PER_RUN,
@@ -27,7 +27,7 @@ import {
   readContact,
   requestReview,
   type ContactLite,
-} from "../_lib/review-request.js";
+} from "../review-request.js";
 
 export const config = { maxDuration: 60 };
 

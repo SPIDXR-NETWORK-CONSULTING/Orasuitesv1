@@ -35,7 +35,7 @@ import {
   teamUserIds,
   TEAM_BY_USER_ID,
   type MirrorAppointment,
-} from "../_lib/google-calendar.js";
+} from "../google-calendar.js";
 
 /** Titles are "<Service> — <Client>"; service names may themselves contain " — ". */
 function serviceFromTitle(title?: string | null): string | undefined {
