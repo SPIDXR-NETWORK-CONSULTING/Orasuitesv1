@@ -32,6 +32,10 @@ _Last verified end-to-end on production: 20 Aug 2026._
 | **Admin / reception** | **Every booking → admin@orasuites.com, instantly.** Client name, email, phone, treatment, date & time, duration, practitioner, price, deposit taken (or "none"), the client's notes and the appointment id | Our code |
 | **Admin / reception** | **Every cancellation → admin@orasuites.com.** Says who cancelled and whether the deposit was refunded, retained, released or NOT FOUND | Our code |
 | **Admin / reception** | **`ACTION NEEDED — manual refund check`** → admin@orasuites.com, **only** when a deposit was due but no payment could be found. Carries the client's name, email and phone, the appointment id, the expected deposit, and what to do in Stripe | Our code |
+| Customer | **Reschedule email — `Booking moved — <Service>, <new time>`.** New time, old time, practitioner, and a plain line that the deposit moved with the booking | Our code |
+| **Practitioner** | **`Rescheduled — <Service>, <new time>`.** Says explicitly that the OLD slot is now free and the NEW one is booked. If GHL hands the booking to a colleague, the original practitioner gets `Moved out of your diary — …` instead | Our code |
+| **Admin / reception** | **`Rescheduled — <Service> — <old> → <new>`** → admin@orasuites.com, with which slot freed up and which filled | Our code |
+| **Admin / reception** | **`No-show — <Client> — <Service> <when>`** → admin@orasuites.com, within the hour. Client's name, email and phone, what happened to the deposit, the Stripe payment id and the appointment id | Our code |
 | Admin | Every website enquiry → admin@orasuites.com | Our code |
 
 SMS is **off** — the GHL location has no phone number. Buy an LC Phone number in GHL → Settings → Phone Numbers, then re-enable in `script/ghl-sync-notifications.py`.
@@ -52,7 +56,8 @@ Everything is done in GHL as an **Admin** user:
 |---|---|
 | See every practitioner's day | Calendars → filter by user |
 | Reassign a booking | Open appointment → change assigned user |
-| Reschedule | Open appointment → edit time (client is emailed). **The deposit moves with it — never cancel-and-rebook.** |
+| Reschedule (exceptions only) | Open appointment → edit time. **The deposit moves with it — never cancel-and-rebook.** Customers move their own bookings from the email link — see §9 |
+| Mark a no-show | Open appointment → status **No-show**. That is the whole job; the rest is automatic — see §10 |
 | Cancel with a full refund | Use the clinic cancel call in `STRIPE_SETUP.md` (refunds, cancels, clears the calendar and emails the client in one step) |
 | Cancel without refunding | Open appointment → Cancel in GHL (no refund is issued) |
 | Add a phone/walk-in booking | Calendars → + Add appointment (mirrors to Google nightly) |
@@ -119,8 +124,10 @@ The four rules, in full:
 - In the rare case where a cancellation arrives before the deposit was taken, it is **released**
   rather than refunded — Stripe shows it as **Canceled**, and the customer has nothing to wait
   for because they were never charged. The rules above are unaffected.
-- **Reschedule in GHL as usual** — do NOT use the cancel link for a reschedule, or the deposit
+- **Reschedules never touch the money** — customers move their own bookings from their
+  confirmation email (§9). Do NOT use the cancel link for a reschedule, or the deposit
   will be refunded and you'd have to take it again.
+- **A no-show KEEPS the deposit**, automatically, within the hour of reception marking it (§10).
 - **Cancelling for the clinic** (always refunds in full) — see "Cancelling as the clinic" in `STRIPE_SETUP.md`.
 - **How a refund finds its payment:** each deposit carries the GHL appointment id in its Stripe
   metadata (`ghlAppointmentId`), written the moment the appointment is created. Cancelling looks
@@ -143,10 +150,74 @@ The four rules, in full:
 
 Setup, keys, webhook and test-mode instructions: **`STRIPE_SETUP.md`**.
 
-## 9. Reliability
+## 9. Rescheduling
+
+Customers move their own bookings. The confirmation email carries a **"Move this appointment"**
+link next to the cancel link; it opens a page listing every free time for **that same treatment**
+over the next 14 days, and one tap moves it.
+
+**The rules the page enforces (customers cannot get round them):**
+
+| Rule | Why |
+|---|---|
+| **Time only — never the treatment** | A different treatment is a different price and a different deposit. That is a cancel and a rebook, done by a human. |
+| **New slot within 14 days** | Keeps the diary real. Further out, reception books it. |
+| **Must be more than 24 hours before the current appointment** | Same cliff as the refund rule: inside a day the chair cannot be re-sold. |
+| **Unlimited moves** | Someone who keeps moving a booking still intends to come. |
+| **Deposit carries over — never refunded, never re-charged** | The reschedule route makes no Stripe calls at all. The money cannot move. |
+
+**What happens on a move:** the GHL appointment time is updated → the Google calendar event moves
+(the same event, so it never duplicates) → the client, the practitioner and admin@orasuites.com are
+all emailed. If GHL reassigns the booking to a different practitioner because of availability at the
+new time, the *original* practitioner is emailed too, so nobody comes in for a client who isn't theirs.
+
+**If GHL refuses the move, nothing changes** — the original appointment stands and the customer is
+told to reply to their email.
+
+**What reception does — the exceptions:**
+
+| Customer says | Do this |
+|---|---|
+| "It's tomorrow and I need to move it" (inside 24h) | Open the appointment in GHL → edit the time. The deposit stays put. Do **not** cancel and rebook. |
+| "I want a date next month" (beyond 14 days) | Same — edit the time in GHL. |
+| "I want a different treatment" | Cancel via the clinic cancel call in `STRIPE_SETUP.md` (full refund), then take a fresh booking. |
+| "The link says it isn't valid" | Move it in GHL by hand. The link only breaks if `BOOKING_CANCEL_SECRET` changed. |
+| "There were no times" | Nothing was free in the 14-day window for that service. Offer a time from the practitioner's diary and edit it in GHL. |
+
+## 10. No-shows
+
+**Reception's whole job:** GHL → Calendars → open the appointment → set status **No-show**.
+Nothing else. Do not cancel it, and do not touch Stripe.
+
+**Within the hour**, `/api/cron/check-noshows` finds it and:
+
+1. **Keeps the deposit.** It is never refunded. If the money was somehow still only *held* rather
+   than taken, it is **captured** now — an uncaptured hold expires after about seven days and the
+   clinic would end up with nothing.
+2. **Removes the Google calendar event**, so the day sheet stops showing someone who didn't come.
+3. **Writes it onto the client's contact record** in GHL, with what happened to their deposit.
+   That is where to look for a client's no-show history — Contacts → the client → Notes.
+4. **Emails admin@orasuites.com**: `No-show — <Client> — <Service> <when>`, with their name, email
+   and phone, the deposit outcome, the Stripe payment id and the appointment id.
+
+The sweep looks back **7 days**, so marking a no-show late — or the job failing overnight — still
+catches it. It is safe to re-run and cannot charge anyone twice.
+
+**The client is NOT emailed.** A no-show is a conversation, not an automated message. Ring them if
+you want them back; a new booking takes a new deposit.
+
+**When the alert says ACTION NEEDED**, the deposit could not be settled automatically — either no
+Stripe payment could be found for that appointment (bookings before 20 Aug 2026 have no link), or
+capturing a held deposit failed. Open Stripe → Payments, search the customer by name or date, and
+capture it by hand **within 7 days**. Never assume the customer paid nothing.
+
+## 11. Reliability
 
 - **`npm run deploy` is the only way to deploy.** It type-checks, deploys, health-checks production and **auto-rolls back** if anything is wrong.
 - **`/api/health`** proves the pipeline works right now (GHL write access, calendars, slots, Google). 200 = fine, 503 = broken.
 - **If the booking API ever fails**, the customer sees a one-tap "Email this booking request" button that sends their exact request to admin@orasuites.com — no booking is ever lost.
 - **Nightly reconcile (03:00)** re-syncs everything to Google, catching phone/walk-in bookings.
+- **Hourly no-show sweep** picks up anything reception marked as a no-show and keeps the deposit (§10).
+  Both cron jobs need `CRON_SECRET` set in Vercel — without it they refuse to run rather than
+  exposing an unauthenticated write path.
 - **Recommended:** a free UptimeRobot monitor on `https://www.orasuites.com/api/health`, keyword `"ok":true`, 5-minute interval, alerts to your email. This is the only piece that needs an account in your name.

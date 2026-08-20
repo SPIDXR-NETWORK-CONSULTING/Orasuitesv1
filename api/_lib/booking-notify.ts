@@ -13,6 +13,7 @@
 import { ghlFetch, sendAdminEmail, ADMIN_EMAIL } from "./ghl.js";
 import { appendContactNote } from "./ghl-contacts.js";
 import { cancelLinkFor } from "./cancel-token.js";
+import { rescheduleLine } from "./booking-notify-2.js";
 import { formatPence } from "./catalogue.js";
 import catalogueRaw from "../../shared/catalogue.json" with { type: "json" };
 
@@ -102,7 +103,7 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
       : cancelUrl
         ? `Please give us at least 24 hours' notice where you can.`
         : "",
-    cancelUrl ? `To move your appointment to another time, reply to this email — your deposit moves with it.` : "",
+    rescheduleLine(b.appointmentId, b.contactId, b.depositPence),
   ].filter(Boolean).join("<br>") + SIGNOFF;
 
   const res = await ghlFetch("/conversations/messages", {
