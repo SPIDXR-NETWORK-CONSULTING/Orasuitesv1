@@ -24,7 +24,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  if (process.env.BOOKING_ENABLED === "false") {
+  // Closed publicly, but the owner's preview key runs the real payment path.
+  const previewOk = ((req.body as any)?.preview ?? (req.query as any)?.preview) === (process.env.BOOKING_PREVIEW_KEY || "ora-preview-2026");
+  if (process.env.BOOKING_ENABLED === "false" && !previewOk) {
     return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
   }
 

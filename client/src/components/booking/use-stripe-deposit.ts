@@ -157,7 +157,13 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
-            body: JSON.stringify({ serviceId, email }),
+            body: JSON.stringify({
+              serviceId,
+              email,
+              ...(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview")
+                ? { preview: new URLSearchParams(window.location.search).get("preview")! }
+                : {}),
+            }),
           });
           const json = await res.json().catch(() => ({}));
 
