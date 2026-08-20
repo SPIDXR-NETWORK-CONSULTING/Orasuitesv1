@@ -5,7 +5,8 @@ import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
 import { processEnquiry } from "./ghl-notify";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "./google-calendar";
-import { notifyBooking } from "../api/_lib/booking-notify";
+import { notifyBooking, serviceMetaForCalendar } from "../api/_lib/booking-notify.js";
+import { resolveContact, createBookingOpportunity } from "../api/_lib/ghl-contacts.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -134,17 +135,11 @@ export async function registerRoutes(
         customFields: notes ? [{ key: "booking_notes", field_value: notes }] : [],
       };
 
-      const contactRes = await ghlFetch("/contacts/upsert", {
-        method: "POST",
-        headers: { "Version": "2021-07-28" },
-        body: JSON.stringify(contactPayload),
-      });
-
-      const contactId = contactRes?.contact?.id || contactRes?.meta?.contactId;
-      if (!contactId) {
-        console.error("GHL contact creation failed:", JSON.stringify(contactRes));
+      const resolved = await resolveContact({ email, firstName, lastName, phone, tags: ["website-booking"] });
+      if (!resolved) {
         return res.status(500).json({ error: "Failed to create contact in GHL" });
       }
+      const contactId = resolved.id;
 
       // 2. Create appointment
       const appointmentPayload = {
@@ -200,7 +195,17 @@ export async function registerRoutes(
           practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
           practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
           notes: notes || null,
+          durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
+          price: serviceMetaForCalendar(calendarId)?.price ?? null,
         }).catch(() => {});
+
+        void createBookingOpportunity({
+          contactId,
+          clientName: name,
+          serviceName: serviceName || "Appointment",
+          price: serviceMetaForCalendar(calendarId)?.price ?? null,
+          startTime,
+        }).catch(() => null);
       } else {
         console.error("GHL appointment creation failed:", JSON.stringify(apptRes));
         res.status(500).json({ error: "Failed to create appointment", detail: apptRes });

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
-import { notifyBooking } from "../_lib/booking-notify.js";
+import { notifyBooking, serviceMetaForCalendar } from "../_lib/booking-notify.js";
+import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -40,24 +41,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "";
 
-    const contactRes = await ghlFetch("/contacts/upsert", {
-      method: "POST",
-      body: JSON.stringify({
-        locationId: GHL_LOCATION_ID,
-        firstName,
-        lastName,
-        email,
-        phone,
-        tags: ["website-booking"],
-        customFields: notes ? [{ key: "booking_notes", field_value: notes }] : [],
-      }),
+    const resolved = await resolveContact({
+      email,
+      firstName,
+      lastName,
+      phone,
+      tags: ["website-booking"],
     });
-
-    const contactId = contactRes?.contact?.id || contactRes?.meta?.contactId;
-    if (!contactId) {
-      console.error("GHL contact creation failed:", JSON.stringify(contactRes));
+    if (!resolved) {
       return res.status(500).json({ error: "Failed to create contact in GHL" });
     }
+    const contactId = resolved.id;
 
     const apptRes = await ghlFetch("/calendars/events/appointments", {
       method: "POST",
@@ -111,7 +105,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
       practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
       notes: notes || null,
+      durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
+      price: serviceMetaForCalendar(calendarId)?.price ?? null,
     }).catch(() => {});
+
+    // 4. Every booking becomes an opportunity so the clinic can market to its
+    //    customers (Online Bookings → Booked).
+    await createBookingOpportunity({
+      contactId,
+      clientName: name,
+      serviceName: serviceName || "Appointment",
+      price: serviceMetaForCalendar(calendarId)?.price ?? null,
+      startTime,
+    }).catch(() => null);
 
     return res.json({ success: true, appointmentId, contactId });
   } catch (err) {

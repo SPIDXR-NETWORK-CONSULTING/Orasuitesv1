@@ -11,6 +11,24 @@
  * Every function is non-throwing: a notification failure must never fail a booking.
  */
 import { ghlFetch } from "./ghl.js";
+import catalogueRaw from "../../shared/catalogue.json" with { type: "json" };
+
+/** calendarId → { duration, price } so emails always carry the real numbers. */
+const SERVICE_META: Map<string, { duration: number; price: number }> = (() => {
+  const m = new Map<string, { duration: number; price: number }>();
+  for (const cat of (catalogueRaw as any).categories ?? []) {
+    for (const g of cat.groups ?? []) {
+      for (const sv of g.services ?? []) {
+        if (sv.ghlCalendarId) m.set(sv.ghlCalendarId, { duration: sv.duration, price: sv.price });
+      }
+    }
+  }
+  return m;
+})();
+
+export function serviceMetaForCalendar(calendarId?: string | null) {
+  return calendarId ? SERVICE_META.get(calendarId) : undefined;
+}
 
 const ADDRESS = "ORÁ Suites, 49 Deansgate, Manchester M3 2AY";
 const SIGNOFF = `<br><br>With love,<br>The ORÁ Suites team<br><a href="mailto:admin@orasuites.com">admin@orasuites.com</a>`;
@@ -46,8 +64,10 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
     `Your appointment at ORÁ Suites is confirmed.`,
     ``,
     `<b>Treatment:</b> ${b.serviceName}`,
-    `<b>When:</b> ${when(b.startTime)}${b.durationMins ? ` (${b.durationMins} min)` : ""}`,
-    b.practitioner ? `<b>With:</b> ${b.practitioner}` : "",
+    `<b>Date &amp; time:</b> ${when(b.startTime)}`,
+    `<b>Duration:</b> ${b.durationMins ? `${b.durationMins} minutes` : "confirmed at the clinic"}`,
+    `<b>Your practitioner:</b> ${b.practitioner || "assigned — we'll confirm shortly"}`,
+    typeof b.price === "number" ? `<b>Price:</b> ${b.price === 0 ? "Complimentary" : `£${b.price}`}` : "",
     `<b>Where:</b> ${ADDRESS}`,
     ``,
     `Need to change or cancel? Just reply to this email and we'll sort it.`,
@@ -59,7 +79,7 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
     body: JSON.stringify({
       type: "Email",
       contactId: b.contactId,
-      subject: `You're booked — ${b.serviceName}, ${when(b.startTime)}`,
+      subject: `Booking confirmed — ${b.serviceName} on ${when(b.startTime)}`,
       html,
     }),
   });
