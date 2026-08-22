@@ -11,7 +11,7 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
-import { notifyBooking, serviceMetaForCalendar } from "../_lib/booking-notify.js";
+import { notifyBooking, serviceMetaForCalendar, disclaimerForCalendar } from "../_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../_lib/stripe.js";

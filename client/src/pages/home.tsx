@@ -11,9 +11,9 @@ import { useSEO, defaultBusinessJsonLd } from "@/hooks/use-seo";
 
 export default function HomePage() {
   useSEO({
-    title: "ORÁ Suites | Nurse-led Aesthetics & Luxury Nails, Deansgate Manchester",
+    title: "ORÁ Suites | Aesthetics, IV Therapy & Nails — Deansgate Manchester",
     description:
-      "ORÁ Suites — beauty & wellness sanctuary at 49 Deansgate, Manchester. Nurse-led aesthetics, luxury nails and private treatment rooms. Book online.",
+      "ORÁ Suites — beauty & wellness sanctuary at 49 Deansgate, Manchester. Nurse-led aesthetics, IV therapy, luxury nails and private treatment rooms. Book online.",
     path: "/",
     jsonLd: defaultBusinessJsonLd(),
   });

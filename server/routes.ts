@@ -5,7 +5,7 @@ import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
 import { processEnquiry } from "./ghl-notify";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "./google-calendar";
-import { notifyBooking, serviceMetaForCalendar } from "../api/_lib/booking-notify.js";
+import { notifyBooking, serviceMetaForCalendar, disclaimerForCalendar } from "../api/_lib/booking-notify.js";
 import { resolveContact, createBookingOpportunity } from "../api/_lib/ghl-contacts.js";
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../api/_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../api/_lib/stripe.js";

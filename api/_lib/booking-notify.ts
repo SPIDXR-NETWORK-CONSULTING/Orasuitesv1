@@ -30,6 +30,28 @@ const SERVICE_META: Map<string, { duration: number; price: number }> = (() => {
   return m;
 })();
 
+/**
+ * calendarId → the category's medical disclaimer, where one exists (IV therapy).
+ * Regulated treatments must carry it in the booking confirmation, not just on
+ * the website, so the client has it in writing before they attend.
+ */
+const CATEGORY_DISCLAIMER: Map<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const cat of (catalogueRaw as any).categories ?? []) {
+    if (!cat.disclaimer) continue;
+    for (const g of cat.groups ?? []) {
+      for (const sv of g.services ?? []) {
+        if (sv.ghlCalendarId) m.set(sv.ghlCalendarId, cat.disclaimer as string);
+      }
+    }
+  }
+  return m;
+})();
+
+export function disclaimerForCalendar(calendarId?: string | null): string | undefined {
+  return calendarId ? CATEGORY_DISCLAIMER.get(calendarId) : undefined;
+}
+
 export function serviceMetaForCalendar(calendarId?: string | null) {
   return calendarId ? SERVICE_META.get(calendarId) : undefined;
 }
@@ -59,6 +81,8 @@ export interface BookingNotice {
    */
   depositPence?: number | null;
   notes?: string | null;
+  /** Regulated-treatment disclaimer (IV therapy); shown at the foot of the email. */
+  disclaimer?: string | null;
 }
 
 function escapeHtml(s: unknown): string {
@@ -104,6 +128,7 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
         ? `Please give us at least 24 hours' notice where you can.`
         : "",
     rescheduleLine(b.appointmentId, b.contactId, b.depositPence),
+    b.disclaimer ? `<br><span style="color:#8a7d72;font-size:12px;line-height:1.5">${escapeHtml(b.disclaimer)}</span>` : "",
   ].filter(Boolean).join("<br>") + SIGNOFF;
 
   const res = await ghlFetch("/conversations/messages", {
