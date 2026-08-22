@@ -1,6 +1,6 @@
 /**
- * CategorySelector — centred row of 5 tiles on /services.
- * Live tiles (Aesthetics, Nails) are tab buttons that open a price list below;
+ * CategorySelector — centred row of 6 tiles on /services.
+ * Live tiles (Aesthetics, Nails, IV Therapy) are tab buttons that open a price list below;
  * coming-soon tiles (Hair, Makeup, Laser) are faded with a small badge, no copy.
  */
 import * as React from "react";
@@ -101,10 +101,10 @@ export function CategorySelector({ tiles, active, onSelect }: Props) {
     </motion.div>
   );
 
-  /* Mobile: 2 live tiles on one row, 3 faded on the next. md+: one 5-across row. */
+  /* Mobile: 3 live tiles on one row, 3 faded on the next. md+: one 6-across row. */
   return (
-    <div role="tablist" aria-label="Treatment categories" className="mx-auto max-w-4xl space-y-3 md:grid md:grid-cols-5 md:gap-4 md:space-y-0">
-      <div className="grid grid-cols-2 gap-3 md:contents">{live.map(renderLive)}</div>
+    <div role="tablist" aria-label="Treatment categories" className="mx-auto max-w-5xl space-y-3 md:grid md:grid-cols-6 md:gap-4 md:space-y-0">
+      <div className="grid grid-cols-3 gap-3 md:contents">{live.map(renderLive)}</div>
       <div className="grid grid-cols-3 gap-3 md:contents">{soon.map(renderSoon)}</div>
     </div>
   );

@@ -1,11 +1,14 @@
 /**
  * PriceList — one live category's menu, rendered in place under the tile selector.
  * Groups as small headers; rows: name · duration · price · arrow → /book?service=<id>.
- * Nail add-ons as one compact row. Prices/durations come from shared/catalogue.json.
+ * A service `note` sits under the name; `ingredients` (IV drips) hide behind a small
+ * "What's in it" disclosure so the price rhythm stays calm. Category `addOns` render as
+ * one compact row and a category `disclaimer` as small print below.
+ * Prices/durations come from shared/catalogue.json.
  */
 import * as React from "react";
 import { Link } from "wouter";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration, formatPrice, serviceId, type Category, type Service } from "@/lib/catalogue";
 
@@ -40,7 +43,36 @@ export function PriceList({ category }: { category: Category }) {
           </ul>
         </div>
       ) : null}
+
+      {category.disclaimer ? (
+        <p className="mx-auto mt-6 max-w-2xl text-center font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+          {category.disclaimer}
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+/** Compact, muted "what's in it" list — collapsed by default so rows keep their rhythm. */
+function Ingredients({ items, label }: { items: string[]; label: string }) {
+  return (
+    <details className="group -mt-1 pb-3">
+      <summary
+        className="focus-ring inline-flex cursor-pointer list-none items-center gap-1 rounded-md py-1 font-sans text-[0.75rem] text-ora-bronze [&::-webkit-details-marker]:hidden"
+        aria-label={`What's in ${label}`}
+      >
+        What&rsquo;s in it
+        <ChevronDown aria-hidden className="h-3 w-3 transition-transform duration-450 ease-luxury group-open:rotate-180" />
+      </summary>
+      <ul className="flex flex-wrap gap-x-1.5 pt-1 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+        {items.map((item, i) => (
+          <li key={item}>
+            {i > 0 ? <span aria-hidden className="mr-1.5 text-ora-taupe/70">·</span> : null}
+            {item}
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -55,7 +87,12 @@ function PriceRow({ categoryId, service }: { categoryId: string; service: Servic
         data-testid={`service-row-${id.replace("/", "-")}`}
         className="focus-ring group/row -mx-3 flex items-center gap-3 rounded-xl px-3 py-3 transition-colors duration-450 ease-luxury hover:bg-ora-cream/60 sm:gap-4"
       >
-        <span className="min-w-0 flex-1 font-sans text-[0.9375rem] leading-snug text-foreground">{service.name}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-sans text-[0.9375rem] leading-snug text-foreground">{service.name}</span>
+          {service.note ? (
+            <span className="mt-0.5 block font-sans text-[0.75rem] leading-snug text-ora-fog">{service.note}</span>
+          ) : null}
+        </span>
         <span className="hidden shrink-0 font-sans text-[0.8125rem] tabular-nums text-ora-fog sm:block">{formatDuration(service.duration)}</span>
         <span className={cn("shrink-0 text-right font-sans text-[0.9375rem] font-medium tabular-nums", free ? "text-ora-bronze" : "text-foreground")}>
           {free ? "Free" : formatPrice(service.price)}
@@ -68,6 +105,7 @@ function PriceRow({ categoryId, service }: { categoryId: string; service: Servic
           <ArrowRight className="h-3.5 w-3.5" />
         </span>
       </Link>
+      {service.ingredients?.length ? <Ingredients items={service.ingredients} label={service.name} /> : null}
     </li>
   );
 }

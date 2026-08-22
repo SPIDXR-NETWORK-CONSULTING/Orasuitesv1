@@ -5,7 +5,7 @@
 import raw from "@shared/catalogue.json";
 
 /* ── Types ──────────────────────────────────────────────── */
-export type CategoryId = "aesthetics" | "nails" | "hair" | "makeup" | "laser" | "wellness" | (string & {});
+export type CategoryId = "aesthetics" | "nails" | "iv-therapy" | "hair" | "makeup" | "laser" | "wellness" | (string & {});
 export type TeamKey = "meg" | "daniela" | "soheila" | "ruslana" | "diana" | (string & {});
 
 export interface Service {
@@ -16,6 +16,10 @@ export interface Service {
   duration: number;
   ghlCalendarId?: string;
   description?: string;
+  /** short tagline shown under the name, e.g. "Energise · Focus · Perform" */
+  note?: string;
+  /** what's in it — IV drip cocktails list theirs (shown as a compact expandable list) */
+  ingredients?: string[];
 }
 
 export interface ServiceGroup {
@@ -33,9 +37,12 @@ export interface Category {
   title: string;
   live: boolean;
   team: TeamKey[];
-  ghlGroupId?: string;
+  ghlGroupId?: string | null;
   groups: ServiceGroup[];
+  /** display-only extras, chosen at the clinic (nails, IV, hair) */
   addOns?: AddOn[];
+  /** small print rendered under the price list (e.g. the IV medical disclaimer) */
+  disclaimer?: string;
 }
 
 export interface TeamMemberMeta {
@@ -224,5 +231,5 @@ export function formatDuration(minutes: number): string {
 
 /** Category → GHL group id (for slot lookups by group). */
 export function ghlGroupFor(categoryId: CategoryId): string | undefined {
-  return findCategory(categoryId)?.ghlGroupId;
+  return findCategory(categoryId)?.ghlGroupId ?? undefined;
 }

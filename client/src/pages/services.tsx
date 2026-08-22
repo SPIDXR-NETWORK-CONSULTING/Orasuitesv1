@@ -19,6 +19,7 @@ import { PriceList } from "@/components/services/price-list";
 import heroBannerImage from "@assets/ora-hero-zebra-crossing.jpg";
 import aestheticsImage from "@assets/service-aesthetics-skincare.jpg";
 import nailsImage from "@assets/service-nails-gold.jpg";
+import ivImage from "@assets/service-wellness-homepage.jpg";
 import hairImage from "@assets/service-hair-blowout.jpg";
 import makeupImage from "@assets/service-wellness-facial.jpg";
 import laserImage from "@assets/service-led-laser.jpg";
@@ -27,11 +28,12 @@ import laserImage from "@assets/service-led-laser.jpg";
 const TILE_ART: Record<string, { image: string; alt: string }> = {
   aesthetics: { image: aestheticsImage, alt: "Aesthetic skincare treatment at ORÁ Suites" },
   nails: { image: nailsImage, alt: "Gel manicure with a gold accent at ORÁ Suites" },
+  "iv-therapy": { image: ivImage, alt: "Restorative wellness treatment at ORÁ Suites" },
   hair: { image: hairImage, alt: "Hair blow-dry" },
   makeup: { image: makeupImage, alt: "Facial and makeup treatment" },
   laser: { image: laserImage, alt: "LED and laser treatment" },
 };
-const TILE_ORDER = ["aesthetics", "nails", "hair", "makeup", "laser"];
+const TILE_ORDER = ["aesthetics", "nails", "iv-therapy", "hair", "makeup", "laser"];
 
 const CONSULTATION_ID = "aesthetics/consultation";
 
@@ -64,7 +66,7 @@ export default function ServicesPage() {
   useSEO({
     title: "Treatments & Prices | ORÁ Suites Manchester",
     description:
-      "Full treatment menu and prices at ORÁ Suites, 49 Deansgate, Manchester: nurse-led anti-wrinkle, fillers, skin boosters and facials, plus BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser coming soon.",
+      "Full treatment menu and prices at ORÁ Suites, 49 Deansgate, Manchester: nurse-led anti-wrinkle, fillers, skin boosters and facials, IV therapy drips, plus BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser coming soon.",
     path: "/services",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Services", path: "/services" }]),

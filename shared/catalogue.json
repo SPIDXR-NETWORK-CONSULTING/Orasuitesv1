@@ -1,9 +1,11 @@
 {
   "_meta": {
-    "updated": "2026-08-16",
+    "updated": "2026-08-21",
     "sources": {
       "aesthetics": "25 Clinic (Meg Cauli) Booksy menu — https://booksy.com/en-gb/76098_25clinic-ora-beauty_aesthetic-medicine_628476_manchester",
-      "nails": "ORÁ Beauty NAIL MENU image supplied by Abdul 2026-08-16 (supersedes June ORÁ NAILS menu)"
+      "nails": "ORÁ Beauty NAIL MENU image supplied by Abdul 2026-08-16 (supersedes June ORÁ NAILS menu)",
+      "iv": "ORÁ IV Drip & Glow menu supplied by Abdul 21 Aug 2026",
+      "hair": "Hair price list supplied by Abdul 21 Aug 2026 (not yet live — no stylist)"
     },
     "team": {
       "meg": {
@@ -93,10 +95,10 @@
               "ghlCalendarId": "ZTRee8oRYGWfVlgoiP8f"
             },
             {
-              "name": "Masseter Muscle (Jaw Slimming)",
-              "price": 140,
+              "name": "Masseter Botox",
+              "price": 200,
               "duration": 30,
-              "ghlCalendarId": "dBBxpgbUalyN7RdC3kKp"
+              "ghlCalendarId": "KQGY7SQI0TzVzMA1F98w"
             },
             {
               "name": "Nose Slimming",
@@ -147,33 +149,33 @@
           "services": [
             {
               "name": "Lip Filler — 0.5ml",
-              "price": 145,
+              "price": 150,
               "duration": 45,
               "ghlCalendarId": "8nIRmCPWHC3y64q7ZzMG"
             },
             {
-              "name": "Lip Filler — 1.1ml",
+              "name": "Lip Filler — 0.6–1ml",
               "price": 180,
               "duration": 45,
-              "ghlCalendarId": "M1qSMkY6HyGrbA9yuZ2E"
+              "ghlCalendarId": "eL1J9ThQeu125O2oxQND"
             },
             {
-              "name": "Cheek Filler — 1ml",
-              "price": 145,
+              "name": "Facial Contouring — 1ml",
+              "price": 160,
+              "duration": 45,
+              "ghlCalendarId": "DlZqnJS13tpk7g4VHIKB"
+            },
+            {
+              "name": "Facial Contouring — 2ml",
+              "price": 260,
               "duration": 60,
-              "ghlCalendarId": "80HM4TSMUyerOmTzd837"
+              "ghlCalendarId": "GkPmQs5qScddlyzRnU5F"
             },
             {
-              "name": "Chin Filler",
-              "price": 145,
-              "duration": 45,
-              "ghlCalendarId": "kZKLBN7TiCafai1slnYu"
-            },
-            {
-              "name": "Jawline Filler",
-              "price": 145,
-              "duration": 45,
-              "ghlCalendarId": "Rxi4eGEaWL2SG2LRuiFy"
+              "name": "Facial Contouring — 3ml",
+              "price": 360,
+              "duration": 75,
+              "ghlCalendarId": "EMm511zmNQXDhmV7av3Y"
             },
             {
               "name": "Smile Lines (Nasolabial) Filler",
@@ -229,16 +231,18 @@
               "ghlCalendarId": "IkbXWZFxcrV4sQbvwGWL"
             },
             {
-              "name": "PRP Regenerative Facial — Single",
+              "name": "PRP Regenerative — Single",
               "price": 250,
               "duration": 80,
-              "ghlCalendarId": "uNO7cu8TwLoyOMnilQKK"
+              "ghlCalendarId": "nvhUP7nT1uXsudod5y2k",
+              "note": "Face or hair — area agreed at your appointment."
             },
             {
-              "name": "PRP Regenerative Facial — Course of 3",
+              "name": "PRP Regenerative — Course of 3",
               "price": 695,
               "duration": 80,
-              "ghlCalendarId": "5VYdMfqUDxN6ZvF0t425"
+              "ghlCalendarId": "T9BnTFUYAGv7bZ45Qmfj",
+              "note": "Face or hair — area agreed at your appointment."
             },
             {
               "name": "Vitamin B12 Injection",
@@ -268,12 +272,6 @@
               "price": 200,
               "duration": 60,
               "ghlCalendarId": "k9KesLVuF4kKjoYJCsdd"
-            },
-            {
-              "name": "Microneedling",
-              "price": 85,
-              "duration": 50,
-              "ghlCalendarId": "zWHGREAcsQVMMnboALs5"
             },
             {
               "name": "Chemical Peel",
@@ -466,11 +464,277 @@
       ]
     },
     {
+      "id": "iv-therapy",
+      "title": "IV Therapy",
+      "live": true,
+      "team": [
+        "meg",
+        "daniela"
+      ],
+      "ghlGroupId": "k8qN07oPGPDMtR7DDdyO",
+      "disclaimer": "These products are not intended to diagnose, treat, cure or prevent any disease or medical condition. Always consult a registered medical practitioner before commencing any IV therapy. All treatments are subject to consultation.",
+      "groups": [
+        {
+          "name": "Hydration",
+          "services": [
+            {
+              "name": "Hydration",
+              "price": 99,
+              "duration": 45,
+              "ingredients": [
+                "Essential Hydration 100ml"
+              ],
+              "note": "Rapid fluid replacement and hydration support.",
+              "ghlCalendarId": "iXwUb3Vqs7hs2KrDWagJ"
+            },
+            {
+              "name": "Extreme Hydration",
+              "price": 150,
+              "duration": 45,
+              "ingredients": [
+                "Premium Hydration 1000ml"
+              ],
+              "note": "Deep hydration for intense recovery and optimal performance.",
+              "ghlCalendarId": "H4Em0vAR1Jc8GpG0bvtR"
+            }
+          ]
+        },
+        {
+          "name": "IV Therapy Cocktails",
+          "services": [
+            {
+              "name": "Energy",
+              "price": 140,
+              "duration": 60,
+              "note": "Energise · Focus · Perform",
+              "ingredients": [
+                "250ml Hydration",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B6 50mg",
+                "Vitamin B12",
+                "Vitamin C 500mg",
+                "Glucose"
+              ],
+              "ghlCalendarId": "AmUtox9jybEvDOfFjr27"
+            },
+            {
+              "name": "Hangover Rescue",
+              "price": 150,
+              "duration": 60,
+              "note": "Rehydrate · Replenish · Recover",
+              "ingredients": [
+                "250ml Hydration",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B6 50mg",
+                "Vitamin C 1000mg",
+                "Glucose"
+              ],
+              "ghlCalendarId": "vFukvmyGpxpzIOEFyg6L"
+            },
+            {
+              "name": "Immunity Plus",
+              "price": 160,
+              "duration": 60,
+              "note": "Defend · Strengthen · Protect",
+              "ingredients": [
+                "250ml Hydration",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B6 50mg",
+                "Vitamin C 1000mg",
+                "Zinc",
+                "Glucose"
+              ],
+              "ghlCalendarId": "8q6fiUoTLxvfEHuGv0pu"
+            },
+            {
+              "name": "Myers Cocktail",
+              "price": 160,
+              "duration": 60,
+              "note": "Comprehensive nutrient therapy",
+              "ingredients": [
+                "250ml Hydration",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B6 50mg",
+                "Vitamin B12",
+                "Vitamin C 1000mg",
+                "Glucose"
+              ],
+              "ghlCalendarId": "dZe0IbUTKcWDFbv381mM"
+            },
+            {
+              "name": "Skin Brightening",
+              "price": 160,
+              "duration": 60,
+              "note": "Brighten · Renew · Glow",
+              "ingredients": [
+                "250ml Hydration",
+                "Glutathione 600mg",
+                "Vitamin C 1000mg",
+                "Glucose"
+              ],
+              "ghlCalendarId": "mremHAw9ru1l4QYfod7j"
+            },
+            {
+              "name": "Glow & Radiance",
+              "price": 180,
+              "duration": 60,
+              "note": "Brighten · Hydrate · Glow",
+              "ingredients": [
+                "250ml Hydration",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B5 250mg",
+                "Vitamin B6 160mg",
+                "Vitamin C 1000mg",
+                "Glutathione 600mg",
+                "Glucose"
+              ],
+              "ghlCalendarId": "8hQSbG5YG3XJXRxOWXTY"
+            },
+            {
+              "name": "Sports Performance",
+              "price": 200,
+              "duration": 60,
+              "note": "Performance · Recovery · Strength",
+              "ingredients": [
+                "250ml Hydration",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B6 50mg",
+                "Vitamin B12",
+                "Glucose",
+                "L-Carnitine",
+                "Glutamine"
+              ],
+              "ghlCalendarId": "qf8ogIUTV4fEHDEnO8yT"
+            },
+            {
+              "name": "Signature Reset",
+              "price": 225,
+              "duration": 60,
+              "note": "Signature cocktail — Reset · Replenish · Restore",
+              "ingredients": [
+                "250ml Hydration",
+                "Glutathione 600mg",
+                "Biotin (B7) 5mg",
+                "Vitamin B1 250mg",
+                "Vitamin B2 4mg",
+                "Vitamin B3 160mg",
+                "Vitamin B5 250mg",
+                "Vitamin B6 50mg",
+                "Vitamin B12",
+                "Vitamin C 2g",
+                "Glucose"
+              ],
+              "ghlCalendarId": "7Jn6n5mrHn3l4iI7Zups"
+            }
+          ]
+        }
+      ],
+      "addOns": [
+        {
+          "name": "Zinc",
+          "price": 30
+        },
+        {
+          "name": "Vitamin B Complex",
+          "price": 40
+        },
+        {
+          "name": "Glutathione 600mg",
+          "price": 50
+        },
+        {
+          "name": "Amino Acids",
+          "price": 50
+        },
+        {
+          "name": "Vitamin C",
+          "price": 30
+        },
+        {
+          "name": "Magnesium",
+          "price": 40
+        },
+        {
+          "name": "Biotin",
+          "price": 40
+        }
+      ]
+    },
+    {
       "id": "hair",
       "title": "Hair",
       "live": false,
       "team": [],
-      "groups": []
+      "groups": [
+        {
+          "name": "Wash & Curly Blow Dry",
+          "services": [
+            {
+              "name": "Wash & Curly Blow Dry — Short (above shoulder)",
+              "price": 35,
+              "duration": 45
+            },
+            {
+              "name": "Wash & Curly Blow Dry — Long",
+              "price": 42,
+              "duration": 60
+            },
+            {
+              "name": "Wash & Curly Blow Dry — Extensions",
+              "price": 50,
+              "duration": 75
+            }
+          ]
+        },
+        {
+          "name": "Straight Blow Dry",
+          "services": [
+            {
+              "name": "Straight Blow Dry — Short",
+              "price": 32,
+              "duration": 45
+            },
+            {
+              "name": "Straight Blow Dry — Long",
+              "price": 37,
+              "duration": 60
+            },
+            {
+              "name": "Straight Blow Dry — Extensions",
+              "price": 45,
+              "duration": 75
+            }
+          ]
+        },
+        {
+          "name": "Luxury",
+          "services": [
+            {
+              "name": "Luxury Blow Dry",
+              "price": 60,
+              "duration": 75
+            }
+          ]
+        }
+      ],
+      "addOns": [
+        {
+          "name": "Deep conditioning treatment",
+          "price": 10
+        }
+      ]
     },
     {
       "id": "makeup",
