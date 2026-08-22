@@ -19,7 +19,7 @@ import { PriceList } from "@/components/services/price-list";
 import heroBannerImage from "@assets/ora-hero-zebra-crossing.jpg";
 import aestheticsImage from "@assets/service-aesthetics-skincare.jpg";
 import nailsImage from "@assets/service-nails-gold.jpg";
-import ivImage from "@assets/service-wellness-homepage.jpg";
+import ivImage from "@assets/service-iv-drips.jpg";
 import hairImage from "@assets/service-hair-blowout.jpg";
 import makeupImage from "@assets/service-wellness-facial.jpg";
 import laserImage from "@assets/service-led-laser.jpg";
@@ -28,7 +28,7 @@ import laserImage from "@assets/service-led-laser.jpg";
 const TILE_ART: Record<string, { image: string; alt: string }> = {
   aesthetics: { image: aestheticsImage, alt: "Aesthetic skincare treatment at ORÁ Suites" },
   nails: { image: nailsImage, alt: "Gel manicure with a gold accent at ORÁ Suites" },
-  "iv-therapy": { image: ivImage, alt: "Restorative wellness treatment at ORÁ Suites" },
+  "iv-therapy": { image: ivImage, alt: "IV therapy drip bags prepared at ORÁ Suites" },
   hair: { image: hairImage, alt: "Hair blow-dry" },
   makeup: { image: makeupImage, alt: "Facial and makeup treatment" },
   laser: { image: laserImage, alt: "LED and laser treatment" },
