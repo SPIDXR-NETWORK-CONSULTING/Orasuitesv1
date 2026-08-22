@@ -7,7 +7,7 @@ import { useMotionSafe, viewportOnce } from "@/lib/motion";
 import { liveCategories, comingSoonCategories, fromPrice, formatPrice, type Category, type CategoryId } from "@/lib/catalogue";
 import aestheticsImage from "@assets/service-injectables.jpg";
 import nailsImage from "@assets/service-nails-ora.jpg";
-import ivImage from "@assets/service-wellness-homepage.jpg";
+import ivImage from "@assets/service-iv-drips.jpg";
 import hairImage from "@assets/service-hair-homepage.jpg";
 import makeupImage from "@assets/service-wellness-facial.jpg";
 import laserImage from "@assets/service-led-laser.jpg";
@@ -16,7 +16,7 @@ import laserImage from "@assets/service-led-laser.jpg";
 const IMAGES: Record<string, { src: string; alt: string }> = {
   aesthetics: { src: aestheticsImage, alt: "Nurse-led aesthetic treatment in a warm-lit room at ORÁ Suites" },
   nails: { src: nailsImage, alt: "Freshly finished luxury manicure at ORÁ Nails" },
-  "iv-therapy": { src: ivImage, alt: "Restorative wellness treatment at ORÁ Suites" },
+  "iv-therapy": { src: ivImage, alt: "IV therapy drip bags prepared at ORÁ Suites" },
   hair: { src: hairImage, alt: "Soft blow-dried hair" },
   makeup: { src: makeupImage, alt: "Facial treatment before a makeup appointment" },
   laser: { src: laserImage, alt: "LED and laser skin treatment" },
