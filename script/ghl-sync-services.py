@@ -36,7 +36,9 @@ def api(method, path, body=None):
 cat = json.load(open(os.path.join(ROOT, "shared", "catalogue.json")))
 team = cat["_meta"]["team"]
 
-OPEN_HOURS = [{"daysOfTheWeek": [d], "hours": [{"openHour": 9, "openMinute": 0, "closeHour": 19, "closeMinute": 0}]} for d in range(1, 7)]
+# Clinic hours: Mon–Sat 10:00–19:30, Sun 10:00–17:00. Day 0 = Sunday (GHL convention).
+OPEN_HOURS = [{"daysOfTheWeek": [d], "hours": [{"openHour": 10, "openMinute": 0, "closeHour": 19, "closeMinute": 30}]} for d in range(1, 7)]
+OPEN_HOURS += [{"daysOfTheWeek": [0], "hours": [{"openHour": 10, "openMinute": 0, "closeHour": 17, "closeMinute": 0}]}]
 
 existing = {c["name"]: c for c in api("GET", f"/calendars/?locationId={LOC}").get("calendars", [])}
 groups = {g["name"]: g for g in api("GET", f"/calendars/groups?locationId={LOC}").get("groups", [])}
