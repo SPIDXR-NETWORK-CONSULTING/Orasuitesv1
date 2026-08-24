@@ -24,6 +24,8 @@ export interface CatalogueService {
   categoryTitle: string;
   groupName: string;
   live: boolean;
+  /** Accepts ONLINE bookings. A live-but-unbookable service is enquiry-only. */
+  bookable: boolean;
 }
 
 const raw = catalogueRaw as any;
@@ -61,6 +63,7 @@ export function allServices(): CatalogueService[] {
           categoryTitle: c.title,
           groupName: g.name,
           live: Boolean(c.live),
+          bookable: Boolean(c.live) && Boolean(c.bookable),
         });
       }
     }
@@ -95,4 +98,18 @@ export function depositPence(priceGbp: number, percent: number = DEPOSIT_PERCENT
 export function formatPence(pence: number): string {
   const pounds = pence / 100;
   return Number.isInteger(pounds) ? `£${pounds}` : `£${pounds.toFixed(2)}`;
+}
+
+/**
+ * Per-category booking gate.
+ *
+ * `BOOKING_ENABLED` is the master switch; this is the finer one — it lets nails
+ * and IV go live online while aesthetics stays enquiry-only. Enforced in the API
+ * (not just the UI) so a stale tab, a saved link or a replayed request cannot
+ * book a category the clinic has not opened.
+ *
+ * Unknown ids fail CLOSED: if we cannot identify the service, we do not book it.
+ */
+export function isBookableService(idOrName: string | undefined | null): boolean {
+  return findService(idOrName)?.bookable === true;
 }

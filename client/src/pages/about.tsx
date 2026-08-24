@@ -147,7 +147,7 @@ export default function AboutPage() {
               </li>
               <li className="flex items-start justify-center gap-3 md:justify-start">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0 text-ora-bronze" aria-hidden />
-                <span>Monday – Saturday, 9am – 7pm</span>
+                <span>Every day, 10am – 5pm</span>
               </li>
             </ul>
             <div className="mt-7 flex justify-center md:justify-start">

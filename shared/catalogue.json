@@ -37,13 +37,15 @@
     "depositPercent": 20,
     "notes": {
       "emailSource": "Google Workspace admin (verified 20 Aug 2026). These are the addresses used for practitioner alerts and Google Calendar invites."
-    }
+    },
+    "bookableNote": "`bookable` = accepts ONLINE bookings. A live-but-not-bookable category still shows its full price list; its Book buttons route to the enquiry form instead. Enforced client-side AND in the API."
   },
   "categories": [
     {
       "id": "aesthetics",
       "title": "Aesthetics",
       "live": true,
+      "bookable": false,
       "team": [
         "meg",
         "daniela"
@@ -293,6 +295,7 @@
       "id": "nails",
       "title": "Nails",
       "live": true,
+      "bookable": true,
       "team": [
         "soheila",
         "ruslana",
@@ -467,6 +470,7 @@
       "id": "iv-therapy",
       "title": "IV Therapy",
       "live": true,
+      "bookable": true,
       "team": [
         "meg",
         "daniela"
@@ -676,6 +680,7 @@
       "id": "hair",
       "title": "Hair",
       "live": false,
+      "bookable": false,
       "team": [],
       "groups": [
         {
@@ -740,6 +745,7 @@
       "id": "makeup",
       "title": "Makeup",
       "live": false,
+      "bookable": false,
       "team": [],
       "groups": []
     },
@@ -747,6 +753,7 @@
       "id": "laser",
       "title": "Laser",
       "live": false,
+      "bookable": false,
       "team": [],
       "groups": []
     }

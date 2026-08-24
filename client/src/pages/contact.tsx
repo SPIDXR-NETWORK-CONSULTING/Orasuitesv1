@@ -34,8 +34,25 @@ type Errors = Partial<Record<keyof ContactValues, string>>;
 const SERVICE_OPTIONS = [...categories.map((c) => c.title), "Room rental", "Something else"];
 
 /* ── form ──────────────────────────────────────────────── */
+/**
+ * Prefill from `/contact?service=<category title>&treatment=<treatment name>`,
+ * the link used by every price row in a category that is not open for online
+ * booking. Without this the client would land on a blank form having already
+ * told us what they wanted.
+ */
+function prefillFromQuery(): { service: string; message: string } {
+  if (typeof window === "undefined") return { service: "", message: "" };
+  const q = new URLSearchParams(window.location.search);
+  const service = q.get("service") ?? "";
+  const treatment = q.get("treatment") ?? "";
+  return {
+    service: SERVICE_OPTIONS.includes(service) ? service : "",
+    message: treatment ? `I'd like to book ${treatment}. Please let me know your next availability.` : "",
+  };
+}
+
 function EnquiryForm() {
-  const [values, setValues] = React.useState<ContactValues>({ name: "", email: "", phone: "", service: "", message: "" });
+  const [values, setValues] = React.useState<ContactValues>(() => ({ name: "", email: "", phone: "", ...prefillFromQuery() }));
   const [errors, setErrors] = React.useState<Errors>({});
   const [touched, setTouched] = React.useState<Partial<Record<keyof ContactValues, boolean>>>({});
   const [state, setState] = React.useState<SubmitState>("idle");
@@ -196,8 +213,8 @@ export default function ContactPage() {
                 <li className="flex gap-3">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0 text-ora-bronze" aria-hidden />
                   <div data-testid="text-hours">
-                    <p className="text-foreground">Monday – Saturday, 9am – 7pm</p>
-                    <p className="mt-0.5 text-[0.875rem]">Sunday closed</p>
+                    <p className="text-foreground">Every day, 10am – 5pm</p>
+                    <p className="mt-0.5 text-[0.875rem]">Including weekends</p>
                   </div>
                 </li>
                 <li className="flex gap-3">

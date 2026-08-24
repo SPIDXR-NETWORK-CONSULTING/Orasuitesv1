@@ -61,7 +61,7 @@ const PLANS: Plan[] = [
     price: "£130",
     period: "per day",
     popular: true,
-    features: ["Full day access, 9am–7pm", "Priority booking", "Marketing inclusion"],
+    features: ["Full day access, 10am–5pm", "Priority booking", "Marketing inclusion"],
     image: roomRentalIncluded,
     imageAlt: "A fully equipped ORÁ treatment room with bed, storage and soft lighting",
   },

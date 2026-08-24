@@ -36,6 +36,8 @@ export interface Category {
   id: CategoryId;
   title: string;
   live: boolean;
+  /** Accepts ONLINE bookings. Live-but-unbookable = shown with prices, enquiry only. */
+  bookable?: boolean;
   team: TeamKey[];
   ghlGroupId?: string | null;
   groups: ServiceGroup[];
@@ -67,6 +69,7 @@ export interface ResolvedService extends Service {
   categoryTitle: string;
   groupName: string;
   live: boolean;
+  bookable: boolean;
 }
 
 /* ── Data ───────────────────────────────────────────────── */
@@ -135,6 +138,15 @@ export function allTeam(): TeamMember[] {
 }
 
 /* ── Category helpers ───────────────────────────────────── */
+/** Categories open for ONLINE booking right now (nails + IV therapy today). */
+export function bookableCategories(): Category[] {
+  return categories.filter((c) => c.live && c.bookable);
+}
+/** True when this category takes online bookings; false = show prices, route to enquiry. */
+export function isBookable(id: CategoryId): boolean {
+  return bookableCategories().some((c) => c.id === id);
+}
+
 export function liveCategories(): Category[] {
   return categories.filter((c) => c.live);
 }
@@ -176,6 +188,7 @@ export function allServices(): ResolvedService[] {
           categoryTitle: c.title,
           groupName: g.name,
           live: c.live,
+          bookable: Boolean(c.live && c.bookable),
         });
       }
     }

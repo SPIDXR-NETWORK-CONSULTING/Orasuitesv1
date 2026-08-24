@@ -8,7 +8,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { liveCategories, findCategory, servicesFor, formatDuration, formatPrice, type CategoryId, type ResolvedService } from "@/lib/catalogue";
+import { bookableCategories, findCategory, servicesFor, formatDuration, formatPrice, type CategoryId, type ResolvedService } from "@/lib/catalogue";
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import { StepHeader } from "../step-shell";
 
@@ -29,9 +29,11 @@ interface Props {
 }
 
 export function ServiceStep({ selected, initialCategory, onSelect }: Props) {
-  const live = React.useMemo(liveCategories, []);
+  // Only categories open for ONLINE booking. Aesthetics and hair are shown on
+  // the services page with full prices, but route to an enquiry instead.
+  const live = React.useMemo(bookableCategories, []);
   const [cat, setCat] = React.useState<CategoryId>(
-    selected?.categoryId ?? (initialCategory && live.some((c) => c.id === initialCategory) ? initialCategory : live[0]?.id ?? "aesthetics"),
+    selected?.categoryId ?? (initialCategory && live.some((c) => c.id === initialCategory) ? initialCategory : live[0]?.id ?? "nails"),
   );
   const [q, setQ] = React.useState("");
   const m = useMotionSafe();

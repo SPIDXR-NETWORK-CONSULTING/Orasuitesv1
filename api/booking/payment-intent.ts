@@ -16,7 +16,7 @@
  * preview mode" and keeps working exactly as it does today.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { findService, depositPence, DEPOSIT_PERCENT } from "../_lib/catalogue.js";
+import { findService, depositPence, DEPOSIT_PERCENT, isBookableService } from "../_lib/catalogue.js";
 import { createPaymentIntent, isStripeConfigured } from "../_lib/stripe.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -41,6 +41,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const service = findService(serviceId);
   if (!service) return res.status(400).json({ error: "Unknown treatment." });
   if (!service.live) return res.status(400).json({ error: "That treatment isn't bookable online yet." });
+  // Never hold a card for a category that is not open online.
+  if (!isBookableService(serviceId)) {
+    return res.status(400).json({ error: "That treatment isn't open for online booking yet — please call the clinic or send us an enquiry." });
+  }
 
   // Free consultations never reach Stripe.
   if (service.price <= 0) {

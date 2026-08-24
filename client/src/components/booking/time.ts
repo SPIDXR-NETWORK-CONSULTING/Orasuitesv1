@@ -66,7 +66,7 @@ export interface DayOption {
   monthShort: string;
   weekdayShort: string;
   isToday: boolean;
-  /** Sunday = closed */
+  /** Reserved for future closures — the clinic currently opens 7 days. */
   closed: boolean;
 }
 
@@ -92,7 +92,7 @@ export function upcomingDays(count = 14, from = Date.now()): DayOption[] {
       monthShort: moFmt.format(new Date(noon)),
       weekdayShort: wdFmt.format(new Date(noon)),
       isToday: ymd === todayYmd,
-      closed: weekday === 0,
+      closed: false,
     });
   }
   return out;

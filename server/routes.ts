@@ -9,6 +9,7 @@ import { notifyBooking, serviceMetaForCalendar, disclaimerForCalendar } from "..
 import { resolveContact, createBookingOpportunity } from "../api/_lib/ghl-contacts.js";
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../api/_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../api/_lib/stripe.js";
+import { isBookableService } from "../api/_lib/catalogue.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -120,6 +121,16 @@ export async function registerRoutes(
 
     if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
       return res.status(400).json({ error: "Missing required booking fields" });
+    }
+
+    // ── Category gate ───────────────────────────────────────────────────────
+    // Nails and IV therapy are open online; aesthetics and hair are enquiry-only
+    // for now. Checked here, not just in the UI, so a stale tab or a replayed
+    // request cannot book a category the clinic has not opened. Fails CLOSED.
+    if (!isBookableService(serviceId ?? calendarId ?? serviceName)) {
+      return res.status(400).json({
+        error: "That treatment isn't open for online booking yet — please call the clinic or send us an enquiry.",
+      });
     }
 
     // ── Deposit gate ──────────────────────────────────────────────────────

@@ -1,6 +1,8 @@
 /**
  * PriceList — one live category's menu, rendered in place under the tile selector.
- * Groups as small headers; rows: name · duration · price · arrow → /book?service=<id>.
+ * Groups as small headers; rows: name · duration · price · arrow.
+ * Bookable categories link to /book?service=<id>; the rest send an enquiry
+ * prefilled with the treatment, so a closed category still converts.
  * A service `note` sits under the name; `ingredients` (IV drips) hide behind a small
  * "What's in it" disclosure so the price rhythm stays calm. Category `addOns` render as
  * one compact row and a category `disclaimer` as small print below.
@@ -10,7 +12,7 @@ import * as React from "react";
 import { Link } from "wouter";
 import { ArrowRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDuration, formatPrice, serviceId, type Category, type Service } from "@/lib/catalogue";
+import { findCategory, formatDuration, formatPrice, serviceId, type Category, type Service, isBookable } from "@/lib/catalogue";
 
 export function PriceList({ category }: { category: Category }) {
   return (
@@ -79,11 +81,15 @@ function Ingredients({ items, label }: { items: string[]; label: string }) {
 function PriceRow({ categoryId, service }: { categoryId: string; service: Service }) {
   const id = serviceId(categoryId, service.name);
   const free = service.price === 0;
+  const online = isBookable(categoryId);
+  const href = online
+    ? `/book?service=${encodeURIComponent(id)}`
+    : `/contact?service=${encodeURIComponent(findCategory(categoryId)?.title ?? "")}&treatment=${encodeURIComponent(service.name)}`;
   return (
     <li>
       <Link
-        href={`/book?service=${encodeURIComponent(id)}`}
-        aria-label={`Book ${service.name}, ${formatDuration(service.duration)}, ${free ? "complimentary" : formatPrice(service.price)}`}
+        href={href}
+        aria-label={`${online ? "Book" : "Enquire about"} ${service.name}, ${formatDuration(service.duration)}, ${free ? "complimentary" : formatPrice(service.price)}`}
         data-testid={`service-row-${id.replace("/", "-")}`}
         className="focus-ring group/row -mx-3 flex items-center gap-3 rounded-xl px-3 py-3 transition-colors duration-450 ease-luxury hover:bg-ora-cream/60 sm:gap-4"
       >
