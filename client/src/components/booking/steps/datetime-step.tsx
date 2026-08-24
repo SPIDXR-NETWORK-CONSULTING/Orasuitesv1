@@ -1,6 +1,6 @@
 /**
  * Step 2 — date & time.
- * 14-day horizontal strip (Sundays closed) → GHL free-slots for the chosen day,
+ * 14-day horizontal strip (open 7 days) → GHL free-slots for the chosen day,
  * grouped Morning / Afternoon / Evening. Skeleton shimmer while loading.
  */
 import * as React from "react";
@@ -54,7 +54,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
 
   return (
     <div>
-      <StepHeader step={1} title="When suits you?" lede="Manchester time. Closed Sundays." />
+      <StepHeader step={1} title="When suits you?" lede="Manchester time. Open every day, 10am – 5pm." />
 
       {/* Date strip */}
       <div className="relative">

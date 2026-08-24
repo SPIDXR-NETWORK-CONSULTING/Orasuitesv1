@@ -239,7 +239,7 @@ export function Header() {
                   <a href="mailto:admin@orasuites.com" className="hover:text-ora-cream transition-colors">
                     admin@orasuites.com
                   </a>
-                  <span className="mx-2 text-ora-bronze/60">·</span>Mon–Sat 9–7
+                  <span className="mx-2 text-ora-bronze/60">·</span>Every day 10–5
                 </p>
               </motion.div>
             </motion.nav>

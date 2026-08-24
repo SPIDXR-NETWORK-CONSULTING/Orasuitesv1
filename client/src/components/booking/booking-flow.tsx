@@ -35,7 +35,10 @@ export function BookingFlow() {
     const id = new URLSearchParams(search).get("service");
     if (!id) return undefined;
     const s = findService(id);
-    return s && s.live ? s : undefined;
+    // `bookable` (not just `live`): an old link or a bookmark to a treatment the
+    // clinic has since closed online must fall back to the picker, not walk the
+    // client into a step the API will refuse.
+    return s && s.bookable ? s : undefined;
   }, [search]);
 
   const initialCategory = React.useMemo(() => new URLSearchParams(search).get("category") ?? undefined, [search]);

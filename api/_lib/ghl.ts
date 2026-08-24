@@ -21,6 +21,26 @@ export const GHL_BASE = "https://services.leadconnectorhq.com";
 export const GHL_USER_AGENT = "Mozilla/5.0 ora-suites/1.0";
 
 export const ADMIN_EMAIL = "admin@orasuites.com";
+
+/**
+ * The address every outbound email is sent FROM.
+ *
+ * WHY THIS MATTERS — do not change it back to admin@orasuites.com:
+ *   1. Replies. `bookings.orasuites.com` has MX pointing at Mailgun, which is
+ *      how GHL receives mail. A reply to this address lands back in the GHL
+ *      conversation thread, so reception sees BOTH sides. Replies to
+ *      admin@orasuites.com go to the Google Workspace inbox instead and are
+ *      invisible in GHL.
+ *   2. Authentication. GHL sends via Mailgun. The root domain's SPF authorises
+ *      Google only, under DMARC p=reject — so Mailgun sending as
+ *      admin@orasuites.com is unaligned. `bookings.orasuites.com` publishes
+ *      `v=spf1 include:spf.leadconnectorhq.com include:mailgun.org ~all`,
+ *      which is exactly the path the mail actually takes.
+ *
+ * Overridable by env if the sending domain ever moves.
+ */
+export const SENDER_EMAIL = process.env.GHL_SENDER_EMAIL || "bookings@bookings.orasuites.com";
+export const SENDER_NAME = process.env.GHL_SENDER_NAME || "ORÁ Suites";
 export const ROOM_RENTAL_SERVICE = "Room Rental";
 export const ROOM_RENTAL_PREFIX = "[Room Rental Enquiry]";
 
@@ -50,6 +70,28 @@ function env(name: "GHL_API_KEY" | "GHL_LOCATION_ID"): string {
   return v;
 }
 
+/**
+ * Stamp our verified sending identity onto every outbound conversation email.
+ *
+ * Done here rather than at each of the dozen call sites so no future sender can
+ * forget it — one missed `emailFrom` and that email's replies vanish from GHL.
+ * Never throws: a body we cannot parse is passed through untouched.
+ */
+function withSenderIdentity(path: string, body: RequestInit["body"]): RequestInit["body"] {
+  if (!path.startsWith("/conversations/messages") || typeof body !== "string") return body;
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed?.type !== "Email") return body;
+    if (parsed.emailFrom) return body;
+    // No Reply-To header: `bookings.orasuites.com` has MX pointing at Mailgun,
+    // so a reply to the From address already routes back into the GHL thread.
+    // (GHL rejects a `replyTo` string outright — it types that field as an enum.)
+    return JSON.stringify({ emailFrom: `${SENDER_NAME} <${SENDER_EMAIL}>`, ...parsed });
+  } catch {
+    return body;
+  }
+}
+
 /* ── low-level fetch ─────────────────────────────────────── */
 export async function ghlFetch<T = any>(
   path: string,
@@ -58,6 +100,7 @@ export async function ghlFetch<T = any>(
   const { version = "2021-07-28", headers, ...rest } = init;
   const res = await fetch(`${GHL_BASE}${path}`, {
     ...rest,
+    body: withSenderIdentity(path, rest.body),
     headers: {
       Authorization: `Bearer ${env("GHL_API_KEY")}`,
       Version: version,

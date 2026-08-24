@@ -9,7 +9,7 @@ import manchesterImage from "@assets/manchester-location_1770213665902.png";
 const ADDRESS = "49 Deansgate, Manchester M3 2AY";
 const EMAIL = "admin@orasuites.com";
 const MAPS_URL = "https://maps.google.com/?q=49+Deansgate+Manchester+M3+2AY";
-const HOURS = "Mon – Sat · 9am – 7pm";
+const HOURS = "Every day · 10am – 5pm";
 
 const ROWS = [
   { icon: <MapPin />, label: "Address", value: ADDRESS },

@@ -154,7 +154,7 @@ export function Footer() {
           <address className="not-italic text-[0.875rem] leading-relaxed text-ora-smoke">
             49 Deansgate, Manchester M3 2AY
             <span className="mx-2 text-ora-bronze/60">·</span>
-            Mon–Sat 9–7
+            Every day 10–5
             <span className="mx-2 text-ora-bronze/60">·</span>
             <a href="mailto:admin@orasuites.com" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
               admin@orasuites.com

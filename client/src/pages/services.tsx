@@ -138,7 +138,11 @@ export default function ServicesPage() {
         <p className="mt-12 text-center font-sans text-[0.9375rem] text-ora-fog">
           Not sure where to start?{" "}
           <Link
-            href={consultation ? `/book?service=${encodeURIComponent(consultation.id)}` : "/book"}
+            href={
+              consultation && consultation.bookable
+                ? `/book?service=${encodeURIComponent(consultation.id)}`
+                : `/contact?service=${encodeURIComponent(consultation?.categoryTitle ?? "Aesthetics")}&treatment=${encodeURIComponent(consultation?.name ?? "Consultation")}`
+            }
             className="focus-ring inline-flex items-center gap-1 text-ora-bronze underline-offset-4 hover:underline"
             data-testid="link-services-consultation"
           >
