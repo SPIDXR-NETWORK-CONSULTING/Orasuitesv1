@@ -102,7 +102,7 @@ export const BUSINESS = {
   addressLocality: "Manchester",
   postalCode: "M3 2AY",
   addressCountry: "GB",
-  openingHours: "Mo-Su 10:00-17:00",
+  openingHours: "Mo-Sa 10:00-19:30; Su 10:00-17:00",
   priceRange: "££",
   image: DEFAULT_OG_IMAGE,
   sameAs: ["https://www.instagram.com/ora_beauty_mcr/"],
@@ -131,7 +131,13 @@ export function defaultBusinessJsonLd(extra: Record<string, unknown> = {}): Reco
     openingHoursSpecification: [
       {
         "@type": "OpeningHoursSpecification",
-        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+        opens: "10:00",
+        closes: "19:30",
+      },
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Sunday"],
         opens: "10:00",
         closes: "17:00",
       },

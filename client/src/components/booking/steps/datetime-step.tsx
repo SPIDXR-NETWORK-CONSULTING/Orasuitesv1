@@ -54,7 +54,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
 
   return (
     <div>
-      <StepHeader step={1} title="When suits you?" lede="Manchester time. Open every day, 10am – 5pm." />
+      <StepHeader step={1} title="When suits you?" lede="Manchester time. Mon–Sat 10am–7:30pm, Sun 10am–5pm." />
 
       {/* Date strip */}
       <div className="relative">
