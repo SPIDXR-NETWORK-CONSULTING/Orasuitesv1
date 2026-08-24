@@ -10,7 +10,7 @@
  * The server reads the same intent from env BOOKING_ENABLED ("true"/"false");
  * keep the two in step — deploy sets it for you if you use script/deploy.sh.
  */
-export const BOOKING_ENABLED = false;
+export const BOOKING_ENABLED = true;
 
 /**
  * Private preview: /book?preview=<key> runs the REAL booking flow (real deposit,

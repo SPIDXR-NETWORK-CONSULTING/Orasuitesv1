@@ -470,7 +470,7 @@
       "id": "iv-therapy",
       "title": "IV Therapy",
       "live": true,
-      "bookable": true,
+      "bookable": false,
       "team": [
         "meg",
         "daniela"
