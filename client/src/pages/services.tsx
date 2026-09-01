@@ -23,6 +23,7 @@ import ivImage from "@assets/service-iv-drips.jpg";
 import hairImage from "@assets/service-hair-blowout.jpg";
 import makeupImage from "@assets/service-wellness-facial.jpg";
 import laserImage from "@assets/service-led-laser.jpg";
+import beautyImage from "@assets/service-beauty-brows.jpg";
 
 /* Approved image per category (brief v2 map). Prices never live here. */
 const TILE_ART: Record<string, { image: string; alt: string }> = {
@@ -32,8 +33,9 @@ const TILE_ART: Record<string, { image: string; alt: string }> = {
   hair: { image: hairImage, alt: "Hair blow-dry" },
   makeup: { image: makeupImage, alt: "Facial and makeup treatment" },
   laser: { image: laserImage, alt: "LED and laser treatment" },
+  beauty: { image: beautyImage, alt: "Eyebrow and eyelash treatment at ORÁ Suites" },
 };
-const TILE_ORDER = ["aesthetics", "nails", "iv-therapy", "hair", "makeup", "laser"];
+const TILE_ORDER = ["aesthetics", "nails", "iv-therapy", "hair", "beauty", "makeup", "laser"];
 
 const CONSULTATION_ID = "aesthetics/consultation";
 
