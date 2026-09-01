@@ -30,8 +30,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
   }
 
-  if (!isStripeConfigured()) {
-    return res.status(503).json({ error: "Card payments are not switched on yet.", stripe: false });
+  // Deposits can be paused without touching Stripe (keys stay for refunds).
+  // Paused → behave exactly like "Stripe not configured": the booking flow skips
+  // the payment step and books directly. Flip env DEPOSITS_ENABLED back to re-enable.
+  if (!isStripeConfigured() || process.env.DEPOSITS_ENABLED === "false") {
+    return res.status(503).json({ error: "Card payments are paused.", stripe: false });
   }
 
   const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) ?? {};
