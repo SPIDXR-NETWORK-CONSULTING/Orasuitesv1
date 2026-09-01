@@ -102,8 +102,10 @@ export interface DepositCheckInput {
 export async function verifyDeposit(input: DepositCheckInput): Promise<DepositCheck> {
   const service = findService(input.serviceId) ?? findService(input.calendarId) ?? findService(input.serviceName);
 
-  // No Stripe → the flow is exactly what it was before deposits existed.
-  if (!isStripeConfigured()) return { ok: true, paymentIntentId: null, depositPence: 0, service, intentStatus: null };
+  // Deposits paused (DEPOSITS_ENABLED=false) or Stripe not configured → the flow
+  // is exactly what it was before deposits existed: book with no deposit taken.
+  if (process.env.DEPOSITS_ENABLED === "false" || !isStripeConfigured())
+    return { ok: true, paymentIntentId: null, depositPence: 0, service, intentStatus: null };
 
   // Unknown service: we cannot price it, so we cannot demand a deposit for it.
   // Booking still proceeds (this is the pre-deposit behaviour) but it is logged.
