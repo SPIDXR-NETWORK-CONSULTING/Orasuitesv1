@@ -350,6 +350,29 @@
           ]
         },
         {
+          "name": "Acrylic",
+          "services": [
+            {
+              "name": "Acrylic Extensions — up to 4 length (with cutting cuticle)",
+              "price": 48,
+              "duration": 80,
+              "ghlCalendarId": "iDBU3ykHYXS60clNLMj2"
+            },
+            {
+              "name": "Acrylic Extensions — more than 4 length (with cutting cuticle)",
+              "price": 55,
+              "duration": 90,
+              "ghlCalendarId": "FC7wsN4PFZf1fME2gVWs"
+            },
+            {
+              "name": "Acrylic Infill (with cutting cuticle)",
+              "price": 42,
+              "duration": 80,
+              "ghlCalendarId": "jlta2VfgLJG8ebQCuQZS"
+            }
+          ]
+        },
+        {
           "name": "Manicures",
           "services": [
             {
@@ -738,6 +761,90 @@
         {
           "name": "Deep conditioning treatment",
           "price": 10
+        }
+      ]
+    },
+    {
+      "id": "beauty",
+      "title": "Beauty",
+      "live": false,
+      "bookable": false,
+      "team": [],
+      "groups": [
+        {
+          "name": "Facial Threading (Ladies)",
+          "services": [
+            {
+              "name": "Chin",
+              "price": 5,
+              "duration": 10
+            },
+            {
+              "name": "Lower Lip",
+              "price": 5,
+              "duration": 10
+            },
+            {
+              "name": "Upper Lip",
+              "price": 5,
+              "duration": 10
+            },
+            {
+              "name": "Forehead",
+              "price": 8,
+              "duration": 10
+            },
+            {
+              "name": "Lip & Chin",
+              "price": 8,
+              "duration": 15
+            },
+            {
+              "name": "Sides",
+              "price": 8,
+              "duration": 10
+            },
+            {
+              "name": "Full Face",
+              "price": 26,
+              "duration": 30
+            },
+            {
+              "name": "Full Face including Eyebrows",
+              "price": 33,
+              "duration": 35
+            }
+          ]
+        },
+        {
+          "name": "Eyebrow & Eyelash Tinting",
+          "services": [
+            {
+              "name": "Eyebrow Tint",
+              "price": 10,
+              "duration": 15
+            },
+            {
+              "name": "Eyelash Tint",
+              "price": 15,
+              "duration": 20
+            },
+            {
+              "name": "Eyebrow & Eyelash Tint",
+              "price": 23,
+              "duration": 35
+            }
+          ]
+        },
+        {
+          "name": "Eyebrow Threading",
+          "services": [
+            {
+              "name": "Eyebrow",
+              "price": 8,
+              "duration": 15
+            }
+          ]
         }
       ]
     },
