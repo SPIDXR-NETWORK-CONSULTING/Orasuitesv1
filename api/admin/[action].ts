@@ -13,6 +13,31 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ghlFetch } from "../_lib/ghl.js";
 import { TEAM_BY_USER_ID } from "../_lib/google-calendar.js";
+import { allServices } from "../_lib/catalogue.js";
+
+// Service names, longest first, so we match the most specific one.
+const SERVICE_NAMES: string[] = allServices()
+  .map((s) => s.name)
+  .sort((a, b) => b.length - a.length);
+
+/**
+ * GHL titles come in BOTH orders depending on how the appointment was made:
+ *   · our booking flow → "{service} — {client}"
+ *   · GHL widget/manual → "{client} — {service}"
+ * and the service itself can contain " — ". So we identify the service by
+ * matching a known catalogue name at the start or end, and the client is
+ * whatever's left. Falls back to a first-" — " split.
+ */
+function splitTitle(title: string): { client: string; service: string } {
+  const t = (title || "").trim();
+  for (const s of SERVICE_NAMES) {
+    if (t.endsWith(` — ${s}`)) return { client: t.slice(0, -(s.length + 3)).trim(), service: s };
+    if (t.startsWith(`${s} — `)) return { client: t.slice(s.length + 3).trim(), service: s };
+    if (t === s) return { client: "—", service: s };
+  }
+  const i = t.indexOf(" — ");
+  return i > 0 ? { client: t.slice(0, i).trim(), service: t.slice(i + 3).trim() } : { client: t || "—", service: "—" };
+}
 
 const LOC = process.env.GHL_LOCATION_ID || "";
 
@@ -55,14 +80,14 @@ async function today(req: VercelRequest, res: VercelResponse) {
     for (const ev of r.body?.events || []) {
       const id = String(ev.id || "");
       if (!id || seen.has(id)) continue;
+
+      // GHL's time filter is loose (it returns events outside the window), so
+      // filter to the requested day ourselves.
+      const startMs = Date.parse(ev.startTime);
+      if (Number.isNaN(startMs) || startMs < start || startMs > end) continue;
       seen.add(id);
 
-      // GHL titles are "{client} — {service}"; the service itself can contain
-      // " — " (e.g. "Straight Blow Dry — Short"), so split on the FIRST one only.
-      const title = String(ev.title || "");
-      const i = title.indexOf(" — ");
-      const client = i > 0 ? title.slice(0, i).trim() : (ev.contactName || "—");
-      const service = i > 0 ? title.slice(i + 3).trim() : title || "—";
+      const { client, service } = splitTitle(String(ev.title || ""));
       const assigned = ev.assignedUserId || uid;
 
       appointments.push({
