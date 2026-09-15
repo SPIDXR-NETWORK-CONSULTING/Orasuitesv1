@@ -1,33 +1,29 @@
 /**
- * ORÁ — Admin floor dashboard API (single dynamic function to respect the
- * Vercel Hobby 12-function cap). Actions via ?action=:
- *   · today   → every appointment across all practitioners for a day, merged
- *               into one list (no "select each member" like GHL forces).
+ * ORÁ — Admin floor dashboard API (single dynamic function; Vercel Hobby cap).
+ * Actions via ?action= :
+ *   · today    → every appointment across all practitioners for a day, merged.
+ *   · staff    → who's working today (per practitioner).
+ *   · services → bookable service list for the walk-in picker.
+ *   · slots    → free times today for a service (walk-in time picker).
+ *   · walkin   → (POST) create a walk-in: auto-assign, alert practitioner,
+ *                land in the pipeline. Admin can book ANY live service.
  *
- * Reads GHL (the current booking engine). When we migrate to a custom backend,
+ * Reads/writes GHL (the current engine). On the future custom-backend migration,
  * only this file changes — the dashboard page stays the same.
  *
- * Admin-only: requires ADMIN_KEY (?key= or x-admin-key header). It exposes
- * client names, so it must never be open.
+ * Admin-only: requires ADMIN_KEY (?key= or x-admin-key). Exposes client data.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ghlFetch } from "../_lib/ghl.js";
-import { TEAM_BY_USER_ID } from "../_lib/google-calendar.js";
-import { allServices } from "../_lib/catalogue.js";
+import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe } from "../_lib/google-calendar.js";
+import { allServices, findService } from "../_lib/catalogue.js";
+import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
+import { notifyBooking } from "../_lib/booking-notify.js";
 
-// Service names, longest first, so we match the most specific one.
-const SERVICE_NAMES: string[] = allServices()
-  .map((s) => s.name)
-  .sort((a, b) => b.length - a.length);
+const LOC = process.env.GHL_LOCATION_ID || "";
 
-/**
- * GHL titles come in BOTH orders depending on how the appointment was made:
- *   · our booking flow → "{service} — {client}"
- *   · GHL widget/manual → "{client} — {service}"
- * and the service itself can contain " — ". So we identify the service by
- * matching a known catalogue name at the start or end, and the client is
- * whatever's left. Falls back to a first-" — " split.
- */
+const SERVICE_NAMES: string[] = allServices().map((s) => s.name).sort((a, b) => b.length - a.length);
+
 function splitTitle(title: string): { client: string; service: string } {
   const t = (title || "").trim();
   for (const s of SERVICE_NAMES) {
@@ -39,7 +35,11 @@ function splitTitle(title: string): { client: string; service: string } {
   return i > 0 ? { client: t.slice(0, i).trim(), service: t.slice(i + 3).trim() } : { client: t || "—", service: "—" };
 }
 
-const LOC = process.env.GHL_LOCATION_ID || "";
+function dayRange(dateStr: string): { dateStr: string; start: number; end: number } {
+  const start = Date.parse(`${dateStr}T00:00:00Z`);
+  return { dateStr, start, end: start + 86_400_000 - 1 };
+}
+function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 
 function authorised(req: VercelRequest): boolean {
   const key = process.env.ADMIN_KEY;
@@ -50,59 +50,136 @@ function authorised(req: VercelRequest): boolean {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
   if (!authorised(req)) return res.status(401).json({ error: "Unauthorised" });
-
-  const action = String(req.query.action || "");
-  if (action === "today") return today(req, res);
-  return res.status(404).json({ error: `Unknown action: ${action}` });
+  switch (String(req.query.action || "")) {
+    case "today": return today(req, res);
+    case "staff": return staff(req, res);
+    case "services": return services(req, res);
+    case "slots": return slots(req, res);
+    case "walkin": return walkin(req, res);
+    default: return res.status(404).json({ error: `Unknown action` });
+  }
 }
 
-/** Every appointment for a day, across all practitioners, in one sorted list. */
+/** Every appointment for a day, across all practitioners, merged + sorted. */
 async function today(req: VercelRequest, res: VercelResponse) {
-  // Day window. Clinic hours (10:00–19:30 London) sit safely inside a UTC
-  // calendar day, so UTC boundaries are fine here.
-  // ponytail: UTC-day window; if the clinic ever runs past midnight, switch to a real London-tz range.
-  const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10);
-  const start = Date.parse(`${dateStr}T00:00:00Z`);
-  if (Number.isNaN(start)) return res.status(400).json({ error: "Bad date (use YYYY-MM-DD)" });
-  const end = start + 86_400_000 - 1;
-
+  const dateStr = (req.query.date as string) || todayStr();
+  if (Number.isNaN(Date.parse(`${dateStr}T00:00:00Z`))) return res.status(400).json({ error: "Bad date" });
+  const { start, end } = dayRange(dateStr);
   const seen = new Set<string>();
   const appointments: any[] = [];
   let errors = 0;
-
   for (const [uid, uname] of Array.from(TEAM_BY_USER_ID.entries())) {
-    const r = await ghlFetch<any>(
-      `/calendars/events?locationId=${LOC}&userId=${uid}&startTime=${start}&endTime=${end}`,
-      { version: "2021-04-15" },
-    ).catch(() => ({ ok: false, status: 0, body: null }) as const);
+    const r = await ghlFetch<any>(`/calendars/events?locationId=${LOC}&userId=${uid}&startTime=${start}&endTime=${end}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any));
     if (!r.ok) { errors++; continue; }
-
     for (const ev of r.body?.events || []) {
       const id = String(ev.id || "");
       if (!id || seen.has(id)) continue;
-
-      // GHL's time filter is loose (it returns events outside the window), so
-      // filter to the requested day ourselves.
       const startMs = Date.parse(ev.startTime);
       if (Number.isNaN(startMs) || startMs < start || startMs > end) continue;
       seen.add(id);
-
       const { client, service } = splitTitle(String(ev.title || ""));
       const assigned = ev.assignedUserId || uid;
-
-      appointments.push({
-        id,
-        startTime: ev.startTime,
-        endTime: ev.endTime,
-        client,
-        service,
-        practitioner: TEAM_BY_USER_ID.get(assigned) || uname,
-        status: ev.appointmentStatus || "confirmed",
-        contactId: ev.contactId || null,
-      });
+      appointments.push({ id, startTime: ev.startTime, endTime: ev.endTime, client, service, practitioner: TEAM_BY_USER_ID.get(assigned) || uname, status: ev.appointmentStatus || "confirmed", contactId: ev.contactId || null });
     }
   }
-
   appointments.sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
-  res.json({ date: dateStr, count: appointments.length, staffQueried: TEAM_BY_USER_ID.size, errors, appointments });
+  res.json({ date: dateStr, count: appointments.length, errors, appointments });
 }
+
+/** Who's working today — from each practitioner's personal calendar availability. */
+async function staff(req: VercelRequest, res: VercelResponse) {
+  const dateStr = (req.query.date as string) || todayStr();
+  const { start, end } = dayRange(dateStr);
+  const cals = (await ghlFetch<any>(`/calendars/?locationId=${LOC}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any))).body?.calendars || [];
+  const personalByUser = new Map<string, string>();
+  for (const c of cals) {
+    if (String(c.name || "").includes("Personal Calendar")) {
+      const uid = (c.teamMembers || [])[0]?.userId;
+      if (uid) personalByUser.set(uid, c.id);
+    }
+  }
+  const out: any[] = [];
+  for (const [uid, name] of Array.from(TEAM_BY_USER_ID.entries())) {
+    let working = false;
+    const pcal = personalByUser.get(uid);
+    if (pcal) {
+      const r = await ghlFetch<any>(`/calendars/${pcal}/free-slots?startDate=${start}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+      working = (((r.body || {})[dateStr] || {}).slots || []).length > 0;
+    }
+    out.push({ userId: uid, name, working });
+  }
+  res.json({ date: dateStr, staff: out });
+}
+
+/** Live services the admin can book as a walk-in (includes enquire-only ones). */
+async function services(_req: VercelRequest, res: VercelResponse) {
+  const list = allServices()
+    .filter((s) => s.live && s.ghlCalendarId)
+    .map((s) => ({ id: s.id, name: s.name, price: s.price, duration: s.duration, category: s.categoryId }));
+  res.json({ services: list });
+}
+
+/** Free times today for a service (walk-in time picker). */
+async function slots(req: VercelRequest, res: VercelResponse) {
+  const service = findService((req.query.serviceId as string) || "");
+  if (!service?.ghlCalendarId) return res.status(400).json({ error: "Unknown service" });
+  const dateStr = (req.query.date as string) || todayStr();
+  const { start, end } = dayRange(dateStr);
+  const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${start}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+  res.json({ slots: ((r.body || {})[dateStr] || {}).slots || [] });
+}
+
+/** Create a walk-in. Auto-assigns, alerts the practitioner, lands in pipeline. */
+async function walkin(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const service = findService(body.serviceId);
+  if (!service?.ghlCalendarId) return res.status(400).json({ error: "Unknown or unbookable service" });
+
+  const name = String(body.clientName || "Walk-in").trim() || "Walk-in";
+  const email = typeof body.email === "string" && body.email.includes("@") ? body.email.trim() : "";
+  const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+
+  // Time: use the given slot, else the next free slot today.
+  let start: string | undefined = typeof body.startTime === "string" ? body.startTime : undefined;
+  if (!start) {
+    const { start: ds, end } = dayRange(todayStr());
+    const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${ds}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+    const list: string[] = ((r.body || {})[todayStr()] || {}).slots || [];
+    const now = Date.now();
+    start = list.find((s) => Date.parse(s) >= now) || list[0];
+    if (!start) return res.status(409).json({ error: "No availability today for this service." });
+  }
+  const end = new Date(Date.parse(start) + service.duration * 60_000).toISOString();
+
+  const [firstName, ...rest] = name.split(/\s+/);
+  const lastName = rest.join(" ");
+  let contactId: string | undefined;
+  if (email) {
+    const c = await resolveContact({ email, firstName, lastName, phone, tags: ["walk-in"] });
+    contactId = c?.id || undefined;
+  } else {
+    const c = await ghlFetch<any>(`/contacts/`, { method: "POST", body: JSON.stringify({ locationId: LOC, firstName, lastName, phone: phone || undefined, tags: ["walk-in"] }) }).catch(() => ({ body: null } as any));
+    contactId = c.body?.contact?.id;
+  }
+  if (!contactId) return res.status(500).json({ error: "Could not create the client record. Add an email or phone." });
+
+  const appt = await ghlFetch<any>(`/calendars/events/appointments`, {
+    method: "POST",
+    body: JSON.stringify({ calendarId: service.ghlCalendarId, locationId: LOC, contactId, startTime: start, endTime: end, title: `${service.name} — ${name}`, appointmentStatus: "confirmed", toNotify: true, timezone: "Europe/London", notes: "Walk-in (added at reception)" }),
+  }).catch(() => ({ body: null } as any));
+  const appointmentId = appt.body?.id || appt.body?.event?.id;
+  if (!appointmentId) return res.status(502).json({ error: "GHL rejected the appointment", detail: appt.body });
+
+  const assignedUserId = appt.body?.assignedUserId || appt.body?.event?.assignedUserId || null;
+  const practitioner = assignedUserId ? TEAM_BY_USER_ID.get(assignedUserId) || null : null;
+
+  // Fire-and-forget: alert practitioner + admin (+ client if email), pipeline, mirror.
+  notifyBooking({ contactId, appointmentId, clientName: name, clientEmail: email, clientPhone: phone, serviceName: service.name, startTime: start, practitioner, practitionerEmail: assignedUserId ? TEAM_EMAIL_BY_USER_ID.get(assignedUserId) || null : null, durationMins: service.duration, price: service.price, depositPence: null } as any).catch(() => {});
+  createBookingOpportunity({ contactId, clientName: name, serviceName: service.name, price: service.price, startTime: start } as any).catch(() => null);
+  mirrorAppointmentSafe({ ghlId: appointmentId, ghlCalendarId: service.ghlCalendarId, assignedUserId, serviceName: service.name, clientName: name, clientEmail: email, clientPhone: phone, practitioner, notes: "Walk-in", startTime: start, endTime: end, status: "confirmed" } as any).catch(() => {});
+
+  res.json({ appointmentId, practitioner, startTime: start, endTime: end, price: service.price, service: service.name });
+}
+
+function safeJson(s: string): any { try { return JSON.parse(s); } catch { return {}; } }
