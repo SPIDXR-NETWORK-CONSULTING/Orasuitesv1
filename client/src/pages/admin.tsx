@@ -145,7 +145,7 @@ export default function AdminPage() {
             <button onClick={() => (section === "enquiries" ? fetch(q("enquiries"), { cache: "no-store" }).then((r) => r.json()).then((j) => setEnq(j.enquiries || [])) : load())} className="rounded-lg bg-ora-bronze px-3 py-1.5 text-sm text-white hover:opacity-90">{loading ? "…" : "↻"}</button>
           </div>
         </div>
-        {view === "day" && team.length > 0 && (
+        {section === "calendar" && view === "day" && team.length > 0 && (
           <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-5 pb-3">
             <span className="text-[11px] uppercase tracking-wide text-ora-fog">Today</span>
             {team.map((s) => { const n = countByName[s.name] || 0; return (
