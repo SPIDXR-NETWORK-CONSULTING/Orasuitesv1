@@ -57,6 +57,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "services": return services(req, res);
     case "slots": return slots(req, res);
     case "walkin": return walkin(req, res);
+    case "client": return client(req, res);
+    case "enquiries": return enquiries(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
   }
 }
@@ -192,6 +194,36 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   mirrorAppointmentSafe({ ghlId: appointmentId, ghlCalendarId: service.ghlCalendarId, assignedUserId, serviceName: service.name, clientName: name, clientEmail: email, clientPhone: phone, practitioner, notes: "Walk-in", startTime: start, endTime: end, status: "confirmed" } as any).catch(() => {});
 
   res.json({ appointmentId, practitioner, startTime: start, endTime: end, price: service.price, service: service.name });
+}
+
+/** One client: contact details + their full visit history. */
+async function client(req: VercelRequest, res: VercelResponse) {
+  const cid = (req.query.contactId as string) || "";
+  if (!cid) return res.status(400).json({ error: "contactId required" });
+  const [cR, aR] = await Promise.all([
+    ghlFetch<any>(`/contacts/${cid}`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any)),
+    ghlFetch<any>(`/contacts/${cid}/appointments`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any)),
+  ]);
+  const c = cR.body?.contact || {};
+  const evs = aR.body?.events || aR.body?.appointments || [];
+  const appointments = evs
+    .map((ev: any) => ({ id: ev.id, startTime: ev.startTime, service: splitTitle(String(ev.title || "")).service, practitioner: TEAM_BY_USER_ID.get(ev.assignedUserId) || null, status: ev.appointmentStatus || ev.appoinmentStatus || "confirmed" }))
+    .sort((a: any, b: any) => String(b.startTime).localeCompare(String(a.startTime)));
+  res.json({
+    contact: { name: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim() || "—", email: c.email || null, phone: c.phone || null, tags: c.tags || [], since: c.dateAdded || null },
+    appointments,
+  });
+}
+
+/** Recent website enquiries (GHL contacts tagged website-enquiry). */
+async function enquiries(_req: VercelRequest, res: VercelResponse) {
+  const r = await ghlFetch<any>(`/contacts/?locationId=${LOC}&query=&limit=50`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any));
+  const list = (r.body?.contacts || [])
+    .filter((c: any) => (c.tags || []).some((t: string) => String(t).toLowerCase().includes("enquiry") || String(t).toLowerCase().includes("website")))
+    .map((c: any) => ({ id: c.id, name: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim() || "—", email: c.email || null, phone: c.phone || null, tags: c.tags || [], since: c.dateAdded || null }))
+    .sort((a: any, b: any) => String(b.since).localeCompare(String(a.since)))
+    .slice(0, 30);
+  res.json({ enquiries: list });
 }
 
 function safeJson(s: string): any { try { return JSON.parse(s); } catch { return {}; } }

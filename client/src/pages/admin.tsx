@@ -9,6 +9,7 @@ import * as React from "react";
 
 const KEY_STORE = "ora-admin-key";
 type View = "day" | "week" | "month";
+interface Enquiry { id: string; name: string; email: string | null; phone: string | null; tags: string[]; since: string | null; }
 
 interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; source?: string; }
 interface Staff { userId: string; name: string; }
@@ -49,6 +50,8 @@ export default function AdminPage() {
   const [practitioner, setPractitioner] = React.useState("all");
   const [walkinOpen, setWalkinOpen] = React.useState(false);
   const [detail, setDetail] = React.useState<Appt | null>(null);
+  const [section, setSection] = React.useState<"calendar" | "enquiries">("calendar");
+  const [enq, setEnq] = React.useState<Enquiry[]>([]);
 
   const q = React.useCallback((a: string) => `/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`, [key]);
   const rangeParams = React.useMemo(() => {
@@ -81,6 +84,10 @@ export default function AdminPage() {
       const m: Record<string, Svc> = {}; (j.services || []).forEach((s: Svc) => { m[s.name] = s; }); setSvcMap(m);
     }).catch(() => {});
   }, [key, q, svcMap]);
+  React.useEffect(() => {
+    if (!key || section !== "enquiries") return;
+    fetch(q("enquiries"), { cache: "no-store" }).then((r) => r.json()).then((j) => setEnq(j.enquiries || [])).catch(() => {});
+  }, [key, q, section]);
 
   if (!key) {
     return (
@@ -110,19 +117,25 @@ export default function AdminPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div>
             <h1 className="font-display text-2xl leading-none">ORÁ · Floor</h1>
-            <p className="text-sm text-ora-fog">{title}</p>
+            <p className="text-sm text-ora-fog">{section === "enquiries" ? "Website enquiries" : title}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
-              {(["day", "week", "month"] as View[]).map((v) => (
-                <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm capitalize ${view === v ? "bg-ora-bronze text-white" : "hover:bg-ora-greige/40"}`}>{v}</button>
-              ))}
+              <button onClick={() => setSection("calendar")} className={`px-3 py-1.5 text-sm ${section === "calendar" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Calendar</button>
+              <button onClick={() => setSection("enquiries")} className={`px-3 py-1.5 text-sm ${section === "enquiries" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Enquiries</button>
             </div>
-            <button onClick={() => setWalkinOpen(true)} className="rounded-lg bg-ora-deep px-3 py-1.5 text-sm text-white hover:opacity-90">+ Walk-in</button>
-            <button onClick={() => nav(-1)} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">←</button>
-            <button onClick={() => setAnchor(todayISO())} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">Today</button>
-            <button onClick={() => nav(1)} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">→</button>
-            <button onClick={load} className="rounded-lg bg-ora-bronze px-3 py-1.5 text-sm text-white hover:opacity-90">{loading ? "…" : "↻"}</button>
+            {section === "calendar" && <>
+              <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
+                {(["day", "week", "month"] as View[]).map((v) => (
+                  <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm capitalize ${view === v ? "bg-ora-bronze text-white" : "hover:bg-ora-greige/40"}`}>{v}</button>
+                ))}
+              </div>
+              <button onClick={() => setWalkinOpen(true)} className="rounded-lg bg-ora-deep px-3 py-1.5 text-sm text-white hover:opacity-90">+ Walk-in</button>
+              <button onClick={() => nav(-1)} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">←</button>
+              <button onClick={() => setAnchor(todayISO())} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">Today</button>
+              <button onClick={() => nav(1)} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">→</button>
+            </>}
+            <button onClick={() => (section === "enquiries" ? fetch(q("enquiries"), { cache: "no-store" }).then((r) => r.json()).then((j) => setEnq(j.enquiries || [])) : load())} className="rounded-lg bg-ora-bronze px-3 py-1.5 text-sm text-white hover:opacity-90">{loading ? "…" : "↻"}</button>
           </div>
         </div>
         {view === "day" && team.length > 0 && (
@@ -134,26 +147,44 @@ export default function AdminPage() {
               </span>); })}
           </div>
         )}
-        <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-5 pb-3">
-          {people.map((p) => (
-            <button key={p} onClick={() => setPractitioner(p)} className={`rounded-full px-3 py-1 text-xs transition ${practitioner === p ? "bg-ora-bronze text-white" : "bg-white/70 text-ora-fog hover:text-ora-deep"}`}>
-              {p === "all" ? "Everyone" : p.split(" ")[0]}
-            </button>
-          ))}
-        </div>
+        {section === "calendar" && (
+          <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-5 pb-3">
+            {people.map((p) => (
+              <button key={p} onClick={() => setPractitioner(p)} className={`rounded-full px-3 py-1 text-xs transition ${practitioner === p ? "bg-ora-bronze text-white" : "bg-white/70 text-ora-fog hover:text-ora-deep"}`}>
+                {p === "all" ? "Everyone" : p.split(" ")[0]}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-6xl px-5 py-6">
         {error && <div className="mb-4 rounded-xl bg-red-600/10 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        {view === "day" && (
+        {section === "enquiries" && (
+          <ul className="space-y-2">
+            {enq.length === 0 && <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">No website enquiries.</div>}
+            {enq.map((e) => (
+              <li key={e.id} className="flex items-center gap-4 rounded-xl bg-white/70 px-4 py-3 shadow-sm">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-medium">{e.name}</div>
+                  <div className="truncate text-sm text-ora-fog">{[e.email, e.phone].filter(Boolean).join(" · ") || "no contact details"}</div>
+                </div>
+                <div className="flex shrink-0 flex-wrap justify-end gap-1">{e.tags.slice(0, 3).map((t) => <span key={t} className="rounded-full bg-ora-greige/50 px-2 py-0.5 text-[10px] text-ora-fog">{t}</span>)}</div>
+                <div className="shrink-0 text-xs text-ora-fog">{e.since ? at(e.since.slice(0, 10)).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : ""}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {section === "calendar" && view === "day" && (
           <ul className="space-y-2">
             {byDay(anchor).length === 0 && <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">{loading ? "Loading…" : "No appointments."}</div>}
             {byDay(anchor).map((a) => <ApptRow key={a.id} a={a} onClick={() => setDetail(a)} />)}
           </ul>
         )}
 
-        {view === "week" && (
+        {section === "calendar" && view === "week" && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
             {weekDays(anchor).map((d, i) => (
               <div key={d} className="rounded-xl bg-white/50 p-2">
@@ -173,7 +204,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {view === "month" && (
+        {section === "calendar" && view === "month" && (
           <div>
             <div className="mb-1 grid grid-cols-7 text-center text-[11px] uppercase tracking-wide text-ora-fog">{DOW.map((d) => <div key={d}>{d}</div>)}</div>
             <div className="grid grid-cols-7 gap-1">
@@ -193,11 +224,11 @@ export default function AdminPage() {
             </div>
           </div>
         )}
-        <p className="mt-6 text-center text-xs text-ora-fog">{filtered.length} appointment{filtered.length === 1 ? "" : "s"} in view · auto-refreshes every minute</p>
+        {section === "calendar" && <p className="mt-6 text-center text-xs text-ora-fog">{filtered.length} appointment{filtered.length === 1 ? "" : "s"} in view · auto-refreshes every minute</p>}
       </main>
 
       {walkinOpen && <WalkinModal apiKey={key} onClose={() => setWalkinOpen(false)} onBooked={() => { setWalkinOpen(false); load(); }} />}
-      {detail && <ApptDetail a={detail} svc={svcMap[detail.service]} onClose={() => setDetail(null)} />}
+      {detail && <ApptDetail a={detail} svc={svcMap[detail.service]} apiKey={key} onClose={() => setDetail(null)} />}
     </div>
   );
 }
@@ -218,10 +249,20 @@ function ApptRow({ a, onClick }: { a: Appt; onClick: () => void }) {
   );
 }
 
-/* ── Appointment detail + live timer ─────────────────────── */
-function ApptDetail({ a, svc, onClose }: { a: Appt; svc?: Svc; onClose: () => void }) {
+/* ── Appointment detail + live timer + client history ────── */
+function ApptDetail({ a, svc, apiKey, onClose }: { a: Appt; svc?: Svc; apiKey: string; onClose: () => void }) {
   const [now, setNow] = React.useState(Date.now());
+  const [history, setHistory] = React.useState<{ contact: any; appointments: any[] } | null>(null);
+  const [loadingHist, setLoadingHist] = React.useState(false);
   React.useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
+  const loadHistory = async () => {
+    if (!a.contactId) return;
+    setLoadingHist(true);
+    try {
+      const r = await fetch(`/api/admin/client?contactId=${encodeURIComponent(a.contactId)}&key=${encodeURIComponent(apiKey)}`, { cache: "no-store" });
+      setHistory(await r.json());
+    } catch { /* ignore */ } finally { setLoadingHist(false); }
+  };
   const startMs = Date.parse(a.startTime), endMs = Date.parse(a.endTime);
   const durMin = svc?.duration ?? (endMs && startMs ? Math.round((endMs - startMs) / 60000) : null);
   let timer = "";
@@ -250,6 +291,31 @@ function ApptDetail({ a, svc, onClose }: { a: Appt; svc?: Svc; onClose: () => vo
           <Row k="Status" v={a.status} />
           <Row k="Source" v={a.source || "—"} />
         </dl>
+
+        {a.contactId && !history && (
+          <button onClick={loadHistory} disabled={loadingHist} className="mt-4 w-full rounded-xl border border-ora-taupe/40 py-2.5 text-sm hover:border-ora-bronze disabled:opacity-50">
+            {loadingHist ? "Loading…" : "View client history"}
+          </button>
+        )}
+        {history && (
+          <div className="mt-4 border-t border-ora-taupe/20 pt-4">
+            <div className="mb-2 text-sm">
+              <div className="font-medium">{history.contact?.name}</div>
+              <div className="text-ora-fog">{[history.contact?.email, history.contact?.phone].filter(Boolean).join(" · ") || "no contact details"}</div>
+            </div>
+            <p className="mb-1 text-xs uppercase tracking-wide text-ora-fog">Visit history ({history.appointments.length})</p>
+            <ul className="max-h-48 space-y-1 overflow-y-auto">
+              {history.appointments.map((h) => (
+                <li key={h.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/60 px-3 py-1.5 text-xs">
+                  <span className="text-ora-fog">{at((h.startTime || "").slice(0, 10)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" })}</span>
+                  <span className="min-w-0 flex-1 truncate">{h.service}</span>
+                  <span className="shrink-0 text-ora-fog">{(h.practitioner || "").split(" ")[0]}</span>
+                </li>
+              ))}
+              {history.appointments.length === 0 && <li className="py-2 text-center text-xs text-ora-fog">No visits on record.</li>}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );
