@@ -10,7 +10,7 @@ import * as React from "react";
 const KEY_STORE = "ora-admin-key";
 
 interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; }
-interface Staff { userId: string; name: string; working: boolean; }
+interface Staff { userId: string; name: string; }
 interface Svc { id: string; name: string; price: number; duration: number; category: string; }
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -91,16 +91,20 @@ export default function AdminPage() {
             <button onClick={load} className="rounded-lg bg-ora-bronze px-3 py-1.5 text-sm text-white hover:opacity-90">{loading ? "…" : "Refresh"}</button>
           </div>
         </div>
-        {/* Staff today */}
+        {/* Staff — appointments today (reliable) */}
         {team.length > 0 && (
-          <div className="mx-auto flex max-w-5xl flex-wrap gap-2 px-5 pb-3">
-            {team.map((s) => (
-              <span key={s.userId} title={s.working ? "Working today" : "Off today"}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${s.working ? "bg-white/70 text-ora-deep" : "bg-ora-greige/40 text-ora-fog"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${s.working ? "bg-green-500" : "bg-ora-fog/50"}`} />
-                {s.name.split(" ")[0]}{countByName[s.name] ? ` · ${countByName[s.name]}` : ""}
-              </span>
-            ))}
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-5 pb-3">
+            <span className="text-[11px] uppercase tracking-wide text-ora-fog">Today</span>
+            {team.map((s) => {
+              const n = countByName[s.name] || 0;
+              return (
+                <span key={s.userId} title={`${n} appointment${n === 1 ? "" : "s"} today`}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${n > 0 ? "bg-white/70 text-ora-deep" : "bg-ora-greige/40 text-ora-fog"}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${n > 0 ? "bg-green-500" : "bg-ora-fog/40"}`} />
+                  {s.name.split(" ")[0]}{n ? ` · ${n}` : ""}
+                </span>
+              );
+            })}
           </div>
         )}
         {people.length > 2 && (

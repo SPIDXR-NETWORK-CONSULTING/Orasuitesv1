@@ -86,29 +86,14 @@ async function today(req: VercelRequest, res: VercelResponse) {
   res.json({ date: dateStr, count: appointments.length, errors, appointments });
 }
 
-/** Who's working today — from each practitioner's personal calendar availability. */
-async function staff(req: VercelRequest, res: VercelResponse) {
-  const dateStr = (req.query.date as string) || todayStr();
-  const { start, end } = dayRange(dateStr);
-  const cals = (await ghlFetch<any>(`/calendars/?locationId=${LOC}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any))).body?.calendars || [];
-  const personalByUser = new Map<string, string>();
-  for (const c of cals) {
-    if (String(c.name || "").includes("Personal Calendar")) {
-      const uid = (c.teamMembers || [])[0]?.userId;
-      if (uid) personalByUser.set(uid, c.id);
-    }
-  }
-  const out: any[] = [];
-  for (const [uid, name] of Array.from(TEAM_BY_USER_ID.entries())) {
-    let working = false;
-    const pcal = personalByUser.get(uid);
-    if (pcal) {
-      const r = await ghlFetch<any>(`/calendars/${pcal}/free-slots?startDate=${start}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
-      working = (((r.body || {})[dateStr] || {}).slots || []).length > 0;
-    }
-    out.push({ userId: uid, name, working });
-  }
-  res.json({ date: dateStr, staff: out });
+/**
+ * The team roster (so the strip lists everyone, incl. those with no appts).
+ * Note: GHL can't reliably report "scheduled/off today" via API, so the
+ * dashboard derives who's in from appointment counts, not a false off/on flag.
+ */
+async function staff(_req: VercelRequest, res: VercelResponse) {
+  const out = Array.from(TEAM_BY_USER_ID.entries()).map(([userId, name]) => ({ userId, name }));
+  res.json({ staff: out });
 }
 
 /** Live services the admin can book as a walk-in (includes enquire-only ones). */
