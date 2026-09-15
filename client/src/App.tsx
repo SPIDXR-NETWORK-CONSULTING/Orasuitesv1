@@ -16,6 +16,7 @@ import ContactPage from "@/pages/contact";
 import BookPage from "@/pages/book";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+import AdminPage from "@/pages/admin";
 
 /**
  * Scroll handling on route change: runs AFTER the exit transition (so the old
@@ -94,6 +95,7 @@ function Router() {
           <Route path="/book" component={BookPage} />
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/terms" component={TermsPage} />
+          <Route path="/admin" component={AdminPage} />
           <Route component={NotFound} />
         </Switch>
       </motion.div>

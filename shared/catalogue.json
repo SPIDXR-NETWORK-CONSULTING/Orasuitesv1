@@ -32,6 +32,11 @@
         "ghlUserId": "H8uaGkwR0h2sFz9Ekd2O",
         "name": "Diana Ann",
         "email": "diana@orasuites.com"
+      },
+      "amani": {
+        "ghlUserId": "b7CMjvjcPRMYBWjL5lJJ",
+        "name": "Amani Hassouan",
+        "email": "hassounamanii@gmail.com"
       }
     },
     "depositPercent": 20,
@@ -702,46 +707,48 @@
     {
       "id": "hair",
       "title": "Hair",
-      "live": false,
-      "bookable": false,
-      "team": [],
+      "live": true,
+      "bookable": true,
+      "team": [
+        "amani"
+      ],
       "groups": [
-        {
-          "name": "Wash & Curly Blow Dry",
-          "services": [
-            {
-              "name": "Wash & Curly Blow Dry — Short (above shoulder)",
-              "price": 35,
-              "duration": 45
-            },
-            {
-              "name": "Wash & Curly Blow Dry — Long",
-              "price": 42,
-              "duration": 60
-            },
-            {
-              "name": "Wash & Curly Blow Dry — Extensions",
-              "price": 50,
-              "duration": 75
-            }
-          ]
-        },
         {
           "name": "Straight Blow Dry",
           "services": [
             {
               "name": "Straight Blow Dry — Short",
-              "price": 32,
+              "price": 30,
               "duration": 45
             },
             {
               "name": "Straight Blow Dry — Long",
-              "price": 37,
+              "price": 35,
               "duration": 60
             },
             {
               "name": "Straight Blow Dry — Extensions",
-              "price": 45,
+              "price": 40,
+              "duration": 75
+            }
+          ]
+        },
+        {
+          "name": "Curly Blow Dry",
+          "services": [
+            {
+              "name": "Curly Blow Dry — Short",
+              "price": 33,
+              "duration": 45
+            },
+            {
+              "name": "Curly Blow Dry — Long",
+              "price": 40,
+              "duration": 60
+            },
+            {
+              "name": "Curly Blow Dry — Extensions",
+              "price": 50,
               "duration": 75
             }
           ]
@@ -750,14 +757,45 @@
           "name": "Luxury",
           "services": [
             {
-              "name": "Luxury Blow Dry",
+              "name": "Luxury Blow",
               "price": 60,
               "duration": 75
+            }
+          ]
+        },
+        {
+          "name": "Cutting",
+          "services": [
+            {
+              "name": "Dry Cut",
+              "price": 25,
+              "duration": 30
+            },
+            {
+              "name": "Fringe Trim",
+              "price": 7,
+              "duration": 15
+            }
+          ]
+        },
+        {
+          "name": "Styling",
+          "services": [
+            {
+              "name": "Hair Up",
+              "price": 0,
+              "duration": 60,
+              "priceLabel": "POA",
+              "note": "Price on application — quoted in consultation"
             }
           ]
         }
       ],
       "addOns": [
+        {
+          "name": "Add Haircut to any Blow Dry",
+          "price": 15
+        },
         {
           "name": "Deep conditioning treatment",
           "price": 10
@@ -851,10 +889,26 @@
     {
       "id": "makeup",
       "title": "Makeup",
-      "live": false,
+      "live": true,
       "bookable": false,
       "team": [],
-      "groups": []
+      "groups": [
+        {
+          "name": "Makeup",
+          "services": [
+            {
+              "name": "Day Makeup",
+              "price": 35,
+              "duration": 60
+            },
+            {
+              "name": "Night-Out Makeup",
+              "price": 45,
+              "duration": 75
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "laser",
