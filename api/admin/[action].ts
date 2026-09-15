@@ -52,6 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!authorised(req)) return res.status(401).json({ error: "Unauthorised" });
   switch (String(req.query.action || "")) {
     case "today": return today(req, res);
+    case "range": return range(req, res);
     case "staff": return staff(req, res);
     case "services": return services(req, res);
     case "slots": return slots(req, res);
@@ -60,11 +61,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-/** Every appointment for a day, across all practitioners, merged + sorted. */
-async function today(req: VercelRequest, res: VercelResponse) {
-  const dateStr = (req.query.date as string) || todayStr();
-  if (Number.isNaN(Date.parse(`${dateStr}T00:00:00Z`))) return res.status(400).json({ error: "Bad date" });
-  const { start, end } = dayRange(dateStr);
+/** friendly label for where an appointment came from */
+function sourceLabel(ev: any): string {
+  const s = ev?.createdBy?.source || "";
+  if (s === "calendar_page") return "Added in GHL";
+  if (s.includes("widget") || s.includes("booking")) return "Online";
+  if (s === "integration" || s === "api") return "Online / app";
+  return s ? String(s) : "—";
+}
+
+/** Fetch appointments across [start,end] (epoch ms), merged across all staff. */
+async function fetchRange(start: number, end: number): Promise<{ appointments: any[]; errors: number }> {
   const seen = new Set<string>();
   const appointments: any[] = [];
   let errors = 0;
@@ -79,10 +86,30 @@ async function today(req: VercelRequest, res: VercelResponse) {
       seen.add(id);
       const { client, service } = splitTitle(String(ev.title || ""));
       const assigned = ev.assignedUserId || uid;
-      appointments.push({ id, startTime: ev.startTime, endTime: ev.endTime, client, service, practitioner: TEAM_BY_USER_ID.get(assigned) || uname, status: ev.appointmentStatus || "confirmed", contactId: ev.contactId || null });
+      appointments.push({ id, startTime: ev.startTime, endTime: ev.endTime, client, service, practitioner: TEAM_BY_USER_ID.get(assigned) || uname, status: ev.appointmentStatus || ev.appoinmentStatus || "confirmed", contactId: ev.contactId || null, source: sourceLabel(ev) });
     }
   }
   appointments.sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
+  return { appointments, errors };
+}
+
+/** Appointments across a date range (week/month). ?start=YYYY-MM-DD&end=YYYY-MM-DD */
+async function range(req: VercelRequest, res: VercelResponse) {
+  const s = (req.query.start as string) || todayStr();
+  const e = (req.query.end as string) || s;
+  const start = Date.parse(`${s}T00:00:00Z`);
+  const end = Date.parse(`${e}T00:00:00Z`) + 86_400_000 - 1;
+  if (Number.isNaN(start) || Number.isNaN(end)) return res.status(400).json({ error: "Bad date range" });
+  const { appointments, errors } = await fetchRange(start, end);
+  res.json({ start: s, end: e, count: appointments.length, errors, appointments });
+}
+
+/** Every appointment for a day, across all practitioners, merged + sorted. */
+async function today(req: VercelRequest, res: VercelResponse) {
+  const dateStr = (req.query.date as string) || todayStr();
+  if (Number.isNaN(Date.parse(`${dateStr}T00:00:00Z`))) return res.status(400).json({ error: "Bad date" });
+  const { start, end } = dayRange(dateStr);
+  const { appointments, errors } = await fetchRange(start, end);
   res.json({ date: dateStr, count: appointments.length, errors, appointments });
 }
 
