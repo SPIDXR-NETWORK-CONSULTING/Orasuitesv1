@@ -63,11 +63,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 /** friendly label for where an appointment came from */
 function sourceLabel(ev: any): string {
-  const s = ev?.createdBy?.source || "";
-  if (s === "calendar_page") return "Added in GHL";
-  if (s.includes("widget") || s.includes("booking")) return "Online";
+  const s = String(ev?.createdBy?.source || "");
+  if (s === "calendar_page") return "Added at reception";
+  if (s === "third_party" || s.includes("widget") || s.includes("booking")) return "Online booking";
   if (s === "integration" || s === "api") return "Online / app";
-  return s ? String(s) : "—";
+  return s ? s.replace(/_/g, " ") : "—";
 }
 
 /** Fetch appointments across [start,end] (epoch ms), merged across all staff. */
