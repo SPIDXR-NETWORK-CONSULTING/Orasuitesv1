@@ -11,7 +11,7 @@ const KEY_STORE = "ora-admin-key";
 type View = "day" | "week" | "month";
 interface Enquiry { id: string; name: string; email: string | null; phone: string | null; tags: string[]; since: string | null; }
 
-interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; source?: string; }
+interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; source?: string; contactId?: string | null; }
 interface Staff { userId: string; name: string; }
 interface Svc { id: string; name: string; price: number; duration: number; category: string; }
 
