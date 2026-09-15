@@ -50,8 +50,10 @@ export default function AdminPage() {
   const [practitioner, setPractitioner] = React.useState("all");
   const [walkinOpen, setWalkinOpen] = React.useState(false);
   const [detail, setDetail] = React.useState<Appt | null>(null);
-  const [section, setSection] = React.useState<"calendar" | "enquiries">("calendar");
+  const [section, setSection] = React.useState<"calendar" | "enquiries" | "conversations">("calendar");
   const [enq, setEnq] = React.useState<Enquiry[]>([]);
+  const [convs, setConvs] = React.useState<any[]>([]);
+  const [activeThread, setActiveThread] = React.useState<any | null>(null);
 
   const q = React.useCallback((a: string) => `/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`, [key]);
   const rangeParams = React.useMemo(() => {
@@ -88,6 +90,10 @@ export default function AdminPage() {
     if (!key || section !== "enquiries") return;
     fetch(q("enquiries"), { cache: "no-store" }).then((r) => r.json()).then((j) => setEnq(j.enquiries || [])).catch(() => {});
   }, [key, q, section]);
+  React.useEffect(() => {
+    if (!key || section !== "conversations") return;
+    fetch(q("conversations"), { cache: "no-store" }).then((r) => r.json()).then((j) => setConvs(j.conversations || [])).catch(() => {});
+  }, [key, q, section]);
 
   if (!key) {
     return (
@@ -117,12 +123,13 @@ export default function AdminPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div>
             <h1 className="font-display text-2xl leading-none">ORÁ · Floor</h1>
-            <p className="text-sm text-ora-fog">{section === "enquiries" ? "Website enquiries" : title}</p>
+            <p className="text-sm text-ora-fog">{section === "enquiries" ? "Website enquiries" : section === "conversations" ? "Messages" : title}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
               <button onClick={() => setSection("calendar")} className={`px-3 py-1.5 text-sm ${section === "calendar" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Calendar</button>
               <button onClick={() => setSection("enquiries")} className={`px-3 py-1.5 text-sm ${section === "enquiries" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Enquiries</button>
+              <button onClick={() => setSection("conversations")} className={`px-3 py-1.5 text-sm ${section === "conversations" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Messages</button>
             </div>
             {section === "calendar" && <>
               <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
@@ -172,6 +179,23 @@ export default function AdminPage() {
                 </div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-1">{e.tags.slice(0, 3).map((t) => <span key={t} className="rounded-full bg-ora-greige/50 px-2 py-0.5 text-[10px] text-ora-fog">{t}</span>)}</div>
                 <div className="shrink-0 text-xs text-ora-fog">{e.since ? at(e.since.slice(0, 10)).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : ""}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {section === "conversations" && (
+          <ul className="space-y-2">
+            {convs.length === 0 && <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">No messages.</div>}
+            {convs.map((c) => (
+              <li key={c.id}>
+                <button onClick={() => setActiveThread(c)} className="flex w-full items-center gap-4 rounded-xl bg-white/70 px-4 py-3 text-left shadow-sm hover:shadow-md">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2"><span className="truncate font-medium">{c.name}</span>{c.unread > 0 && <span className="rounded-full bg-ora-bronze px-1.5 text-[10px] text-white">{c.unread}</span>}</div>
+                    <div className="truncate text-sm text-ora-fog">{c.snippet || "—"}</div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-ora-greige/50 px-2 py-0.5 text-[10px] text-ora-fog">{c.lastType}</span>
+                </button>
               </li>
             ))}
           </ul>
@@ -229,6 +253,7 @@ export default function AdminPage() {
 
       {walkinOpen && <WalkinModal apiKey={key} onClose={() => setWalkinOpen(false)} onBooked={() => { setWalkinOpen(false); load(); }} />}
       {detail && <ApptDetail a={detail} svc={svcMap[detail.service]} apiKey={key} onClose={() => setDetail(null)} />}
+      {activeThread && <ConversationThread conv={activeThread} apiKey={key} onClose={() => setActiveThread(null)} />}
     </div>
   );
 }
@@ -322,6 +347,55 @@ function ApptDetail({ a, svc, apiKey, onClose }: { a: Appt; svc?: Svc; apiKey: s
 }
 function Row({ k, v }: { k: string; v: string }) {
   return <div className="flex justify-between gap-4 border-b border-ora-taupe/15 pb-2"><dt className="text-ora-fog">{k}</dt><dd className="text-right font-medium capitalize">{v}</dd></div>;
+}
+
+/* ── Conversation thread + reply ─────────────────────────── */
+function ConversationThread({ conv, apiKey, onClose }: { conv: any; apiKey: string; onClose: () => void }) {
+  const [msgs, setMsgs] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [text, setText] = React.useState("");
+  const [sending, setSending] = React.useState(false);
+  const [note, setNote] = React.useState<string | null>(null);
+  const call = (a: string, init?: RequestInit) => fetch(`/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(apiKey)}`, { cache: "no-store", ...init });
+  const loadMsgs = React.useCallback(() => { setLoading(true); call(`thread?id=${encodeURIComponent(conv.id)}`).then((r) => r.json()).then((j) => setMsgs(j.messages || [])).catch(() => {}).finally(() => setLoading(false)); }, [conv.id]);
+  React.useEffect(() => { loadMsgs(); }, [loadMsgs]);
+  async function send() {
+    if (!text.trim() || !conv.contactId) { setNote(conv.contactId ? "Type a message." : "No contact on this thread — can't reply."); return; }
+    setSending(true); setNote(null);
+    try {
+      const r = await call("reply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: conv.contactId, message: text.trim() }) });
+      const j = await r.json(); if (!r.ok) throw new Error(j?.error || "Send failed");
+      setText(""); setNote("Sent ✓"); setTimeout(loadMsgs, 1200);
+    } catch (e) { setNote(e instanceof Error ? e.message : "Send failed"); } finally { setSending(false); }
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ora-deep/40 p-4" onClick={onClose}>
+      <div className="flex h-[80vh] w-full max-w-lg flex-col rounded-2xl bg-ora-milk p-5 shadow-luxury" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-display text-xl text-ora-deep">{conv.name}</h2>
+          <button onClick={onClose} className="text-ora-fog hover:text-ora-deep">✕</button>
+        </div>
+        <div className="flex-1 space-y-2 overflow-y-auto rounded-xl bg-white/40 p-3">
+          {loading && <p className="py-8 text-center text-sm text-ora-fog">Loading…</p>}
+          {!loading && msgs.length === 0 && <p className="py-8 text-center text-sm text-ora-fog">No messages.</p>}
+          {msgs.map((m) => (
+            <div key={m.id} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.direction === "outbound" ? "ml-auto bg-ora-bronze/15" : "bg-white"}`}>
+              <div className="mb-0.5 text-[10px] uppercase tracking-wide text-ora-fog">{m.type} · {m.direction}</div>
+              <div className="whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: (m.body || "").slice(0, 4000) }} />
+            </div>
+          ))}
+        </div>
+        <div className="mt-3">
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder={conv.contactId ? "Reply by email…" : "No contact on this thread"} disabled={!conv.contactId}
+            className="w-full resize-none rounded-xl border border-ora-taupe/40 bg-white px-3 py-2 text-sm outline-none focus:border-ora-bronze disabled:opacity-50" />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs text-ora-fog">{note}</span>
+            <button onClick={send} disabled={sending || !conv.contactId} className="rounded-xl bg-ora-bronze px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50">{sending ? "Sending…" : "Send reply"}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ── Walk-in ─────────────────────────────────────────────── */

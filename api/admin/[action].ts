@@ -59,6 +59,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "walkin": return walkin(req, res);
     case "client": return client(req, res);
     case "enquiries": return enquiries(req, res);
+    case "conversations": return conversations(req, res);
+    case "thread": return thread(req, res);
+    case "reply": return reply(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
   }
 }
@@ -224,6 +227,44 @@ async function enquiries(_req: VercelRequest, res: VercelResponse) {
     .sort((a: any, b: any) => String(b.since).localeCompare(String(a.since)))
     .slice(0, 30);
   res.json({ enquiries: list });
+}
+
+/** Recent conversation threads. */
+async function conversations(_req: VercelRequest, res: VercelResponse) {
+  const r = await ghlFetch<any>(`/conversations/search?locationId=${LOC}&limit=30&sort=desc&sortBy=last_message_date`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+  const list = (r.body?.conversations || []).map((c: any) => ({
+    id: c.id, contactId: c.contactId, name: c.contactName || c.fullName || "—",
+    lastType: String(c.lastMessageType || "").replace("TYPE_", ""), snippet: String(c.lastMessageBody || "").slice(0, 120),
+    date: c.lastMessageDate || null, unread: c.unreadCount || 0,
+  }));
+  res.json({ conversations: list });
+}
+
+/** Messages in one thread (oldest→newest). */
+async function thread(req: VercelRequest, res: VercelResponse) {
+  const id = (req.query.id as string) || "";
+  if (!id) return res.status(400).json({ error: "id required" });
+  const r = await ghlFetch<any>(`/conversations/${id}/messages`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+  const msgs = ((r.body?.messages || {}).messages || []).map((m: any) => ({
+    id: m.id, direction: m.direction, type: String(m.messageType || "").replace("TYPE_", ""), body: m.body || "", date: m.dateAdded,
+  })).reverse();
+  res.json({ messages: msgs });
+}
+
+/** Reply to a client by email (sends via GHL as the clinic). */
+async function reply(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const contactId = String(body.contactId || "");
+  const message = String(body.message || "").trim();
+  if (!contactId || !message) return res.status(400).json({ error: "contactId and message required" });
+  const html = message.replace(/\n/g, "<br>");
+  const r = await ghlFetch<any>(`/conversations/messages`, {
+    method: "POST", version: "2021-04-15",
+    body: JSON.stringify({ type: "Email", contactId, html, subject: String(body.subject || "ORÁ Suites") }),
+  }).catch(() => ({ ok: false, body: null } as any));
+  if (!r.ok) return res.status(502).json({ error: "Could not send", detail: r.body });
+  res.json({ ok: true, id: r.body?.messageId || r.body?.id || null });
 }
 
 function safeJson(s: string): any { try { return JSON.parse(s); } catch { return {}; } }
