@@ -62,6 +62,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "conversations": return conversations(req, res);
     case "thread": return thread(req, res);
     case "reply": return reply(req, res);
+    case "rota": return rota(req, res);
+    case "rota-set": return rotaSet(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
   }
 }
@@ -265,6 +267,45 @@ async function reply(req: VercelRequest, res: VercelResponse) {
   }).catch(() => ({ ok: false, body: null } as any));
   if (!r.ok) return res.status(502).json({ error: "Could not send", detail: r.body });
   res.json({ ok: true, id: r.body?.messageId || r.body?.id || null });
+}
+
+/* ── Rota (dedicated ORÁ Supabase, PostgREST) ────────────── */
+const DB_URL = process.env.ORA_DB_URL || "";
+const DB_KEY = process.env.ORA_DB_ANON_KEY || "";
+function dbFetch(path: string, init: RequestInit = {}) {
+  return fetch(`${DB_URL}/rest/v1/${path}`, { ...init, headers: { apikey: DB_KEY, Authorization: `Bearer ${DB_KEY}`, "Content-Type": "application/json", ...(init.headers || {}) } });
+}
+
+/** The weekly rota: every practitioner + their saved working hours per weekday. */
+async function rota(_req: VercelRequest, res: VercelResponse) {
+  if (!DB_URL) return res.status(503).json({ error: "Rota database not configured" });
+  const r = await dbFetch("ora_rota?select=*").catch(() => null);
+  const rows = r && r.ok ? await r.json() : [];
+  const team = Array.from(TEAM_BY_USER_ID.entries()).map(([userId, name]) => ({ userId, name }));
+  res.json({ team, rota: rows });
+}
+
+/** Set one practitioner's hours for one weekday (upsert; null start = OFF). */
+async function rotaSet(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!DB_URL) return res.status(503).json({ error: "Rota database not configured" });
+  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const uid = String(body.practitioner_user_id || "");
+  const weekday = Number(body.weekday);
+  if (!uid || !(weekday >= 0 && weekday <= 6)) return res.status(400).json({ error: "practitioner_user_id and weekday (0-6) required" });
+  const row = {
+    practitioner_user_id: uid,
+    practitioner_name: body.practitioner_name || TEAM_BY_USER_ID.get(uid) || null,
+    weekday,
+    start_min: body.start_min == null ? null : Number(body.start_min),
+    end_min: body.end_min == null ? null : Number(body.end_min),
+    updated_at: new Date().toISOString(),
+  };
+  const r = await dbFetch("ora_rota?on_conflict=practitioner_user_id,weekday", {
+    method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(row),
+  }).catch(() => null);
+  if (!r || !r.ok) return res.status(502).json({ error: "Could not save rota", detail: r ? await r.text() : "no response" });
+  res.json({ ok: true });
 }
 
 function safeJson(s: string): any { try { return JSON.parse(s); } catch { return {}; } }

@@ -50,10 +50,11 @@ export default function AdminPage() {
   const [practitioner, setPractitioner] = React.useState("all");
   const [walkinOpen, setWalkinOpen] = React.useState(false);
   const [detail, setDetail] = React.useState<Appt | null>(null);
-  const [section, setSection] = React.useState<"calendar" | "enquiries" | "conversations">("calendar");
+  const [section, setSection] = React.useState<"calendar" | "rota" | "enquiries" | "conversations">("calendar");
   const [enq, setEnq] = React.useState<Enquiry[]>([]);
   const [convs, setConvs] = React.useState<any[]>([]);
   const [activeThread, setActiveThread] = React.useState<any | null>(null);
+  const [rotaData, setRotaData] = React.useState<{ team: Staff[]; rota: any[] } | null>(null);
 
   const q = React.useCallback((a: string) => `/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`, [key]);
   const rangeParams = React.useMemo(() => {
@@ -94,6 +95,10 @@ export default function AdminPage() {
     if (!key || section !== "conversations") return;
     fetch(q("conversations"), { cache: "no-store" }).then((r) => r.json()).then((j) => setConvs(j.conversations || [])).catch(() => {});
   }, [key, q, section]);
+  React.useEffect(() => {
+    if (!key || section !== "rota") return;
+    fetch(q("rota"), { cache: "no-store" }).then((r) => r.json()).then((j) => setRotaData({ team: j.team || [], rota: j.rota || [] })).catch(() => {});
+  }, [key, q, section]);
 
   if (!key) {
     return (
@@ -123,11 +128,12 @@ export default function AdminPage() {
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div>
             <h1 className="font-display text-2xl leading-none">ORÁ · Floor</h1>
-            <p className="text-sm text-ora-fog">{section === "enquiries" ? "Website enquiries" : section === "conversations" ? "Messages" : title}</p>
+            <p className="text-sm text-ora-fog">{section === "enquiries" ? "Website enquiries" : section === "conversations" ? "Messages" : section === "rota" ? "Weekly rota — set each person's hours" : title}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
               <button onClick={() => setSection("calendar")} className={`px-3 py-1.5 text-sm ${section === "calendar" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Calendar</button>
+              <button onClick={() => setSection("rota")} className={`px-3 py-1.5 text-sm ${section === "rota" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Rota</button>
               <button onClick={() => setSection("enquiries")} className={`px-3 py-1.5 text-sm ${section === "enquiries" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Enquiries</button>
               <button onClick={() => setSection("conversations")} className={`px-3 py-1.5 text-sm ${section === "conversations" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Messages</button>
             </div>
@@ -182,6 +188,10 @@ export default function AdminPage() {
               </li>
             ))}
           </ul>
+        )}
+
+        {section === "rota" && (
+          rotaData ? <RotaGrid data={rotaData} apiKey={key} /> : <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">Loading rota…</div>
         )}
 
         {section === "conversations" && (
@@ -347,6 +357,57 @@ function ApptDetail({ a, svc, apiKey, onClose }: { a: Appt; svc?: Svc; apiKey: s
 }
 function Row({ k, v }: { k: string; v: string }) {
   return <div className="flex justify-between gap-4 border-b border-ora-taupe/15 pb-2"><dt className="text-ora-fog">{k}</dt><dd className="text-right font-medium capitalize">{v}</dd></div>;
+}
+
+/* ── Rota (editable weekly hours) ────────────────────────── */
+function RotaGrid({ data, apiKey }: { data: { team: Staff[]; rota: any[] }; apiKey: string }) {
+  const cols = [1, 2, 3, 4, 5, 6, 0];
+  const labels: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 0: "Sun" };
+  const [map, setMap] = React.useState<Record<string, { start: number | null; end: number | null }>>(() => {
+    const m: Record<string, { start: number | null; end: number | null }> = {};
+    data.rota.forEach((r) => { m[`${r.practitioner_user_id}-${r.weekday}`] = { start: r.start_min, end: r.end_min }; });
+    return m;
+  });
+  const minToTime = (m: number | null) => (m == null ? "" : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  const timeToMin = (t: string) => { if (!t) return null; const [h, mm] = t.split(":").map(Number); return h * 60 + mm; };
+  const save = async (uid: string, name: string, wd: number, start: number | null, end: number | null) => {
+    setMap((prev) => ({ ...prev, [`${uid}-${wd}`]: { start, end } }));
+    try {
+      await fetch(`/api/admin/rota-set?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ practitioner_user_id: uid, practitioner_name: name, weekday: wd, start_min: start, end_min: end }) });
+    } catch { /* ignore */ }
+  };
+  return (
+    <div className="overflow-x-auto rounded-2xl bg-white/40 p-3">
+      <table className="w-full min-w-[760px] border-separate border-spacing-1">
+        <thead><tr><th className="px-2 text-left text-xs text-ora-fog">Practitioner</th>{cols.map((c) => <th key={c} className="text-xs text-ora-fog">{labels[c]}</th>)}</tr></thead>
+        <tbody>
+          {data.team.map((p) => (
+            <tr key={p.userId}>
+              <td className="whitespace-nowrap px-2 text-sm font-medium">{p.name}</td>
+              {cols.map((wd) => {
+                const cell = map[`${p.userId}-${wd}`] || { start: null, end: null };
+                const on = cell.start != null;
+                return (
+                  <td key={wd} className="rounded-lg bg-white/70 p-1 align-top">
+                    <div className="flex flex-col items-stretch gap-0.5">
+                      <input type="time" value={minToTime(cell.start)} onChange={(e) => { const s = timeToMin(e.target.value); save(p.userId, p.name, wd, s, s == null ? null : (cell.end ?? 1170)); }}
+                        className="w-full rounded border border-ora-taupe/30 bg-white px-1 py-0.5 text-[11px]" />
+                      <input type="time" value={minToTime(cell.end)} onChange={(e) => save(p.userId, p.name, wd, cell.start, timeToMin(e.target.value))} disabled={!on}
+                        className="w-full rounded border border-ora-taupe/30 bg-white px-1 py-0.5 text-[11px] disabled:opacity-40" />
+                      {on
+                        ? <button onClick={() => save(p.userId, p.name, wd, null, null)} className="text-[10px] text-ora-fog hover:text-red-700">clear</button>
+                        : <span className="text-center text-[10px] text-ora-fog/50">off</span>}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="mt-3 text-center text-xs text-ora-fog">Set a start time to put someone in; blank = off. Saves automatically to the ORÁ database.</p>
+    </div>
+  );
 }
 
 /* ── Conversation thread + reply ─────────────────────────── */
