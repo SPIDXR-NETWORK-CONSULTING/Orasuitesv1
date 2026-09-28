@@ -82,7 +82,7 @@ Categories: `nails`, `hair`, `makeup` (see `shared/catalogue.json`). To remove s
 
 The address in **GHL must be identical** to their **Google Workspace** mailbox. On 20 Aug two were wrong (`meg@` and `daniela@` instead of `megcauli@` and `danieladaniela@`), which meant their booking alerts and calendar invites went nowhere. Both are now corrected.
 
-> **Update 28 Sep 2026:** the team is now Meg (admin@orasuites.com), Soli, Ruslana and Diana (nails), Amani (hair + makeup). Daniela has left (aesthetics is 25 Clinic's). Bookings reach each person's **own** Google Calendar via the invite emails in `shared/catalogue.json` `_meta.team[].email` — that file is the source of truth, not the list below.
+> **Update 28 Sep 2026:** the team is now Meg (admin@orasuites.com), Soli, Ruslana and Diana (nails), Amani (hair + makeup), and Daniela (danieladaniela@orasuites.com) stays for **IV therapy only**; aesthetics is 25 Clinic's. Bookings reach each person's **own** Google Calendar via the invite emails in `shared/catalogue.json` `_meta.team[].email` — that file is the source of truth, not the list below.
 
 **As of 20 Aug (historical):**
 - admin@orasuites.com — clinic inbox
