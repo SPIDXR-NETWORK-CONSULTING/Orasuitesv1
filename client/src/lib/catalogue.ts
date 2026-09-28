@@ -32,6 +32,17 @@ export interface AddOn {
   price: number;
 }
 
+/** A multi-visit pack (e.g. Blow-Dry Bundle of 4 / 6), paid at the clinic. */
+export interface BundleOffer {
+  name: string;
+  sizes: { count: number; price: number; was?: number }[];
+  /** GHL calendar ids of the treatments it covers */
+  eligible: string[];
+  eligibleLabel?: string;
+  expiryMonths: number;
+  terms?: string;
+}
+
 export interface Category {
   id: CategoryId;
   title: string;
@@ -47,6 +58,7 @@ export interface Category {
   addOns?: AddOn[];
   /** small print rendered under the price list (e.g. the IV medical disclaimer) */
   disclaimer?: string;
+  bundle?: BundleOffer;
 }
 
 export interface TeamMemberMeta {
@@ -147,6 +159,12 @@ export function findService(idOrName: string): ResolvedService | undefined {
     all.find((s) => s.name === idOrName) ??
     all.find((s) => slugify(s.name) === slugify(idOrName))
   );
+}
+
+/** The bundle offer this treatment can be booked as, if any. */
+export function bundleFor(s?: { categoryId: CategoryId; ghlCalendarId?: string }): BundleOffer | undefined {
+  const b = s ? findCategory(s.categoryId)?.bundle : undefined;
+  return b && s?.ghlCalendarId && b.eligible.includes(s.ghlCalendarId) ? b : undefined;
 }
 
 export function servicesFor(categoryId: CategoryId): ResolvedService[] {

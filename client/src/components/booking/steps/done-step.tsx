@@ -7,7 +7,7 @@ import { Link } from "wouter";
 import { CalendarPlus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow, GlassCard } from "@/components/ui/glass";
-import { formatDuration, formatPrice, type ResolvedService } from "@/lib/catalogue";
+import { formatDuration, formatPrice, bundleFor, type ResolvedService } from "@/lib/catalogue";
 import { useMotionSafe, easeLuxury } from "@/lib/motion";
 import { icsDataUrl } from "../ics";
 import { addMinutesIso, formatLongDate, formatTime } from "../time";
@@ -22,6 +22,7 @@ export function DoneStep({ state, appointmentId }: Props) {
   const m = useMotionSafe();
   const s = state.service;
   const free = s.price === 0;
+  const bundle = bundleFor(s)?.sizes.find((b) => b.count === state.bundle);
   const headingRef = React.useRef<HTMLHeadingElement>(null);
   React.useEffect(() => {
     const t = window.setTimeout(() => headingRef.current?.focus({ preventScroll: true }), 80);
@@ -89,7 +90,7 @@ export function DoneStep({ state, appointmentId }: Props) {
       <GlassCard tone="strong" padding="md" radius="lg" staticCard className="mx-auto mt-8 max-w-md bg-ora-cream/60 text-left">
         <p className="font-display text-[1.125rem] leading-tight text-foreground">{s.name}</p>
         <p className="mt-1 font-sans text-[0.8125rem] text-ora-fog">
-          {s.categoryTitle} · {formatDuration(s.duration)} · {free ? "Complimentary" : formatPrice(s.price)}
+          {s.categoryTitle} · {formatDuration(s.duration)} · {free ? "Complimentary" : bundle ? `Blow-Dry Bundle of ${bundle.count} · ${formatPrice(bundle.price)} at the clinic` : formatPrice(s.price)}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-ora-greige/70 pt-5 font-sans text-[0.875rem]">
           <div>

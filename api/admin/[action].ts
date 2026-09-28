@@ -9,6 +9,8 @@
  *                land in the pipeline. Admin can book ANY live service.
  *   · rota / rota-set → weekly hours; each save syncs to GHL availability.
  *   · renters / renter-set → room & chair renters (ORÁ Supabase, locked table).
+ *   · bundles / bundle-sell / bundle-act → blow-dry bundles: list, sell at the desk,
+ *                mark paid, count a visit, undo, cancel (ORÁ Supabase, locked tables).
  *
  * Reads/writes GHL (the current engine). On the future custom-backend migration,
  * only this file changes — the dashboard page stays the same.
@@ -25,6 +27,7 @@ import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEv
 import { allServices, findService, splitGhlTitle } from "../_lib/catalogue.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleAction, listBundles, sendBundleEmail, BUNDLE_EXPIRY_MONTHS } from "../_lib/bundles.js";
 
 const LOC = process.env.GHL_LOCATION_ID || "";
 
@@ -93,6 +96,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "rota-set": return rotaSet(req, res);
     case "renters": return renters(req, res);
     case "renter-set": return renterSet(req, res);
+    case "bundles": return bundles(req, res);
+    case "bundle-sell": return bundleSell(req, res);
+    case "bundle-act": return bundleAct(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
   }
 }
@@ -134,7 +140,7 @@ async function fetchRange(start: number, end: number): Promise<{ appointments: a
       const service = byCal?.name ?? parsed.service;
       const client = parsed.client;
       const assigned = ev.assignedUserId || uid;
-      appointments.push({ id, startTime: ev.startTime, endTime: ev.endTime, client, service, practitioner: TEAM_BY_USER_ID.get(assigned) || uname, status: ev.appointmentStatus || ev.appoinmentStatus || "confirmed", contactId: ev.contactId || null, source: sourceLabel(ev) });
+      appointments.push({ id, startTime: ev.startTime, endTime: ev.endTime, client, service, practitioner: TEAM_BY_USER_ID.get(assigned) || uname, status: ev.appointmentStatus || ev.appoinmentStatus || "confirmed", contactId: ev.contactId || null, calendarId: ev.calendarId || null, source: sourceLabel(ev) });
     }
     // blocked time (their own Google calendar via team-sync, team meetings, days off set in GHL)
     for (const x of b.ok ? b.body?.events || [] : []) {
@@ -476,6 +482,59 @@ async function renterSet(req: VercelRequest, res: VercelResponse) {
   const r = await dbFetch("rpc/ora_renter_upsert", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET, p }) }).catch(() => null);
   if (!r || !r.ok) return res.status(502).json({ error: "Could not save renter" });
   res.json({ renter: await r.json() });
+}
+
+/* ── Blow-dry bundles ─────────────────────────────────────── */
+async function bundles(_req: VercelRequest, res: VercelResponse) {
+  const r = await listBundles();
+  if (!r.ok) return res.status(502).json({ error: r.error });
+  res.json({ bundles: r.data });
+}
+
+/** Sell a bundle at the desk from an appointment: paid now, and today's visit counted. */
+async function bundleSell(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const offer = bundleOfferFor(str(b.calendarId, 64));
+  const pick = bundleSize(offer, b.size);
+  if (!offer || !pick) return res.status(400).json({ error: "Bundles only cover straight or curly blow-dries (short or long)." });
+  // Contact details come from GHL (the appointment's contact), not from the browser.
+  const contactId = str(b.contactId, 64);
+  const c = contactId ? (await ghlFetch<any>(`/contacts/${encodeURIComponent(contactId)}`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any))).body?.contact || {} : {};
+  const clientName = [c.firstName, c.lastName].filter(Boolean).join(" ") || c.contactName || str(b.clientName, 120);
+  if (!clientName) return res.status(400).json({ error: "Client name is required." });
+  const made = await createBundle({
+    client_name: clientName, email: c.email || null, phone: c.phone || null, contact_id: contactId || null,
+    size: pick.count, price: pick.price, source: "desk", paid: true, first_appointment_id: str(b.appointmentId, 64) || null,
+    expiry_months: offer.expiryMonths,
+  });
+  if (!made.ok) return res.status(502).json({ error: made.error });
+  const used = await bundleAction(made.data.id, "use", { appointment_id: str(b.appointmentId, 64) || null, service: str(b.service, 120) || null });
+  const bundle = used.ok ? used.data : made.data;
+  const emailed = await sendBundleEmail(bundle, "bought");
+  res.json({ bundle, emailed, ...(used.ok ? {} : { warning: `Bundle sold, but today's visit wasn't counted: ${used.error}` }) });
+}
+
+/** paid | use | unuse | void on one bundle. Emails the client after a visit is counted. */
+async function bundleAct(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const id = String(b.id || "");
+  const action = String(b.action || "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "Bad bundle id" });
+  if (!["paid", "use", "unuse", "void"].includes(action)) return res.status(400).json({ error: "Unknown bundle action" });
+  if (action === "unuse" && !/^[0-9a-f-]{36}$/i.test(String(b.useId || ""))) return res.status(400).json({ error: "Bad visit id" });
+  const p = {
+    appointment_id: typeof b.appointmentId === "string" ? b.appointmentId.slice(0, 64) : null,
+    service: typeof b.service === "string" ? b.service.slice(0, 120) : null,
+    use_id: b.useId || null,
+    expiry_months: BUNDLE_EXPIRY_MONTHS,
+  };
+  const r = await bundleAction(id, action as "paid" | "use" | "unuse" | "void", p);
+  if (!r.ok) return res.status(400).json({ error: r.error });
+  const emailed = action === "use" ? await sendBundleEmail(r.data, "used") : false;
+  res.json({ bundle: r.data, emailed });
 }
 
 function safeJson(s: string): any { try { return JSON.parse(s); } catch { return {}; } }

@@ -20,6 +20,8 @@ export interface BookingState {
   /** ISO start time as returned by GHL free-slots */
   slot?: string;
   details: BookingDetails;
+  /** Blow-dry bundle size (4 / 6) — undefined = just this one appointment */
+  bundle?: number;
 }
 
 export const EMPTY_DETAILS: BookingDetails = { name: "", email: "", phone: "", notes: "", consent: false };
@@ -61,6 +63,8 @@ export interface BookingRequest {
   endTime: string;
   /** Stripe PaymentIntent holding the 20% deposit; absent for free consultations */
   paymentIntentId?: string;
+  /** Buy a blow-dry bundle of this size with this visit; the server prices it */
+  bundle?: number;
 }
 export interface BookingResponse {
   success: boolean;

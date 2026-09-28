@@ -81,6 +81,8 @@ export interface BookingNotice {
    */
   depositPence?: number | null;
   notes?: string | null;
+  /** Extra client-facing line (e.g. the blow-dry bundle); trusted HTML built server-side. */
+  extraHtml?: string | null;
   /** Regulated-treatment disclaimer (IV therapy); shown at the foot of the email. */
   disclaimer?: string | null;
 }
@@ -117,6 +119,7 @@ export async function sendClientConfirmation(b: BookingNotice): Promise<boolean>
     typeof b.price === "number" ? `<b>Price:</b> ${b.price === 0 ? "Complimentary" : `£${b.price}`}` : "",
     paid ? `<b>Deposit taken:</b> ${formatPence(b.depositPence!)}` : "",
     paid && balance !== null && balance > 0 ? `<b>Balance at the clinic:</b> ${formatPence(balance)}` : "",
+    b.extraHtml || "",
     `<b>Where:</b> ${ADDRESS}`,
     ``,
     cancelUrl

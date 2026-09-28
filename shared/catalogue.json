@@ -812,7 +812,31 @@
           "price": 10
         }
       ],
-      "ghlGroupId": "0ip0zY1HLnUwGkVta3PX"
+      "ghlGroupId": "0ip0zY1HLnUwGkVta3PX",
+      "bundle": {
+        "name": "Blow-Dry Bundle",
+        "sizes": [
+          {
+            "count": 4,
+            "price": 120,
+            "was": 160
+          },
+          {
+            "count": 6,
+            "price": 180,
+            "was": 240
+          }
+        ],
+        "eligible": [
+          "8GjWYEE76ZxMMRkRvtYh",
+          "D3O1YwrVEXkFojCKtJjP",
+          "W3nI3qkpVqtiPTWAUFPk",
+          "IMYbe1iUcFSjUOeK40NR"
+        ],
+        "eligibleLabel": "Straight or curly blow-dry, short or long hair",
+        "expiryMonths": 6,
+        "terms": "£30 per blow-dry. Paid in full at the clinic on your first visit. Valid for 6 months. Can't be used with another offer."
+      }
     },
     {
       "id": "beauty",

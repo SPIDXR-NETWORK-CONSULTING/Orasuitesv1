@@ -16,6 +16,7 @@ import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.j
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../_lib/stripe.js";
 import { isBookableService } from "../_lib/catalogue.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleLink } from "../_lib/bundles.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -58,7 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
   }
 
-  const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime, paymentIntentId } = req.body;
+  const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime, paymentIntentId, bundle } = req.body;
 
   if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
     return res.status(400).json({ error: "Missing required booking fields" });
@@ -72,6 +73,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({
       error: "That treatment isn't open for online booking yet — please call the clinic or send us an enquiry.",
     });
+  }
+
+  // ── Blow-dry bundle (optional) ─────────────────────────────────────────
+  // The browser only says "4" or "6"; the price and which treatments qualify come
+  // from shared/catalogue.json. Checked BEFORE anything is created.
+  const bundleOffer = bundle != null && bundle !== "" ? bundleOfferFor(calendarId) : undefined;
+  const bundlePick = bundleOffer ? bundleSize(bundleOffer, bundle) : undefined;
+  if (bundle != null && bundle !== "" && !bundlePick) {
+    return res.status(400).json({ error: "That bundle isn't available for this treatment." });
   }
 
   // ── Deposit gate ────────────────────────────────────────────────────────
@@ -173,6 +183,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // 2d. Bundle bought online → record it now (unpaid until reception takes payment
+    //     on this first visit). A failure here must not lose the booking: admin is
+    //     told in the booking email and reception can sell it from the dashboard.
+    let bundleNote = "";
+    let bundleHtml: string | null = null;
+    if (bundleOffer && bundlePick) {
+      const made = await createBundle({
+        client_name: name, email, phone, contact_id: contactId, size: bundlePick.count, price: bundlePick.price,
+        source: "online", paid: false, first_appointment_id: appointmentId, expiry_months: bundleOffer.expiryMonths,
+      });
+      bundleNote = made.ok
+        ? `BLOW-DRY BUNDLE OF ${bundlePick.count}: £${bundlePick.price} to pay at the clinic on this visit (this visit is 1 of ${bundlePick.count}).`
+        : `BLOW-DRY BUNDLE OF ${bundlePick.count} requested (£${bundlePick.price}) but it could NOT be recorded (${made.error}). Sell it from the dashboard at the desk.`;
+      if (!made.ok) console.error(`[booking] CRITICAL: bundle not recorded for appointment ${appointmentId}:`, made.error);
+      bundleHtml = made.ok
+        ? `<b>Blow-Dry Bundle of ${bundlePick.count}:</b> £${bundlePick.price}, paid at the clinic on this visit. This is blow-dry 1 of ${bundlePick.count}. <a href="${bundleLink(made.data.token)}">See your bundle</a>`
+        : `<b>Blow-Dry Bundle of ${bundlePick.count}:</b> £${bundlePick.price}, paid at the clinic on this visit.`;
+    }
+    const staffNotes = [bundleNote, notes].filter(Boolean).join("\n") || null;
+
     // 3. Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar.
     //    Awaited (fire-and-forget work is killed once a serverless response is
     //    sent) but it can never throw or fail the booking — and the nightly
@@ -187,7 +217,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clientEmail: email,
       clientPhone: phone,
       practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
-      notes: notes || null,
+      notes: staffNotes,
       startTime,
       endTime,
       status: "confirmed",
@@ -203,13 +233,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clientName: name,
       clientEmail: email,
       clientPhone: phone,
-      serviceName: serviceName || "Appointment",
+      serviceName: `${serviceName || "Appointment"}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : ""}`,
       startTime,
       practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
       practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
-      notes: notes || null,
+      notes: staffNotes,
+      extraHtml: bundleHtml,
       durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
-      price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+      price: bundlePick?.price ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
       // Only claim a deposit was taken if it actually was.
       depositPence: depositTaken ? deposit.depositPence : null,
     }).catch(() => {});
@@ -220,8 +251,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await createBookingOpportunity({
       contactId,
       clientName: name,
-      serviceName: serviceName || "Appointment",
-      price: deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+      serviceName: `${serviceName || "Appointment"}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : ""}`,
+      price: bundlePick?.price ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
       startTime,
     }).catch(() => null);
 
