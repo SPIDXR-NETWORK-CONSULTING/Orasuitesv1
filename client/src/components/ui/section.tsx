@@ -9,7 +9,7 @@ import { Eyebrow, DisplayHeading, type DisplaySize } from "@/components/ui/glass
  * Direct motion children (variants set) are staggered 0.08s instead of a whole-section fade.
  *
  *  <Section tone="sand" mesh grain>
- *    <SectionHeader eyebrow="Services" title={"Nurse-led aesthetics.\nLuxury nails."} />
+ *    <SectionHeader eyebrow="Services" title={"Nails. Hair.\nMakeup. Beauty."} />
  *    <Reveal>…</Reveal>
  *  </Section>
  */

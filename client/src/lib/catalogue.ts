@@ -38,6 +38,8 @@ export interface Category {
   live: boolean;
   /** Accepts ONLINE bookings. Live-but-unbookable = shown with prices, enquiry only. */
   bookable?: boolean;
+  /** Removed from ORÁ's own menu entirely (kept in data for GHL/id mappings). */
+  hidden?: boolean;
   team: TeamKey[];
   ghlGroupId?: string | null;
   groups: ServiceGroup[];
@@ -77,70 +79,10 @@ export const catalogue = raw as unknown as Catalogue;
 export const categories: Category[] = catalogue.categories;
 export const DEPOSIT_PERCENT: number = catalogue._meta.depositPercent ?? 20;
 
-/* ── Public team names (what the site shows) ────────────── */
-export interface TeamMember {
-  key: TeamKey;
-  /** public display name */
-  name: string;
-  /** short first name / nickname */
-  short: string;
-  role: string;
-  initials: string;
-  ghlUserId?: string;
-  /** optional portrait import path (relative to attached_assets), consumers import themselves */
-  portrait?: string;
-}
-
-const TEAM_PUBLIC: Record<string, Omit<TeamMember, "key" | "ghlUserId">> = {
-  meg: { name: "Meg Cauli", short: "Meg", role: "Founder · Nurse-led Aesthetics", initials: "MC", portrait: "about-meg-ceo.jpg" },
-  daniela: { name: "Daniela Mehmeti", short: "Daniela", role: "Aesthetics Practitioner", initials: "DM" },
-  soheila: { name: "Soheila “Soli” Sadhagat", short: "Soli", role: "Nail Artist", initials: "SS" },
-  ruslana: { name: "Ruslana Stupina", short: "Ruslana", role: "Nail Artist", initials: "RS" },
-  diana: { name: "Diana Ann", short: "Diana", role: "Nail Artist", initials: "DA" },
-};
-
-function initialsOf(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
-export function teamMember(key: TeamKey): TeamMember {
-  const pub = TEAM_PUBLIC[key];
-  const meta = catalogue._meta.team[key];
-  const fallbackName = meta?.name ?? key;
-  return {
-    key,
-    ghlUserId: meta?.ghlUserId,
-    name: pub?.name ?? fallbackName,
-    short: pub?.short ?? fallbackName.split(" ")[0],
-    role: pub?.role ?? "Practitioner",
-    initials: pub?.initials ?? initialsOf(fallbackName),
-    portrait: pub?.portrait,
-  };
-}
-
-/** Public-facing team for a category (e.g. Aesthetics → Meg + Daniela). */
-export function teamFor(categoryId: CategoryId): TeamMember[] {
-  const cat = findCategory(categoryId);
-  return (cat?.team ?? []).map(teamMember);
-}
-
-/** All team members, in menu order. */
-export function allTeam(): TeamMember[] {
-  const seen = new Set<string>();
-  const out: TeamMember[] = [];
-  for (const c of categories) for (const k of c.team) if (!seen.has(k)) { seen.add(k); out.push(teamMember(k)); }
-  return out;
-}
-
 /* ── Category helpers ───────────────────────────────────── */
-/** Categories open for ONLINE booking right now (nails + IV therapy today). */
+/** Categories open for ONLINE booking right now (live + bookable + not hidden in shared/catalogue.json). */
 export function bookableCategories(): Category[] {
-  return categories.filter((c) => c.live && c.bookable);
+  return categories.filter((c) => c.live && c.bookable && !c.hidden);
 }
 /** True when this category takes online bookings; false = show prices, route to enquiry. */
 export function isBookable(id: CategoryId): boolean {
@@ -148,10 +90,10 @@ export function isBookable(id: CategoryId): boolean {
 }
 
 export function liveCategories(): Category[] {
-  return categories.filter((c) => c.live);
+  return categories.filter((c) => c.live && !c.hidden);
 }
 export function comingSoonCategories(): Category[] {
-  return categories.filter((c) => !c.live);
+  return categories.filter((c) => !c.live && !c.hidden);
 }
 export function findCategory(id: CategoryId): Category | undefined {
   return categories.find((c) => c.id === id);

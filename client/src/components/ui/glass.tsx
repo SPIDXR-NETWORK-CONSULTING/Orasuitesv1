@@ -222,7 +222,7 @@ const sizeClass: Record<DisplaySize, string> = {
 
 /**
  * Playfair display heading with split-line reveal. `\n` = new line.
- *   <DisplayHeading as="h1" size="xl">{"Nurse-led aesthetics\nand luxury nails."}</DisplayHeading>
+ *   <DisplayHeading as="h1" size="xl">{"Nails, hair\nand beauty."}</DisplayHeading>
  * <em> renders upright (weight 500) — v2 has no italics.
  */
 export function DisplayHeading({

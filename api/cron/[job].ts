@@ -3,20 +3,25 @@ import syncCalendar from "../_lib/jobs/sync-calendar.js";
 import checkNoshows from "../_lib/jobs/check-noshows.js";
 import waitlistNotify from "../_lib/jobs/waitlist-notify.js";
 import reviewRequests from "../_lib/jobs/review-requests.js";
+import teamSync from "../_lib/jobs/team-sync.js";
 
 /**
  * /api/cron/<job> — every scheduled job behind ONE serverless function.
  *
- * Vercel's Hobby plan caps a deployment at 12 functions and permits only a
- * single DAILY cron, so the four jobs live in api/_lib/jobs/ (underscore = not a
- * route) and are dispatched from here.
+ * The jobs live in api/_lib/jobs/ (underscore = not a route) and are dispatched
+ * from here, so they share one function and one auth check. Schedules: Vercel's
+ * daily cron (vercel.json) calls run-all; Supabase pg_cron calls ?jobs=frequent
+ * every 5 minutes.
  *
  *   /api/cron/run-all                 → everything (what the daily cron calls)
  *   /api/cron/run-all?jobs=hourly     → only the time-sensitive pair, for an
  *                                       external hourly scheduler
+ *   /api/cron/run-all?jobs=frequent   → team-sync only (practitioners' own Google
+ *                                       calendars ⇄ bookings), every ~5 minutes
  *   /api/cron/sync-calendar           → one job, for running by hand
  *
- * Auth is each job's own CRON_SECRET check; run-all re-checks it here too.
+ * Auth: CRON_SECRET, checked here AND by every job. Vercel's scheduler sends it
+ * automatically as `Authorization: Bearer $CRON_SECRET` — no header is trusted instead.
  */
 type Handler = (req: VercelRequest, res: VercelResponse) => Promise<unknown> | unknown;
 
@@ -25,12 +30,14 @@ const JOBS: Record<string, Handler> = {
   "check-noshows": checkNoshows as Handler,
   "waitlist-notify": waitlistNotify as Handler,
   "review-requests": reviewRequests as Handler,
+  "team-sync": teamSync as Handler,
 };
 
 /** Time-sensitive: a no-show deposit must be captured before the hold expires,
  *  and a freed slot is only worth announcing while it is still free. */
 const HOURLY = ["check-noshows", "waitlist-notify"];
-const ALL = [...HOURLY, "sync-calendar", "review-requests"];
+const FREQUENT = ["team-sync"];
+const ALL = [...HOURLY, "sync-calendar", "review-requests", ...FREQUENT];
 
 /** Runs a job in-process and captures whatever it would have responded. */
 async function runJob(name: string, req: VercelRequest): Promise<unknown> {
@@ -69,12 +76,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const provided =
     (req.headers["x-cron-key"] as string | undefined) ??
     ((req.headers.authorization as string | undefined)?.replace(/^Bearer\s+/i, "") || undefined);
-  const fromVercel =
-    Boolean(req.headers["x-vercel-signature"]) ||
-    String(req.headers["user-agent"] || "").includes("vercel-cron");
-  if (!fromVercel && provided !== secret) return res.status(401).json({ ok: false, error: "Unauthorized" });
+  // (A spoofable "looks like Vercel" user-agent/header bypass used to live here — removed.)
+  if (provided !== secret) return res.status(401).json({ ok: false, error: "Unauthorized" });
 
-  const due = String((req.query as Record<string, unknown>).jobs || "") === "hourly" ? HOURLY : ALL;
+  const which = String((req.query as Record<string, unknown>).jobs || "");
+  const due = which === "hourly" ? HOURLY : which === "frequent" ? FREQUENT : ALL;
   const results: Record<string, unknown> = {};
   for (const name of due) results[name] = await runJob(name, req);
 

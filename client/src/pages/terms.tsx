@@ -14,23 +14,23 @@ export default function TermsPage() {
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <h1 className="font-serif text-3xl md:text-4xl text-foreground mb-3">Terms of Service</h1>
-            <p className="text-ora-smoke text-sm mb-10">Last updated: June 2026</p>
+            <p className="text-ora-smoke text-sm mb-10">Last updated: September 2026</p>
 
             <div className="prose prose-sm max-w-none text-ora-fog space-y-6">
               <section>
                 <h2 className="font-serif text-xl text-foreground mb-3">1. Booking & Appointments</h2>
-                <p>All appointments must be booked through our online booking system, by phone, or by email. A booking is only confirmed once a 20% deposit has been received. We reserve the right to release unconfirmed bookings.</p>
+                <p>All appointments must be booked through our online booking system, by phone, or by email. A booking is confirmed once you receive our confirmation. We reserve the right to release unconfirmed bookings.</p>
               </section>
 
               <section>
                 <h2 className="font-serif text-xl text-foreground mb-3">2. Deposits</h2>
-                <p>A non-refundable 20% deposit is required to secure all appointments. This deposit is deducted from the total treatment cost at the time of your appointment. The remaining balance is due on the day of your appointment.</p>
+                <p>We do not currently take a deposit when you book: the full treatment cost is paid at the clinic on the day. If we introduce a deposit, you will be told the amount before you confirm, and it will be deducted from your treatment cost.</p>
               </section>
 
               <section>
                 <h2 className="font-serif text-xl text-foreground mb-3">3. Cancellations & No-Shows</h2>
-                <p><strong className="text-foreground">24-hour cancellation policy:</strong> Cancellations made with less than 24 hours' notice will result in full forfeiture of the deposit. No refunds will be issued for late cancellations or no-shows.</p>
-                <p className="mt-2">Cancellations made more than 24 hours in advance may receive their deposit as credit toward a future appointment, at our discretion.</p>
+                <p><strong className="text-foreground">24-hour cancellation policy:</strong> Please give at least 24 hours' notice if you need to cancel or move your appointment. Where a deposit has been paid, cancellations with less than 24 hours' notice, and no-shows, forfeit the deposit.</p>
+                <p className="mt-2">Where a deposit has been paid and you cancel more than 24 hours in advance, it may be kept as credit toward a future appointment, at our discretion.</p>
               </section>
 
               <section>

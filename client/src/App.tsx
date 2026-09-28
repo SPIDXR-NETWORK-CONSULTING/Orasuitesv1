@@ -1,5 +1,5 @@
 import { Switch, Route, useLocation } from "wouter";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { Suspense, lazy, useEffect, useLayoutEffect, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -11,11 +11,12 @@ import HomePage from "@/pages/home";
 import ServicesPage from "@/pages/services";
 import RoomRentalsPage from "@/pages/room-rentals";
 import AboutPage from "@/pages/about";
-import ResultsPage from "@/pages/results";
 import ContactPage from "@/pages/contact";
 import BookPage from "@/pages/book";
 import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
+// staff dashboard — its own chunk, so public visitors never download it
+const AdminPage = lazy(() => import("@/pages/admin"));
 
 /**
  * Scroll handling on route change: runs AFTER the exit transition (so the old
@@ -89,11 +90,11 @@ function Router() {
           <Route path="/services" component={ServicesPage} />
           <Route path="/room-rentals" component={RoomRentalsPage} />
           <Route path="/about" component={AboutPage} />
-          <Route path="/results" component={ResultsPage} />
           <Route path="/contact" component={ContactPage} />
           <Route path="/book" component={BookPage} />
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/terms" component={TermsPage} />
+          <Route path="/admin">{() => <Suspense fallback={<div className="min-h-screen bg-ora-deep" />}><AdminPage /></Suspense>}</Route>
           <Route component={NotFound} />
         </Switch>
       </motion.div>

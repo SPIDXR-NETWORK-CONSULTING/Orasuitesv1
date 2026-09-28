@@ -62,8 +62,9 @@ export function allServices(): CatalogueService[] {
           categoryId: c.id,
           categoryTitle: c.title,
           groupName: g.name,
-          live: Boolean(c.live),
-          bookable: Boolean(c.live) && Boolean(c.bookable),
+          // hidden = removed from ORÁ's own menu (e.g. aesthetics → 25 Clinic): never live/bookable
+          live: Boolean(c.live) && !c.hidden,
+          bookable: Boolean(c.live) && !c.hidden && Boolean(c.bookable),
         });
       }
     }
@@ -103,8 +104,9 @@ export function formatPence(pence: number): string {
 /**
  * Per-category booking gate.
  *
- * `BOOKING_ENABLED` is the master switch; this is the finer one — it lets nails
- * and IV go live online while aesthetics stays enquiry-only. Enforced in the API
+ * `BOOKING_ENABLED` is the master switch; this is the finer one — a category is
+ * bookable online only if shared/catalogue.json marks it live + bookable and not
+ * hidden (aesthetics is hidden: 25 Clinic's, not ORÁ's). Enforced in the API
  * (not just the UI) so a stale tab, a saved link or a replayed request cannot
  * book a category the clinic has not opened.
  *
@@ -112,4 +114,23 @@ export function formatPence(pence: number): string {
  */
 export function isBookableService(idOrName: string | undefined | null): boolean {
   return findService(idOrName)?.bookable === true;
+}
+
+/**
+ * Split a GHL appointment title into client + service. Titles come in BOTH orders
+ * ("<Client> — <Service>" from the GHL calendar template, "<Service> — <Client>" from
+ * the website), and service names can themselves contain " — ", so match against the
+ * real menu names, longest first. Shared by the dashboard and both Google syncs.
+ */
+let _names: string[] | null = null;
+export function splitGhlTitle(title: string | undefined | null): { client: string; service: string } {
+  const names = _names ??= allServices().map((s) => s.name).sort((a, b) => b.length - a.length);
+  const t = (title || "").trim();
+  for (const s of names) {
+    if (t.endsWith(` — ${s}`)) return { client: t.slice(0, -(s.length + 3)).trim(), service: s };
+    if (t.startsWith(`${s} — `)) return { client: t.slice(s.length + 3).trim(), service: s };
+    if (t === s) return { client: "—", service: s };
+  }
+  const i = t.indexOf(" — ");
+  return i > 0 ? { client: t.slice(0, i).trim(), service: t.slice(i + 3).trim() } : { client: t || "—", service: "—" };
 }

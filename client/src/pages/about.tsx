@@ -7,7 +7,7 @@ import { Section } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { GlassCard, DisplayHeading, IconOrb } from "@/components/ui/glass";
 import { Reveal, Stagger } from "@/lib/motion";
-import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
+import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd, SITE_URL, BUSINESS } from "@/hooks/use-seo";
 import { FeatherIcon, DiamondLeafIcon, StarClusterIcon, LotusIcon } from "@/components/icons/OraIcons";
 
 import hallwayImage from "@assets/ora-hallway.jpg";
@@ -38,9 +38,9 @@ function Heading({ as = "h2", size = "lg", title, line, className = "" }: { as?:
 /* ── page ──────────────────────────────────────────────── */
 export default function AboutPage() {
   useSEO({
-    title: "About ORÁ Suites | Nurse-Led Aesthetics & Luxury Nails, Deansgate Manchester",
+    title: "About ORÁ Suites | Nails, Hair, Makeup & Beauty, Deansgate Manchester",
     description:
-      "ORÁ Suites is a calm, private clinic at 49 Deansgate, Manchester — nurse-led aesthetics and luxury nails in a space designed to slow down, connect and feel looked after.",
+      "ORÁ Suites is a calm, private salon at 49 Deansgate, Manchester — luxury nails, hair, makeup and beauty in a space designed to slow down, connect and feel looked after.",
     jsonLd: [
       defaultBusinessJsonLd({
         founder: { "@type": "Person", name: "Meg Cauli", worksFor: { "@id": `${SITE_URL}/#business` } },
@@ -53,7 +53,7 @@ export default function AboutPage() {
     <Layout padTop lightHeader>
       {/* ── 1. Intro + founder ───────────────────────────── */}
       <Section tone="milk" mesh grain pad="sm" animate={false} className="pt-6 md:pt-10">
-        <Heading as="h1" size="xl" title="About ORÁ" line="Nurse-led aesthetics and luxury nails, 49 Deansgate, Manchester." className="mb-10 md:mb-14" />
+        <Heading as="h1" size="xl" title="About ORÁ" line="Luxury nails, hair, makeup and beauty, 49 Deansgate, Manchester." className="mb-10 md:mb-14" />
 
         <div className="mx-auto grid max-w-4xl items-center gap-8 md:grid-cols-2 md:gap-12">
           <Reveal>
@@ -65,7 +65,7 @@ export default function AboutPage() {
                 height={2048}
                 loading="eager"
                 decoding="async"
-                fetchPriority="high"
+                {...{ fetchpriority: "high" }}
                 className="aspect-[4/5] h-auto w-full object-cover object-top"
               />
             </div>
@@ -73,8 +73,8 @@ export default function AboutPage() {
           <Reveal delay={0.08} className="text-center md:text-left">
             <p className="font-display text-display-md text-foreground">Founded by Meg Cauli</p>
             <p className="mt-4 font-sans text-[0.95rem] leading-[1.6] text-ora-fog sm:text-base">
-              ORÁ was created to be a calmer kind of clinic — private rooms, considered treatments and a space that feels like a pause in the middle of the city.
-              Nurse-led aesthetics and luxury nails, delivered with time and honesty.
+              ORÁ was created to be a calmer kind of salon — private rooms, considered treatments and a space that feels like a pause in the middle of the city.
+              Luxury nails, hair, makeup and beauty, delivered with time and honesty.
             </p>
             <Button asChild variant="link" className="mt-6 h-auto py-1 text-[0.85rem] uppercase tracking-[0.16em]">
               <Link href="/services">
@@ -87,7 +87,7 @@ export default function AboutPage() {
 
       {/* ── 2. Community ─────────────────────────────────── */}
       <Section tone="sand" grain pad="sm" animate={false}>
-        <Heading title="More than a clinic — a community" line="Refreshments, a place to sit, and time that is yours." className="mb-8 md:mb-10" />
+        <Heading title="More than a salon — a community" line="Refreshments, a place to sit, and time that is yours." className="mb-8 md:mb-10" />
         <Stagger className="mx-auto grid max-w-4xl gap-5 sm:grid-cols-2">
           {[
             { src: newspaperImage, alt: "Clients relaxing on the sofa in the ORÁ lounge", w: 1536, h: 2048 },
@@ -147,7 +147,7 @@ export default function AboutPage() {
               </li>
               <li className="flex items-start justify-center gap-3 md:justify-start">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0 text-ora-bronze" aria-hidden />
-                <span>Every day, 10am – 5pm</span>
+                <span>{BUSINESS.hoursLabel}</span>
               </li>
             </ul>
             <div className="mt-7 flex justify-center md:justify-start">

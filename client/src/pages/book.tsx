@@ -20,7 +20,7 @@ export default function BookPage() {
   useSEO({
     title: "Book an Appointment | ORÁ Suites Manchester",
     description:
-      "Book nurse-led aesthetics and luxury nail treatments online at ORÁ Suites, 49 Deansgate, Manchester. Choose your treatment and a time in four quick steps.",
+      "Book luxury nail, hair and makeup treatments online at ORÁ Suites, 49 Deansgate, Manchester. Choose your treatment and a time in four quick steps.",
     path: "/book",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Book", path: "/book" }]),

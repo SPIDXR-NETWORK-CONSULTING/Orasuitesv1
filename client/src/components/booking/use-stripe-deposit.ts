@@ -1,6 +1,9 @@
 /**
  * useStripeDeposit — the 20% deposit, held with Stripe, with no npm dependency.
  *
+ * STATUS (Sep 2026): deposits are PAUSED in production (env DEPOSITS_ENABLED=false),
+ * so the payment-intent call returns 503 and this degrades to `enabled:false` below.
+ *
  * HELD, NOT TAKEN: the PaymentIntent is created with manual capture, so
  * confirming here only AUTHORISES the deposit — the intent lands on
  * `requires_capture`. The money is taken by the server, seconds later, once the
@@ -21,12 +24,34 @@
  * The browser NEVER sends an amount. It sends a serviceId; the server prices it.
  */
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 
 const PUBLISHABLE_KEY: string | undefined = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
 const STRIPE_JS = "https://js.stripe.com/v3";
 
 export function isStripeEnabled(): boolean {
   return typeof PUBLISHABLE_KEY === "string" && PUBLISHABLE_KEY.startsWith("pk_");
+}
+
+/**
+ * Whether the server is actually taking deposits right now (env DEPOSITS_ENABLED can
+ * pause them while the Stripe key stays in the bundle). DISPLAY ONLY: false until
+ * the server says otherwise, so nothing ever promises a deposit that isn't taken.
+ * The payment step itself still goes by useStripeDeposit().enabled.
+ */
+export function useDepositsLive(): boolean {
+  const { data } = useQuery({
+    queryKey: ["deposits-live"],
+    enabled: isStripeEnabled(),
+    staleTime: 10 * 60_000,
+    retry: 1,
+    queryFn: async () => {
+      const res = await fetch("/api/catalogue");
+      if (!res.ok) return false;
+      return Boolean((await res.json())?._meta?.depositsEnabled);
+    },
+  });
+  return data === true;
 }
 
 /* ── Stripe.js loader (one script, one promise, ever) ────── */

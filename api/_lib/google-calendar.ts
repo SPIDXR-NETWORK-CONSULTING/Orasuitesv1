@@ -100,7 +100,8 @@ const CALENDAR_SERVICE: Map<string, string> = (() => {
 export const TEAM_BY_USER_ID: Map<string, string> = (() => {
   const m = new Map<string, string>();
   for (const member of Object.values(catalogue._meta?.team ?? {})) {
-    if (member?.ghlUserId) m.set(member.ghlUserId, member.name);
+    // inactive = no longer on the salon team (e.g. aesthetics → 25 Clinic): off the dashboard, rota and syncs
+    if (member?.ghlUserId && !(member as { inactive?: boolean }).inactive) m.set(member.ghlUserId, member.name);
   }
   return m;
 })();
@@ -111,6 +112,21 @@ export const TEAM_EMAIL_BY_USER_ID: Map<string, string> = (() => {
   for (const member of Object.values(catalogue._meta?.team ?? {})) {
     const email = (member as { email?: string })?.email;
     if (member?.ghlUserId && email) m.set(member.ghlUserId, email);
+  }
+  return m;
+})();
+
+/**
+ * GHL user id → the practitioner's OWN Google calendar to read busy time from.
+ * OPT-IN: only set (catalogue _meta.team.<key>.busyCalendar) once they've shared it with
+ * admin@orasuites.com. Never inferred — Workspace calendars are visible to admin@ without
+ * the person agreeing, so we must not read anything nobody explicitly opted in.
+ */
+export const TEAM_BUSY_CALENDAR_BY_USER_ID: Map<string, string> = (() => {
+  const m = new Map<string, string>();
+  for (const member of Object.values(catalogue._meta?.team ?? {})) {
+    const cal = (member as { busyCalendar?: string })?.busyCalendar;
+    if (member?.ghlUserId && cal) m.set(member.ghlUserId, cal);
   }
   return m;
 })();
@@ -352,8 +368,11 @@ function buildEventBody(appt: MirrorAppointment): Record<string, unknown> | null
 
 /* ── find / upsert / delete ──────────────────────────────── */
 
+/** The parts of a Google event we compare to decide whether it really changed. */
+export interface ExistingEvent { id: string; summary?: string; description?: string; start?: { dateTime?: string }; end?: { dateTime?: string }; attendees?: { email?: string }[] }
+
 /** Find the Google event mirroring a given GHL appointment id, if any. */
-export async function findEventByGhlId(ghlId: string): Promise<{ id: string } | null> {
+export async function findEventByGhlId(ghlId: string): Promise<ExistingEvent | null> {
   const cfg = config();
   if (!cfg) return null;
   const qs = new URLSearchParams({
@@ -362,9 +381,24 @@ export async function findEventByGhlId(ghlId: string): Promise<{ id: string } | 
     maxResults: "5",
     singleEvents: "true",
   });
-  const res = await calFetch<{ items?: { id: string }[] }>(`/calendars/${encodeURIComponent(cfg.calendarId)}/events?${qs}`);
+  const res = await calFetch<{ items?: ExistingEvent[] }>(`/calendars/${encodeURIComponent(cfg.calendarId)}/events?${qs}`);
   const hit = res.body?.items?.[0];
-  return hit?.id ? { id: hit.id } : null;
+  return hit?.id ? hit : null;
+}
+
+/**
+ * True when the event already says exactly what we'd write. Every update is sent with
+ * sendUpdates=all (so moves reach the practitioner), which EMAILS the attendee — so we
+ * must never re-PUT an unchanged event, or a frequent sync would spam every inbox.
+ */
+function sameEvent(existing: ExistingEvent, body: Record<string, any>): boolean {
+  const ms = (v?: string) => (v ? Date.parse(v) : NaN);
+  const emails = (a?: { email?: string }[]) => (a || []).map((x) => (x.email || "").toLowerCase()).sort().join(",");
+  return existing.summary === body.summary
+    && (existing.description || "") === (body.description || "")
+    && ms(existing.start?.dateTime) === ms(body.start?.dateTime)
+    && ms(existing.end?.dateTime) === ms(body.end?.dateTime)
+    && emails(existing.attendees) === emails(body.attendees);
 }
 
 export interface UpsertResult {
@@ -378,7 +412,7 @@ export interface UpsertResult {
  * Cancelled/deleted appointments are removed instead.
  * Never throws.
  */
-export async function upsertEvent(appt: MirrorAppointment): Promise<UpsertResult> {
+export async function upsertEvent(appt: MirrorAppointment, known?: ExistingEvent | null): Promise<UpsertResult> {
   const cfg = config();
   if (!cfg) {
     noopBecauseUnconfigured("event upsert");
@@ -391,8 +425,9 @@ export async function upsertEvent(appt: MirrorAppointment): Promise<UpsertResult
   if (!body) return { action: "failed", reason: "unusable start/end time" };
 
   try {
-    const existing = await findEventByGhlId(appt.ghlId);
+    const existing = known !== undefined ? known : await findEventByGhlId(appt.ghlId);
     if (existing) {
+      if (sameEvent(existing, body)) return { action: "skipped", eventId: existing.id, reason: "unchanged" };
       const res = await calFetch<{ id?: string }>(
         `/calendars/${encodeURIComponent(cfg.calendarId)}/events/${encodeURIComponent(existing.id)}?sendUpdates=all`,
         { method: "PUT", body: JSON.stringify(body) },
@@ -476,6 +511,74 @@ export async function listManagedEvents(timeMin: Date, timeMax: Date): Promise<M
     if (!pageToken) break;
   }
   return out;
+}
+
+/** Like listManagedEvents, but with the fields needed for change detection (keyed by GHL id). */
+export async function listManagedEventsDetailed(timeMin: Date, timeMax: Date): Promise<Map<string, ExistingEvent>> {
+  const cfg = config();
+  const out = new Map<string, ExistingEvent>();
+  if (!cfg) return out;
+  let pageToken: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const qs = new URLSearchParams({ privateExtendedProperty: `${MANAGED_FLAG}=1`, timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString(), showDeleted: "false", singleEvents: "true", maxResults: "2500" });
+    if (pageToken) qs.set("pageToken", pageToken);
+    const res = await calFetch<{ items?: (ExistingEvent & { extendedProperties?: { private?: Record<string, string> } })[]; nextPageToken?: string }>(`/calendars/${encodeURIComponent(cfg.calendarId)}/events?${qs}`);
+    if (!res.ok) break;
+    for (const item of res.body?.items ?? []) {
+      const ghlId = item.extendedProperties?.private?.ghlId;
+      if (ghlId && item.id) out.set(ghlId, item);
+    }
+    pageToken = res.body?.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
+}
+
+/**
+ * Busy time in a practitioner's own Google Calendar (they share it with admin@orasuites.com).
+ * Returns merged [start,end) ms intervals. Skips: free/"transparent" events, cancelled or
+ * declined events, and ORÁ's own mirrored invites (organised by the ORÁ calendar) — so a
+ * booking we put on their calendar never comes back as a block on top of itself.
+ * `shared: false` when their calendar isn't shared with us (yet).
+ */
+export async function listBusy(calendarEmail: string, timeMin: Date, timeMax: Date): Promise<{ shared: boolean; intervals: [number, number][] }> {
+  const cfg = config();
+  if (!cfg) return { shared: false, intervals: [] };
+  const raw: [number, number][] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 10; page++) {
+    const qs = new URLSearchParams({ timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString(), singleEvents: "true", showDeleted: "false", maxResults: "2500" });
+    if (pageToken) qs.set("pageToken", pageToken);
+    const res = await calFetch<{ items?: any[]; nextPageToken?: string }>(`/calendars/${encodeURIComponent(calendarEmail)}/events?${qs}`);
+    if (!res.ok) return { shared: false, intervals: [] }; // 403/404 = not shared with admin@
+    for (const ev of res.body?.items ?? []) {
+      if (ev.status === "cancelled" || ev.transparency === "transparent") continue;
+      if ((ev.organizer?.email || "").toLowerCase() === cfg.calendarId.toLowerCase()) continue; // our own invite
+      const me = (ev.attendees || []).find((a: any) => a.self);
+      if (me?.responseStatus === "declined") continue;
+      const start = ev.start?.dateTime ? Date.parse(ev.start.dateTime) : ev.start?.date ? londonMidnight(ev.start.date) : NaN;
+      const end = ev.end?.dateTime ? Date.parse(ev.end.dateTime) : ev.end?.date ? londonMidnight(ev.end.date) : NaN;
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) raw.push([start, end]);
+    }
+    pageToken = res.body?.nextPageToken;
+    if (!pageToken) break;
+  }
+  raw.sort((a, b) => a[0] - b[0]);
+  const merged: [number, number][] = [];
+  for (const iv of raw) {
+    const last = merged[merged.length - 1];
+    if (last && iv[0] <= last[1]) last[1] = Math.max(last[1], iv[1]);
+    else merged.push([iv[0], iv[1]]);
+  }
+  return { shared: true, intervals: merged };
+}
+
+/** Epoch ms of 00:00 Europe/London on a YYYY-MM-DD date (all-day events). */
+function londonMidnight(date: string): number {
+  const utcGuess = Date.parse(`${date}T00:00:00Z`);
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: ORA_TIMEZONE, hour: "2-digit", hourCycle: "h23" }).formatToParts(new Date(utcGuess));
+  const londonHour = Number(parts.find((p) => p.type === "hour")?.value || 0); // 1 in BST, 0 in GMT
+  return utcGuess - londonHour * 3_600_000;
 }
 
 /** Lightweight connectivity probe for /api/health. */

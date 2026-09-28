@@ -21,6 +21,18 @@ const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
 const GHL_BASE = "https://services.leadconnectorhq.com";
 
+/** This contact's live appointment on the same calendar at the same start, if any. Never throws. */
+export async function existingBooking(contactId: string, calendarId: string, startTime: string): Promise<string | null> {
+  try {
+    const r = await ghlFetch(`/contacts/${encodeURIComponent(contactId)}/appointments`);
+    const want = Date.parse(startTime);
+    const hit = (r?.events || []).find((e: any) =>
+      e?.calendarId === calendarId && Date.parse(e?.startTime) === want && !e?.deleted &&
+      !["cancelled", "canceled", "noshow", "invalid"].includes(String(e?.appointmentStatus ?? e?.appoinmentStatus ?? "").toLowerCase()));
+    return hit?.id ?? null;
+  } catch { return null; } // a failed check must never block a real booking
+}
+
 async function ghlFetch(path: string, options: RequestInit = {}) {
   const res = await fetch(`${GHL_BASE}${path}`, {
     ...options,
@@ -53,8 +65,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // ── Category gate ───────────────────────────────────────────────────────
-  // Nails and IV therapy are open online; aesthetics and hair are enquiry-only
-  // for now. Checked here, not just in the UI, so a stale tab or a replayed
+  // Only categories marked live + bookable (and not hidden) in
+  // shared/catalogue.json can be booked online. Checked here, not just in the UI, so a stale tab or a replayed
   // request cannot book a category the clinic has not opened. Fails CLOSED.
   if (!isBookableService(serviceId ?? calendarId ?? serviceName)) {
     return res.status(400).json({
@@ -96,6 +108,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
     const contactId = resolved.id;
+
+    // Idempotency: an app retry after a timeout, a double tap or a double click must get
+    // back the booking that already exists — never a second one. (The server can still be
+    // finishing the first request when the client gives up and retries.)
+    const dup = await existingBooking(contactId, calendarId, startTime);
+    if (dup) {
+      if (paidIntentId) await releaseAfterFailedBooking(paidIntentId, intentStatus, `duplicate of appointment ${dup}`);
+      console.log(`[booking] duplicate request for contact ${contactId} → returning existing appointment ${dup}`);
+      return res.json({ success: true, appointmentId: dup, contactId, duplicate: true });
+    }
 
     const apptRes = await ghlFetch("/calendars/events/appointments", {
       method: "POST",
