@@ -1,3 +1,5 @@
+> **Superseded in part (28 Sep 2026):** aesthetics is no longer ORÁ's (25 Clinic, a renter, runs it) and is hidden from the site, app and walk-ins. Meg and Daniela's aesthetics setup below is history. Current team: Meg (admin@orasuites.com), Soli, Ruslana, Diana (nails), Amani (hair + makeup). Address is **49** Deansgate.
+
 # GHL Setup Instructions — ORÁ Suites
 **For Claude Cowork | GHL Dashboard: app.gohighlevel.com**
 **Location: ORÁ Suites (nFzNDCibe0pfcMIhnkgT)**
@@ -199,7 +201,7 @@ Go to **Automation → Workflows → + New Workflow**.
 
 **Workflow 2: Booking Reminder**
 - Trigger: Appointment Reminder (24 hours before)
-- Action: Send SMS to contact with appointment details and address (45 Deansgate, Manchester, M3 2AY)
+- Action: Send SMS to contact with appointment details and address (49 Deansgate, Manchester, M3 2AY)
 
 **Workflow 3: Contact Form Enquiry**
 - Trigger: Contact Created with tag = "website-enquiry"

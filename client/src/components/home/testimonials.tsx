@@ -13,7 +13,7 @@ const TESTIMONIALS = [
       "Ora transformed not just my skin, but my confidence. The team is professional, the space is stunning, and I always leave feeling like the best version of myself.",
     author: "Sarah M.",
     location: "Manchester",
-    treatment: "Profhilo Treatment",
+    treatment: "Beauty",
   },
   {
     id: 2,
@@ -21,7 +21,7 @@ const TESTIMONIALS = [
       "The team at Ora truly cares. It's the only place I trust with my skin. Every visit feels like a ritual, not just an appointment. I've never felt more beautiful.",
     author: "Amina K.",
     location: "Didsbury",
-    treatment: "Facial Aesthetics",
+    treatment: "Beauty",
   },
   {
     id: 3,

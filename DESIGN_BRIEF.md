@@ -1,3 +1,5 @@
+> **Note (28 Sep 2026):** positioning is now **Nails · Hair · Makeup · Beauty + Room Rentals**. Aesthetics was removed (25 Clinic's), so ignore aesthetics lines below, including the "Nurse-led aesthetics" phrase. Every other rule still stands.
+
 # ORÁ Suites — Redesign Brief v2 (17 Aug 2026) — RESTRAINT PASS
 
 v1 was rejected: too much copy, type too big, left-stacked, overlapping images, repeated images, invented content, over-designed. v2 = **subtract**. Read the whole file. Also read `/Users/abdulafolabi/.claude/skills/abdul-design-standard/SKILL.md` for the motion/quality bar — but restraint overrides everything.

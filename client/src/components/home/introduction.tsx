@@ -38,7 +38,7 @@ export function IntroductionSection() {
           {"A beauty and wellness sanctuary on Deansgate."}
         </DisplayHeading>
         <motion.p variants={m.fadeUp} className="lede mt-3 max-w-xl">
-          Private treatment rooms, nurse-led aesthetics and luxury nails — in one calm space.
+          Luxury nails, hair, makeup and beauty — with private treatment rooms to rent — in one calm space.
         </motion.p>
 
         <motion.div variants={m.fadeUp} className="mt-5">

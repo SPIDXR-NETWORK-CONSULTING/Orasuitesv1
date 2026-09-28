@@ -3,13 +3,19 @@ import { MapPin, Mail, Clock, Navigation } from "lucide-react";
 import { Section, SectionHeader } from "@/components/ui/section";
 import { Button } from "@/components/ui/button";
 import { useMotionSafe, viewportOnce } from "@/lib/motion";
+import { BUSINESS } from "@/hooks/use-seo";
 import manchesterImage from "@assets/manchester-location_1770213665902.png";
 
 /* Business truth — keep in sync with hooks/use-seo.ts BUSINESS */
 const ADDRESS = "49 Deansgate, Manchester M3 2AY";
 const EMAIL = "admin@orasuites.com";
 const MAPS_URL = "https://maps.google.com/?q=49+Deansgate+Manchester+M3+2AY";
-const HOURS = "Mon–Sat 10am – 7:30pm · Sun 10am – 5pm";
+// one line per day-range so it never breaks mid-phrase on narrow screens
+const HOURS = BUSINESS.hoursLabel.split(" · ").map((s) => (
+  <span key={s} className="block">
+    {s}
+  </span>
+));
 
 const ROWS = [
   { icon: <MapPin />, label: "Address", value: ADDRESS },

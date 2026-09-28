@@ -5,6 +5,7 @@ import { Menu, X, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
+import { BUSINESS } from "@/hooks/use-seo";
 import logoImage from "@assets/ora-logo-new.jpg";
 
 const navLinks = [
@@ -12,7 +13,6 @@ const navLinks = [
   { href: "/services", label: "Services" },
   { href: "/room-rentals", label: "Room Rentals" },
   { href: "/about", label: "About" },
-  { href: "/results", label: "Results" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -22,7 +22,7 @@ const navLinks = [
  * Page agents: add/remove routes here if a hero changes tone (or add `.on-dark`
  * handling via the `data-header="light"` attribute below).
  */
-const DARK_HERO_ROUTES = ["/", "/services", "/about", "/results", "/room-rentals", "/contact"];
+const DARK_HERO_ROUTES = ["/", "/services", "/about", "/room-rentals", "/contact"];
 
 export function Header() {
   const [location] = useLocation();
@@ -239,7 +239,7 @@ export function Header() {
                   <a href="mailto:admin@orasuites.com" className="hover:text-ora-cream transition-colors">
                     admin@orasuites.com
                   </a>
-                  <span className="mx-2 text-ora-bronze/60">·</span>Every day 10–5
+                  <span className="mx-2 text-ora-bronze/60">·</span>{BUSINESS.hoursLabel}
                 </p>
               </motion.div>
             </motion.nav>

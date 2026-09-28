@@ -1,4 +1,4 @@
-> ⚠️ **STALE BUILD — this folder is the deprecated secondary build. The canonical build is `../Ora-Suites Website/`. Do not edit this folder.** The "MemStorage (development)" framing below understates a production gap: contact submissions are not persisted in the canonical build either (verify in its `server/storage.ts`). *(Banner added 2026-07-06.)*
+> ⚠️ **HISTORICAL (Replit origin) — mostly out of date.** This IS the live build (`Ora-Suites/`; `Ora-Suites Website/` no longer exists). The site is **not** women-only and does not offer aesthetics or laser. For current state read `../ORA_SUITES_STATE.md`. Contact enquiries go to GHL + admin@orasuites.com; the in-memory store is only used by the local dev server. *(Updated 28 Sep 2026.)*
 
 # ORÁ Suites Website
 

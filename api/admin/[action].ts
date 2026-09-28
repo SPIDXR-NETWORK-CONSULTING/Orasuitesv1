@@ -1,5 +1,5 @@
 /**
- * ORÁ — Admin floor dashboard API (single dynamic function; Vercel Hobby cap).
+ * ORÁ — Admin floor dashboard API (one dynamic function for every action).
  * Actions via ?action= :
  *   · today    → every appointment across all practitioners for a day, merged.
  *   · staff    → who's working today (per practitioner).
@@ -7,33 +7,28 @@
  *   · slots    → free times today for a service (walk-in time picker).
  *   · walkin   → (POST) create a walk-in: auto-assign, alert practitioner,
  *                land in the pipeline. Admin can book ANY live service.
+ *   · rota / rota-set → weekly hours; each save syncs to GHL availability.
+ *   · renters / renter-set → room & chair renters (ORÁ Supabase, locked table).
  *
  * Reads/writes GHL (the current engine). On the future custom-backend migration,
  * only this file changes — the dashboard page stays the same.
  *
- * Admin-only: requires ADMIN_KEY (?key= or x-admin-key). Exposes client data.
+ * Admin-only. The staff passcode (ADMIN_KEY, short by design) is checked ONLY by the
+ * `login` action, which is rate-limited (5 wrong / IP / 15 min, 50 total). A correct login
+ * returns a signed device token (90 days); every other action requires that token in
+ * `x-admin-token`. Changing ADMIN_KEY signs every device out. Exposes client data.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { ghlFetch } from "../_lib/ghl.js";
-import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe } from "../_lib/google-calendar.js";
-import { allServices, findService } from "../_lib/catalogue.js";
+import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEvent } from "../_lib/google-calendar.js";
+import { allServices, findService, splitGhlTitle } from "../_lib/catalogue.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
 
 const LOC = process.env.GHL_LOCATION_ID || "";
 
-const SERVICE_NAMES: string[] = allServices().map((s) => s.name).sort((a, b) => b.length - a.length);
-
-function splitTitle(title: string): { client: string; service: string } {
-  const t = (title || "").trim();
-  for (const s of SERVICE_NAMES) {
-    if (t.endsWith(` — ${s}`)) return { client: t.slice(0, -(s.length + 3)).trim(), service: s };
-    if (t.startsWith(`${s} — `)) return { client: t.slice(s.length + 3).trim(), service: s };
-    if (t === s) return { client: "—", service: s };
-  }
-  const i = t.indexOf(" — ");
-  return i > 0 ? { client: t.slice(0, i).trim(), service: t.slice(i + 3).trim() } : { client: t || "—", service: "—" };
-}
+const splitTitle = (title: string) => splitGhlTitle(title);
 
 function dayRange(dateStr: string): { dateStr: string; start: number; end: number } {
   const start = Date.parse(`${dateStr}T00:00:00Z`);
@@ -41,14 +36,45 @@ function dayRange(dateStr: string): { dateStr: string; start: number; end: numbe
 }
 function todayStr(): string { return new Date().toISOString().slice(0, 10); }
 
+/* ── auth: passcode → signed device token ───────────────── */
+const TOKEN_DAYS = 90;
+function sign(exp: number): string | null {
+  const secret = process.env.ADMIN_SESSION_SECRET, pass = process.env.ADMIN_KEY;
+  if (!secret || !pass) return null;
+  // passcode is part of the key → changing the passcode invalidates every token
+  return createHmac("sha256", `${secret}:${pass}`).update(String(exp)).digest("base64url");
+}
 function authorised(req: VercelRequest): boolean {
-  const key = process.env.ADMIN_KEY;
-  const given = (req.query.key as string) || (req.headers["x-admin-key"] as string) || "";
-  return Boolean(key) && given === key;
+  const token = String(req.headers["x-admin-token"] || "");
+  const [expStr, mac] = token.split(".");
+  const exp = Number(expStr);
+  if (!exp || !mac || exp < Date.now()) return false;
+  const want = sign(exp);
+  if (!want || want.length !== mac.length) return false;
+  return timingSafeEqual(Buffer.from(want), Buffer.from(mac));
+}
+const clientIp = (req: VercelRequest) => String(req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || "?").split(",")[0].trim();
+
+async function login(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!process.env.ADMIN_KEY || !process.env.ADMIN_SESSION_SECRET || !DB_URL || !RPC_SECRET) return res.status(503).json({ error: "Login is not configured" });
+  const ip = clientIp(req);
+  const locked = await dbFetch("rpc/ora_login_locked", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET, p_ip: ip }) }).then((r) => (r.ok ? r.json() : true)).catch(() => true);
+  if (locked === true) return res.status(429).json({ error: "Too many wrong attempts. Try again in 15 minutes." });
+  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const given = String(body.passcode || "").trim(), pass = process.env.ADMIN_KEY;
+  const ok = given.length === pass.length && timingSafeEqual(Buffer.from(given), Buffer.from(pass));
+  if (!ok) {
+    await dbFetch("rpc/ora_login_fail", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET, p_ip: ip }) }).catch(() => null);
+    return res.status(401).json({ error: "That passcode didn't work." });
+  }
+  const exp = Date.now() + TOKEN_DAYS * 86_400_000;
+  res.json({ token: `${exp}.${sign(exp)}` });
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
+  if (String(req.query.action || "") === "login") return login(req, res);
   if (!authorised(req)) return res.status(401).json({ error: "Unauthorised" });
   switch (String(req.query.action || "")) {
     case "today": return today(req, res);
@@ -57,6 +83,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "services": return services(req, res);
     case "slots": return slots(req, res);
     case "walkin": return walkin(req, res);
+    case "status": return setStatus(req, res);
     case "client": return client(req, res);
     case "enquiries": return enquiries(req, res);
     case "conversations": return conversations(req, res);
@@ -64,6 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "reply": return reply(req, res);
     case "rota": return rota(req, res);
     case "rota-set": return rotaSet(req, res);
+    case "renters": return renters(req, res);
+    case "renter-set": return renterSet(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
   }
 }
@@ -77,27 +106,46 @@ function sourceLabel(ev: any): string {
   return s ? s.replace(/_/g, " ") : "—";
 }
 
-/** Fetch appointments across [start,end] (epoch ms), merged across all staff. */
-async function fetchRange(start: number, end: number): Promise<{ appointments: any[]; errors: number }> {
+/** Fetch appointments + blocked time across [start,end] (epoch ms), merged across all staff. */
+async function fetchRange(start: number, end: number): Promise<{ appointments: any[]; blocks: any[]; errors: number }> {
   const seen = new Set<string>();
   const appointments: any[] = [];
+  const blocks: any[] = [];
   let errors = 0;
-  for (const [uid, uname] of Array.from(TEAM_BY_USER_ID.entries())) {
-    const r = await ghlFetch<any>(`/calendars/events?locationId=${LOC}&userId=${uid}&startTime=${start}&endTime=${end}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any));
-    if (!r.ok) { errors++; continue; }
-    for (const ev of r.body?.events || []) {
+  // Every practitioner's appointments + blocked time requested AT ONCE (was 12 calls in a row).
+  const team = Array.from(TEAM_BY_USER_ID.entries());
+  const results = await Promise.all(team.map(([uid]) => Promise.all([
+    ghlFetch<any>(`/calendars/events?locationId=${LOC}&userId=${uid}&startTime=${start}&endTime=${end}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any)),
+    ghlFetch<any>(`/calendars/blocked-slots?locationId=${LOC}&userId=${uid}&startTime=${start}&endTime=${end}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any)),
+  ])));
+  team.forEach(([uid, uname], i) => {
+    const [r, b] = results[i];
+    if (!r.ok) errors++;
+    for (const ev of r.ok ? r.body?.events || [] : []) {
       const id = String(ev.id || "");
       if (!id || seen.has(id)) continue;
       const startMs = Date.parse(ev.startTime);
       if (Number.isNaN(startMs) || startMs < start || startMs > end) continue;
       seen.add(id);
-      const { client, service } = splitTitle(String(ev.title || ""));
+      // treatment from the booking's GHL calendar (one calendar = one treatment) beats the title,
+      // which staff often type freely ("Sogol BIAB") — that left a third of bookings unpriced
+      const parsed = splitTitle(String(ev.title || ""));
+      const byCal = ev.calendarId ? findService(ev.calendarId) : undefined;
+      const service = byCal?.name ?? parsed.service;
+      const client = parsed.client;
       const assigned = ev.assignedUserId || uid;
       appointments.push({ id, startTime: ev.startTime, endTime: ev.endTime, client, service, practitioner: TEAM_BY_USER_ID.get(assigned) || uname, status: ev.appointmentStatus || ev.appoinmentStatus || "confirmed", contactId: ev.contactId || null, source: sourceLabel(ev) });
     }
-  }
+    // blocked time (their own Google calendar via team-sync, team meetings, days off set in GHL)
+    for (const x of b.ok ? b.body?.events || [] : []) {
+      if (!x?.id || seen.has(x.id)) continue;
+      seen.add(x.id);
+      // Google-sourced blocks show only "Busy" (owner's choice: personal details stay private)
+      blocks.push({ id: x.id, startTime: x.startTime, endTime: x.endTime, practitioner: TEAM_BY_USER_ID.get(x.assignedUserId) || uname, title: x.title === "Busy (Google)" ? "Busy" : x.title || "Blocked" });
+    }
+  });
   appointments.sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
-  return { appointments, errors };
+  return { appointments, blocks, errors };
 }
 
 /** Appointments across a date range (week/month). ?start=YYYY-MM-DD&end=YYYY-MM-DD */
@@ -107,8 +155,8 @@ async function range(req: VercelRequest, res: VercelResponse) {
   const start = Date.parse(`${s}T00:00:00Z`);
   const end = Date.parse(`${e}T00:00:00Z`) + 86_400_000 - 1;
   if (Number.isNaN(start) || Number.isNaN(end)) return res.status(400).json({ error: "Bad date range" });
-  const { appointments, errors } = await fetchRange(start, end);
-  res.json({ start: s, end: e, count: appointments.length, errors, appointments });
+  const { appointments, blocks, errors } = await fetchRange(start, end);
+  res.json({ start: s, end: e, count: appointments.length, errors, appointments, blocks });
 }
 
 /** Every appointment for a day, across all practitioners, merged + sorted. */
@@ -201,6 +249,24 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   res.json({ appointmentId, practitioner, startTime: start, endTime: end, price: service.price, service: service.name });
 }
 
+/**
+ * Mark a booking: showed (client arrived) · noshow · cancelled · confirmed (undo).
+ * Same effect as changing it in GHL (GHL's own notifications/workflows behave as usual).
+ * Cancelled / no-show bookings leave the practitioner's Google Calendar immediately.
+ */
+const STATUSES_ALLOWED = ["showed", "noshow", "cancelled", "confirmed"];
+async function setStatus(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const id = String(body.id || ""), status = String(body.status || "");
+  if (!/^[A-Za-z0-9]{8,40}$/.test(id)) return res.status(400).json({ error: "Bad appointment id" });
+  if (!STATUSES_ALLOWED.includes(status)) return res.status(400).json({ error: "Unknown status" });
+  const r = await ghlFetch<any>(`/calendars/events/appointments/${id}`, { method: "PUT", version: "2021-04-15", body: JSON.stringify({ appointmentStatus: status }) }).catch(() => ({ ok: false } as any));
+  if (!r.ok) return res.status(502).json({ error: "GHL didn't accept the change — try again." });
+  if (status === "cancelled" || status === "noshow") await deleteEvent(id).catch(() => null);
+  res.json({ ok: true, id, status });
+}
+
 /** One client: contact details + their full visit history. */
 async function client(req: VercelRequest, res: VercelResponse) {
   const cid = (req.query.contactId as string) || "";
@@ -263,13 +329,16 @@ async function reply(req: VercelRequest, res: VercelResponse) {
   const html = message.replace(/\n/g, "<br>");
   const r = await ghlFetch<any>(`/conversations/messages`, {
     method: "POST", version: "2021-04-15",
-    body: JSON.stringify({ type: "Email", contactId, html, subject: String(body.subject || "ORÁ Suites") }),
+    // always send from the clinic inbox (GHL otherwise picks its default sender)
+    body: JSON.stringify({ type: "Email", contactId, html, subject: String(body.subject || "ORÁ Suites"), emailFrom: "ORÁ Suites <admin@orasuites.com>" }),
   }).catch(() => ({ ok: false, body: null } as any));
   if (!r.ok) return res.status(502).json({ error: "Could not send", detail: r.body });
   res.json({ ok: true, id: r.body?.messageId || r.body?.id || null });
 }
 
-/* ── Rota (dedicated ORÁ Supabase, PostgREST) ────────────── */
+/* ── Rota (dedicated ORÁ Supabase, PostgREST) ──────────────
+   Locked 2026-09-28: no public access; read/write only via ora_rota_list / ora_rota_upsert
+   (secret-gated, like renters). */
 const DB_URL = process.env.ORA_DB_URL || "";
 const DB_KEY = process.env.ORA_DB_ANON_KEY || "";
 function dbFetch(path: string, init: RequestInit = {}) {
@@ -278,11 +347,66 @@ function dbFetch(path: string, init: RequestInit = {}) {
 
 /** The weekly rota: every practitioner + their saved working hours per weekday. */
 async function rota(_req: VercelRequest, res: VercelResponse) {
-  if (!DB_URL) return res.status(503).json({ error: "Rota database not configured" });
-  const r = await dbFetch("ora_rota?select=*").catch(() => null);
-  const rows = r && r.ok ? await r.json() : [];
+  if (!DB_URL || !RPC_SECRET) return res.status(503).json({ error: "Rota database not configured" });
   const team = Array.from(TEAM_BY_USER_ID.entries()).map(([userId, name]) => ({ userId, name }));
+  let rows = await rotaRows();
+  // First use: import everyone's current GHL working hours so the rota starts from the truth.
+  const missing = team.filter((t) => !rows.some((r: any) => r.practitioner_user_id === t.userId));
+  if (missing.length) {
+    for (const t of missing) await seedFromGhl(t.userId, t.name);
+    rows = await rotaRows();
+  }
   res.json({ team, rota: rows });
+}
+
+/* ── Rota ⇄ GHL. The dashboard rota is the source of truth for working hours:
+   each save rewrites that person's GHL "Work Hours" schedule and attaches every
+   booking calendar they're on, so online slots + round-robin follow the rota. ── */
+const DAY_NAME = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const toMinutes = (t: string) => { const [h, m] = String(t).split(":").map(Number); return h * 60 + (m || 0); };
+
+async function rotaRows(uid?: string): Promise<any[]> {
+  const r = await dbFetch("rpc/ora_rota_list", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET, p_uid: uid ?? null }) }).catch(() => null);
+  return r && r.ok ? await r.json() : [];
+}
+/** Upsert rota rows through the secret-gated function (the table has no public access). */
+function rotaUpsert(rows: unknown) {
+  return dbFetch("rpc/ora_rota_upsert", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET, p_rows: rows }) }).catch(() => null);
+}
+async function ghlSchedule(uid: string): Promise<any | null> {
+  const r = await ghlFetch<any>(`/calendars/schedules/search?locationId=${LOC}&userId=${uid}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any));
+  return r.ok ? (r.body?.schedules || []).find((s: any) => !s.deleted) || null : null;
+}
+/** Write 7 rota rows for one person from their GHL schedule (days with no rule = off). No GHL writes. */
+async function seedFromGhl(uid: string, name: string) {
+  const sched = await ghlSchedule(uid);
+  const rows = DAY_NAME.map((day, weekday) => {
+    const rule = (sched?.rules || []).find((r: any) => r.type === "wday" && r.day === day && r.intervals?.length);
+    const iv = rule?.intervals || [];
+    return { practitioner_user_id: uid, practitioner_name: name, weekday, start_min: iv.length ? toMinutes(iv[0].from) : null, end_min: iv.length ? toMinutes(iv[iv.length - 1].to) : null, updated_at: new Date().toISOString() };
+  });
+  await rotaUpsert(rows);
+}
+/** Push one person's rota to GHL: weekly rules + attach all their booking calendars. */
+async function syncToGhl(uid: string): Promise<{ ok: boolean; error?: string }> {
+  const rows = await rotaRows(uid);
+  const rules = rows
+    .filter((r) => r.start_min != null && r.end_min != null && r.end_min > r.start_min)
+    .sort((a, b) => a.weekday - b.weekday)
+    .map((r) => ({ day: DAY_NAME[r.weekday], type: "wday", intervals: [{ from: hhmm(r.start_min), to: hhmm(r.end_min) }] }));
+  const cals = await ghlFetch<any>(`/calendars/?locationId=${LOC}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any));
+  if (!cals.ok) return { ok: false, error: "Couldn't reach GHL calendars" };
+  const theirs: string[] = (cals.body?.calendars || []).filter((c: any) => (c.teamMembers || []).some((m: any) => m.userId === uid)).map((c: any) => c.id);
+  const sched = await ghlSchedule(uid);
+  if (!sched) {
+    const r = await ghlFetch<any>(`/calendars/schedules`, { method: "POST", version: "2021-04-15", body: JSON.stringify({ locationId: LOC, userId: uid, name: "Work Hours", timezone: "Europe/London", rules, calendarIds: theirs }) }).catch(() => ({ ok: false } as any));
+    return r.ok ? { ok: true } : { ok: false, error: "GHL refused the new schedule" };
+  }
+  const keep = (sched.rules || []).filter((r: any) => r.type !== "wday"); // one-off date overrides (holidays etc.)
+  const calendarIds = Array.from(new Set([...(sched.calendarIds || []), ...theirs]));
+  const r = await ghlFetch<any>(`/calendars/schedules/${sched.id}`, { method: "PUT", version: "2021-04-15", body: JSON.stringify({ rules: [...keep, ...rules], calendarIds }) }).catch(() => ({ ok: false } as any));
+  return r.ok ? { ok: true } : { ok: false, error: "GHL refused the schedule update" };
 }
 
 /** Set one practitioner's hours for one weekday (upsert; null start = OFF). */
@@ -301,11 +425,57 @@ async function rotaSet(req: VercelRequest, res: VercelResponse) {
     end_min: body.end_min == null ? null : Number(body.end_min),
     updated_at: new Date().toISOString(),
   };
-  const r = await dbFetch("ora_rota?on_conflict=practitioner_user_id,weekday", {
-    method: "POST", headers: { Prefer: "resolution=merge-duplicates,return=minimal" }, body: JSON.stringify(row),
-  }).catch(() => null);
+  if (row.start_min != null && (row.end_min == null || row.end_min <= row.start_min)) return res.status(400).json({ error: "Finish time must be after the start time." });
+  // never sync a half-known week: import this person's GHL hours first if they have no rota yet
+  if (!(await rotaRows(uid)).length) await seedFromGhl(uid, row.practitioner_name || "");
+  const r = await rotaUpsert(row);
   if (!r || !r.ok) return res.status(502).json({ error: "Could not save rota", detail: r ? await r.text() : "no response" });
-  res.json({ ok: true });
+  const ghl = await syncToGhl(uid);
+  res.json({ ok: true, ghl: ghl.ok, ghlError: ghl.error || null });
+}
+
+/* ── Renters (ORÁ Supabase; table has NO public access — only these
+      secret-gated SECURITY DEFINER functions can read/write it) ────── */
+const RPC_SECRET = process.env.ORA_DB_RPC_SECRET || "";
+const PLANS = ["half-day", "full-day", "monthly", "other"];
+const STATUSES = ["active", "paused", "ended"];
+const isDate = (v: unknown) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+
+async function renters(_req: VercelRequest, res: VercelResponse) {
+  if (!DB_URL || !RPC_SECRET) return res.status(503).json({ error: "Renters database not configured" });
+  const r = await dbFetch("rpc/ora_renters_list", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET }) }).catch(() => null);
+  if (!r || !r.ok) return res.status(502).json({ error: "Could not load renters" });
+  res.json({ renters: await r.json() });
+}
+
+/** Create (no id) or update (id) one renter. Validated here before it reaches the DB. */
+async function renterSet(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  if (!DB_URL || !RPC_SECRET) return res.status(503).json({ error: "Renters database not configured" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const p = {
+    id: str(b.id, 64),
+    business: str(b.business, 120),
+    contact_name: str(b.contact_name, 120),
+    email: str(b.email, 200),
+    phone: str(b.phone, 40),
+    room: str(b.room, 60),
+    plan: PLANS.includes(b.plan) ? b.plan : "monthly",
+    rate: b.rate === "" || b.rate == null ? "" : String(Number(b.rate)),
+    start_date: isDate(b.start_date) ? b.start_date : "",
+    end_date: isDate(b.end_date) ? b.end_date : "",
+    insurance_expiry: isDate(b.insurance_expiry) ? b.insurance_expiry : "",
+    status: STATUSES.includes(b.status) ? b.status : "active",
+    notes: str(b.notes, 2000),
+  };
+  if (!p.business) return res.status(400).json({ error: "Business name is required." });
+  if (p.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) return res.status(400).json({ error: "That email doesn't look right." });
+  if (p.rate !== "" && !(Number(p.rate) >= 0)) return res.status(400).json({ error: "Rate must be a positive number." });
+  if (p.id && !/^[0-9a-f-]{36}$/i.test(p.id)) return res.status(400).json({ error: "Bad renter id" });
+  const r = await dbFetch("rpc/ora_renter_upsert", { method: "POST", body: JSON.stringify({ p_secret: RPC_SECRET, p }) }).catch(() => null);
+  if (!r || !r.ok) return res.status(502).json({ error: "Could not save renter" });
+  res.json({ renter: await r.json() });
 }
 
 function safeJson(s: string): any { try { return JSON.parse(s); } catch { return {}; } }

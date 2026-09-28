@@ -11,6 +11,7 @@ import { depositFor, formatDuration, formatPrice, DEPOSIT_PERCENT } from "@/lib/
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import { formatLongDate, formatTime } from "./time";
 import type { BookingState } from "./types";
+import { useDepositsLive } from "./use-stripe-deposit";
 
 function Row({ label, value, muted }: { label: string; value: React.ReactNode; muted?: boolean }) {
   return (
@@ -25,6 +26,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
   const s = state.service;
   const isFree = s ? s.price === 0 : false;
   const deposit = s ? depositFor(s.price) : 0;
+  const depositsLive = useDepositsLive();
 
   return (
     <div>
@@ -68,7 +70,10 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
               )
             }
           />
-          {!isFree && (
+          {!isFree && !depositsLive && (
+            <Row label="Payment" value={<span>Paid at the clinic<span className="block font-sans text-[0.75rem] text-ora-fog">nothing to pay today</span></span>} />
+          )}
+          {!isFree && depositsLive && (
             <Row
               label={`${DEPOSIT_PERCENT}% deposit`}
               value={

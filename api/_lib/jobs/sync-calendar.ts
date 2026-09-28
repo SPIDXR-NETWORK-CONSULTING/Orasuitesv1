@@ -34,14 +34,15 @@ import {
   upsertEvent,
   teamUserIds,
   TEAM_BY_USER_ID,
+  serviceNameForCalendar,
   type MirrorAppointment,
 } from "../google-calendar.js";
+import { splitGhlTitle } from "../catalogue.js";
 
-/** Titles are "<Service> — <Client>"; service names may themselves contain " — ". */
+/** Titles come in both orders; the shared parser matches real menu names. */
 function serviceFromTitle(title?: string | null): string | undefined {
-  const t = (title || "").trim();
-  const i = t.lastIndexOf(" — ");
-  return (i > 0 ? t.slice(0, i) : t).trim() || undefined;
+  const s = splitGhlTitle(title).service;
+  return s && s !== "—" ? s : undefined;
 }
 
 
@@ -157,6 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   /* 1 ─ pull every appointment for every practitioner ------------------- */
   const live = new Map<string, GhlEvent>();
   const cancelled = new Set<string>();
+  let complete = true; // any failed GHL read → skip deletions this run (a hiccup ≠ "all cancelled")
 
   for (const userId of teamUserIds()) {
     stats.practitioners++;
@@ -167,6 +169,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       endTime: String(windowEnd.getTime()),
     });
     const r = await ghlFetch<{ events?: GhlEvent[] }>(`/calendars/events?${qs}`);
+    if (!r.ok) complete = false;
     for (const ev of r.body?.events ?? []) {
       if (!ev?.id) continue;
       stats.ghlAppointments++;
@@ -212,7 +215,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const contact = await contactFor(ev.contactId);
     // GHL titles are already "<Service> — <Client>" for website bookings; strip
     // the client half so the mirror rebuilds the summary consistently.
-    const titleService = serviceFromTitle(ev.title);
+    const titleService = serviceNameForCalendar(ev.calendarId) || serviceFromTitle(ev.title);
 
     const appt: MirrorAppointment = {
       ghlId,
@@ -237,7 +240,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   /* 4 ─ delete mirrors whose GHL appointment is gone or cancelled -------- */
-  const managed = await listManagedEvents(windowStart, windowEnd);
+  const managed = complete ? await listManagedEvents(windowStart, windowEnd) : new Map<string, string>();
   for (const [ghlId, eventId] of Array.from(managed.entries())) {
     if (live.has(ghlId)) continue;
     if (cancelled.has(ghlId)) stats.cancelledSkipped++;
@@ -252,6 +255,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     window: { from: windowStart.toISOString(), to: windowEnd.toISOString(), days: WINDOW_DAYS },
     contactLookups: lookups,
     contactLookupsCapped: lookups >= MAX_CONTACT_LOOKUPS,
+    deletionsSkipped: !complete,
     durationMs: Date.now() - startedAt,
     ...stats,
   };

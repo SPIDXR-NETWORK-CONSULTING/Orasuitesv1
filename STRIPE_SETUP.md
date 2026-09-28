@@ -1,5 +1,7 @@
 # ORÁ Suites — Stripe deposits: setup
 
+> **Status 28 Sep 2026:** Stripe is connected (live key) but deposits are **paused** with Vercel env `DEPOSITS_ENABLED=false`. To switch them on, remove that variable (or set `true`) and redeploy. The booking page, summary and the app menu (`/api/catalogue` `_meta.depositsEnabled`) follow automatically.
+
 Everything below is done **by you**, once. The code is already deployed-ready and
 **does nothing until these variables exist** — no keys are in the repo and none
 ever should be.

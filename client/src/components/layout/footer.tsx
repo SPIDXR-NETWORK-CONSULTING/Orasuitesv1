@@ -4,13 +4,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Instagram, ArrowRight, Loader2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Reveal, Stagger, easeLuxury } from "@/lib/motion";
+import { BUSINESS } from "@/hooks/use-seo";
 import logoImage from "@assets/ora-logo-new.jpg";
 
 const explore = [
   { href: "/services", label: "Services" },
   { href: "/book", label: "Book" },
   { href: "/room-rentals", label: "Room Rentals" },
-  { href: "/results", label: "Results" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];
@@ -152,11 +152,11 @@ export function Footer() {
 
         <Reveal inherit>
           <address className="not-italic text-[0.875rem] leading-relaxed text-ora-smoke">
-            49 Deansgate, Manchester M3 2AY
-            <span className="mx-2 text-ora-bronze/60">·</span>
-            Every day 10–5
-            <span className="mx-2 text-ora-bronze/60">·</span>
-            <a href="mailto:admin@orasuites.com" className="focus-ring transition-colors duration-450 hover:text-ora-cream">
+            <span className="block sm:inline">49 Deansgate, Manchester M3 2AY</span>
+            <span className="mx-2 hidden text-ora-bronze/60 sm:inline">·</span>
+            <span className="block sm:inline">{BUSINESS.hoursLabel}</span>
+            <span className="mx-2 hidden text-ora-bronze/60 sm:inline">·</span>
+            <a href="mailto:admin@orasuites.com" className="focus-ring block transition-colors duration-450 hover:text-ora-cream sm:inline">
               admin@orasuites.com
             </a>
           </address>

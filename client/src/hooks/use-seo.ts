@@ -103,6 +103,8 @@ export const BUSINESS = {
   postalCode: "M3 2AY",
   addressCountry: "GB",
   openingHours: "Mo-Sa 10:00-19:30; Su 10:00-17:00",
+  /** human-readable twin of openingHours — the ONLY hours string the UI shows */
+  hoursLabel: "Mon–Sat 10am–7:30pm · Sun 10am–5pm",
   priceRange: "££",
   image: DEFAULT_OG_IMAGE,
   sameAs: ["https://www.instagram.com/ora_beauty_mcr/"],
@@ -120,7 +122,7 @@ export function defaultBusinessJsonLd(extra: Record<string, unknown> = {}): Reco
     image: BUSINESS.image,
     logo: BUSINESS.image,
     description:
-      "ORÁ Suites — beauty & wellness sanctuary at 49 Deansgate, Manchester. Nurse-led aesthetics, IV therapy, luxury nails and private treatment rooms.",
+      "ORÁ Suites — beauty & wellness sanctuary at 49 Deansgate, Manchester. Luxury nails, hair, makeup and beauty, IV wellness drips and private treatment rooms.",
     address: {
       "@type": "PostalAddress",
       streetAddress: BUSINESS.streetAddress,

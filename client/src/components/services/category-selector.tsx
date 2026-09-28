@@ -33,7 +33,7 @@ function TileArt({ image, alt, title, sub }: { image: string; alt: string; title
         <span aria-hidden className="absolute inset-0 bg-[linear-gradient(to_top,var(--overlay-dark)_0%,rgba(18,12,8,0.35)_45%,transparent_100%)]" />
       </span>
       <span className="absolute inset-x-0 bottom-0 p-3.5 text-ora-cream sm:p-4">
-        <span className="block font-display text-[1.05rem] leading-tight sm:text-[1.15rem]">{title}</span>
+        <span className="block whitespace-nowrap font-display text-[0.95rem] leading-tight sm:text-[1.15rem]">{title}</span>
         {sub}
       </span>
     </>
@@ -103,9 +103,9 @@ export function CategorySelector({ tiles, active, onSelect }: Props) {
 
   /* Mobile: 3 live tiles on one row, 3 faded on the next. md+: one 6-across row. */
   return (
-    <div role="tablist" aria-label="Treatment categories" className="mx-auto max-w-5xl space-y-3 md:grid md:grid-cols-6 md:gap-4 md:space-y-0">
-      <div className="grid grid-cols-3 gap-3 md:contents">{live.map(renderLive)}</div>
-      <div className="grid grid-cols-3 gap-3 md:contents">{soon.map(renderSoon)}</div>
+    <div role="tablist" aria-label="Treatment categories" className="mx-auto grid max-w-5xl grid-cols-3 gap-3 md:grid-cols-6 md:gap-4">
+      {live.map(renderLive)}
+      {soon.map(renderSoon)}
     </div>
   );
 }

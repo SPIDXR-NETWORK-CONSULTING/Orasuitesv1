@@ -198,7 +198,7 @@ directly with `fetch` and a refresh-token grant.
 | Browser shows `redirect_uri_mismatch` | The OAuth client must be **Desktop app** type. Desktop clients accept any `http://localhost:<port>`; Web clients don't. |
 | Events appear but no client email/phone | The cron enriches from GHL contacts and caps at 200 lookups per run to stay inside the function timeout. `contactLookupsCapped: true` in the response means some were skipped — they fill in on the next run. |
 | Notes missing on cron-synced events | GHL's `/calendars/events` list endpoint doesn't return `notes` (only the booking path has them). Expected. |
-| Cron never fires | **Vercel Hobby plans only allow one cron, running once per day.** The schedule is `0 3 * * *` (03:00 UTC), which is compliant. On Hobby, Vercel may also run it within a window rather than exactly on the hour. |
+| Cron never fires | The daily Vercel cron (`vercel.json`, `0 7 * * *` UTC) calls `/api/cron/run-all`. The two-way team sync runs every 5 minutes from Supabase pg_cron (`ora-team-sync`, calls `?jobs=frequent`). Check `cron.job_run_details` in Supabase and the Vercel function logs. (Vercel plan is Pro.) |
 | Duplicate events | Shouldn't happen — the `ghlId` lookup prevents it. If you see one, it was created by hand or by GHL's own per-practitioner Google sync into the *same* calendar. Keep GHL's practitioner sync pointed at separate calendars. |
 
 ---

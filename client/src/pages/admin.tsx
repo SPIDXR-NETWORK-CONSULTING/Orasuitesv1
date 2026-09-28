@@ -1,522 +1,276 @@
 /**
- * ORÁ — Admin floor dashboard (v3).
+ * ORÁ Floor — the reception / owner dashboard (v4). Installable as a desktop app
+ * (see /admin.webmanifest) for the clinic's front-desk computer.
  *
- * Calendar (Day / Week / Month) across all practitioners, appointment details
- * with a live time-left timer + source, staff strip, walk-in add. Reads
- * /api/admin/* (GHL for now; a custom backend later). Passcode-gated.
+ *   Today     at a glance: numbers, now & next, team status
+ *   Calendar  day timeline per practitioner (now-line, live progress) · week · month
+ *   Rota      weekly hours, tap to edit (shades the calendar)
+ *   Renters   room & chair renters, rent + insurance alerts
+ *   Enquiries website enquiries · Messages two-pane inbox with email replies
+ *
+ * Data: /api/admin/* (GHL for bookings, ORÁ Supabase for rota + renters). Passcode-gated;
+ * the passcode is sent as a header and kept on this device until "Lock" is pressed.
  */
 import * as React from "react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, DoorOpen, Inbox, Lock, MessageCircle, Plus, RefreshCw, Sunrise } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSEO } from "@/hooks/use-seo";
+import {
+  AdminContext, KEY_STORE, makeCall, useNow, cache, type AdminCtx, type Appt, type Block, type RotaRow, type Staff, type Svc,
+  todayISO, shift, weekDays, monthGrid, prettyDate, fmtDate, londonDate, time,
+} from "@/components/admin/lib";
+import { Btn, ErrorNote, Segmented, Select } from "@/components/admin/ui";
+import { DayTimeline, MonthView, WeekView } from "@/components/admin/calendar";
+import { TodayOverview } from "@/components/admin/today";
+import { ApptDrawer, WalkinDrawer } from "@/components/admin/drawers";
+import { RotaGrid } from "@/components/admin/rota";
+import { RentersView } from "@/components/admin/renters";
+import { EnquiriesView, MessagesView } from "@/components/admin/inbox";
 
-const KEY_STORE = "ora-admin-key";
+type Section = "today" | "calendar" | "rota" | "renters" | "enquiries" | "messages";
 type View = "day" | "week" | "month";
-interface Enquiry { id: string; name: string; email: string | null; phone: string | null; tags: string[]; since: string | null; }
+const NAV: { id: Section; label: string; Icon: typeof Sunrise }[] = [
+  { id: "today", label: "Today", Icon: Sunrise },
+  { id: "calendar", label: "Calendar", Icon: CalendarDays },
+  { id: "rota", label: "Rota", Icon: Clock3 },
+  { id: "renters", label: "Renters", Icon: DoorOpen },
+  { id: "enquiries", label: "Enquiries", Icon: Inbox },
+  { id: "messages", label: "Messages", Icon: MessageCircle },
+];
 
-interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; source?: string; contactId?: string | null; }
-interface Staff { userId: string; name: string; }
-interface Svc { id: string; name: string; price: number; duration: number; category: string; }
+/** Make /admin installable as its own desktop app without making the public site one. */
+function useInstallableApp() {
+  React.useEffect(() => {
+    const add = (tag: string, attrs: Record<string, string>) => { const el = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v)); el.setAttribute("data-ora-floor", ""); document.head.appendChild(el); };
+    add("link", { rel: "manifest", href: "/admin.webmanifest" });
+    add("meta", { name: "apple-mobile-web-app-capable", content: "yes" });
+    add("meta", { name: "apple-mobile-web-app-title", content: "ORÁ Floor" });
+    return () => document.querySelectorAll("[data-ora-floor]").forEach((n) => n.remove());
+  }, []);
+}
 
-/* ── date helpers (UTC-noon anchored to dodge tz drift) ──── */
-const iso = (d: Date) => d.toISOString().slice(0, 10);
-const todayISO = () => iso(new Date());
-const at = (s: string) => new Date(s + "T12:00:00Z");
-const shift = (s: string, days: number) => { const d = at(s); d.setUTCDate(d.getUTCDate() + days); return iso(d); };
-const startOfWeek = (s: string) => { const d = at(s); const dow = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dow); return iso(d); };
-const weekDays = (s: string) => { const m = startOfWeek(s); return Array.from({ length: 7 }, (_, i) => shift(m, i)); };
-const monthGrid = (s: string) => { const d = at(s); const first = iso(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1))); const gridStart = startOfWeek(first); return Array.from({ length: 42 }, (_, i) => shift(gridStart, i)); };
-const prettyDate = (s: string) => at(s).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
-const dayNum = (s: string) => at(s).getUTCDate();
-const monthName = (s: string) => at(s).toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
-const time = (t: string) => { try { return new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); } catch { return (t || "").slice(11, 16); } };
-const money = (n?: number) => (n == null ? "—" : n === 0 ? "No set price" : `£${Number.isInteger(n) ? n : n.toFixed(2)}`);
-const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-const STATUS_STYLE: Record<string, string> = {
-  confirmed: "bg-ora-bronze/15 text-ora-bronze",
-  showed: "bg-green-600/15 text-green-700",
-  noshow: "bg-red-600/15 text-red-700",
-  cancelled: "bg-ora-fog/20 text-ora-fog line-through",
-};
+/** Keep the reception screen awake while the dashboard is open (where supported). */
+function useWakeLock(on: boolean) {
+  React.useEffect(() => {
+    if (!on || !("wakeLock" in navigator)) return;
+    let lock: { release: () => Promise<void> } | null = null;
+    const grab = () => { if (document.visibilityState === "visible") (navigator as any).wakeLock.request("screen").then((l: any) => { lock = l; }).catch(() => {}); };
+    grab();
+    document.addEventListener("visibilitychange", grab);
+    return () => { document.removeEventListener("visibilitychange", grab); lock?.release().catch(() => {}); };
+  }, [on]);
+}
 
 export default function AdminPage() {
+  useSEO({ title: "ORÁ Floor", description: "ORÁ Suites staff dashboard.", noindex: true });
+  useInstallableApp();
+
   const [key, setKey] = React.useState<string>(() => { try { return localStorage.getItem(KEY_STORE) || ""; } catch { return ""; } });
-  const [input, setInput] = React.useState("");
+  const [loginError, setLoginError] = React.useState<string | null>(null);
+  // Lock also wipes the cached bookings, so a locked desk shows nothing.
+  const lock = React.useCallback((reason?: string) => { try { localStorage.removeItem(KEY_STORE); } catch { /* private mode */ } cache.clear(); setKey(""); setLoginError(reason ?? null); }, []);
+  const call = React.useMemo(() => makeCall(key, () => lock("You've been signed out — enter the passcode again.")), [key, lock]);
+  useWakeLock(!!key);
+
+  const login = async (passcode: string) => {
+    setLoginError(null);
+    try {
+      const r = await fetch("/api/admin/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ passcode }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.token) { setLoginError(j.error || "Couldn't sign in — try again."); return; }
+      try { localStorage.setItem(KEY_STORE, j.token); } catch { /* ignore */ }
+      setKey(j.token);
+    } catch { setLoginError("No connection — check the internet and try again."); }
+  };
+
+  if (!key) return <Login error={loginError} onSubmit={login} />;
+  return <Floor call={call} onLock={() => lock()} />;
+}
+
+function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void }) {
+  const now = useNow(30_000);
+  const [section, setSection] = React.useState<Section>("today");
   const [view, setView] = React.useState<View>("day");
   const [anchor, setAnchor] = React.useState(todayISO());
-  const [appts, setAppts] = React.useState<Appt[]>([]);
-  const [team, setTeam] = React.useState<Staff[]>([]);
-  const [svcMap, setSvcMap] = React.useState<Record<string, Svc>>({});
+  const [who, setWho] = React.useState("all");
+  const [appts, setAppts] = React.useState<Appt[]>(() => cache.get<Appt[]>(`range:${todayISO()}:${todayISO()}`) || []);
+  const [blocks, setBlocks] = React.useState<Block[]>(() => cache.get<Block[]>(`blocks:${todayISO()}:${todayISO()}`) || []);
+  const [team, setTeam] = React.useState<Staff[]>(() => cache.get<Staff[]>("staff") || []);
+  const [services, setServices] = React.useState<Svc[]>(() => cache.get<Svc[]>("services") || []);
+  const [rota, setRota] = React.useState<RotaRow[]>(() => cache.get<RotaRow[]>("rota") || []);
+  const [rotaReady, setRotaReady] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [practitioner, setPractitioner] = React.useState("all");
-  const [walkinOpen, setWalkinOpen] = React.useState(false);
+  const [synced, setSynced] = React.useState<number | null>(null);
   const [detail, setDetail] = React.useState<Appt | null>(null);
-  const [section, setSection] = React.useState<"calendar" | "rota" | "enquiries" | "conversations">("calendar");
-  const [enq, setEnq] = React.useState<Enquiry[]>([]);
-  const [convs, setConvs] = React.useState<any[]>([]);
-  const [activeThread, setActiveThread] = React.useState<any | null>(null);
-  const [rotaData, setRotaData] = React.useState<{ team: Staff[]; rota: any[] } | null>(null);
+  const [walkin, setWalkin] = React.useState(false);
 
-  const q = React.useCallback((a: string) => `/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`, [key]);
-  const rangeParams = React.useMemo(() => {
-    if (view === "day") return { start: anchor, end: anchor };
+  // reference data, once
+  React.useEffect(() => {
+    call<{ staff: Staff[] }>("staff").then((j) => { setTeam(j.staff || []); cache.set("staff", j.staff || []); }).catch((e) => setError(e.message));
+    call<{ services: Svc[] }>("services").then((j) => { setServices(j.services || []); cache.set("services", j.services || []); }).catch(() => {});
+    call<{ rota: RotaRow[] }>("rota").then((j) => { setRota(j.rota || []); cache.set("rota", j.rota || []); setRotaReady(true); }).catch(() => setRotaReady(true));
+  }, [call]);
+
+  const range = React.useMemo(() => {
+    if (section !== "calendar" || view === "day") { const d = section === "calendar" ? anchor : todayISO(); return { start: d, end: d }; }
     if (view === "week") { const w = weekDays(anchor); return { start: w[0], end: w[6] }; }
     const g = monthGrid(anchor); return { start: g[0], end: g[41] };
-  }, [view, anchor]);
+  }, [section, view, anchor]);
+
+  // show what we had for this range straight away, then refresh
+  React.useEffect(() => {
+    const a = cache.get<Appt[]>(`range:${range.start}:${range.end}`); const b = cache.get<Block[]>(`blocks:${range.start}:${range.end}`);
+    if (a) setAppts(a); if (b) setBlocks(b);
+  }, [range.start, range.end]);
 
   const load = React.useCallback(async () => {
-    if (!key) return;
-    setLoading(true); setError(null);
+    setLoading(true);
     try {
-      const [aR, sR] = await Promise.all([
-        fetch(q(`range?start=${rangeParams.start}&end=${rangeParams.end}`), { cache: "no-store" }),
-        team.length ? Promise.resolve(null) : fetch(q("staff"), { cache: "no-store" }),
-      ]);
-      if (aR.status === 401) { setError("Wrong passcode."); setKey(""); try { localStorage.removeItem(KEY_STORE); } catch {} return; }
-      const aJ = await aR.json(); if (!aR.ok) throw new Error(aJ?.error || "Failed to load");
-      setAppts(aJ.appointments || []);
-      if (sR) setTeam((await sR.json())?.staff || []);
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed to load"); }
-    finally { setLoading(false); }
-  }, [key, q, rangeParams, team.length]);
+      const j = await call<{ appointments: Appt[]; blocks?: Block[]; errors: number }>(`range?start=${range.start}&end=${range.end}`);
+      setAppts(j.appointments || []); setBlocks(j.blocks || []); setSynced(Date.now());
+      cache.set(`range:${range.start}:${range.end}`, j.appointments || []); cache.set(`blocks:${range.start}:${range.end}`, j.blocks || []);
+      setError(j.errors ? `Couldn't reach ${j.errors} practitioner calendar${j.errors > 1 ? "s" : ""} in GHL — some bookings may be missing.` : null);
+    } catch (e) { setError(e instanceof Error ? e.message : "Couldn't load bookings."); } finally { setLoading(false); }
+  }, [call, range.start, range.end]);
 
   React.useEffect(() => { load(); }, [load]);
-  React.useEffect(() => { if (!key) return; const t = setInterval(load, 60_000); return () => clearInterval(t); }, [key, load]);
   React.useEffect(() => {
-    if (!key || Object.keys(svcMap).length) return;
-    fetch(q("services"), { cache: "no-store" }).then((r) => r.json()).then((j) => {
-      const m: Record<string, Svc> = {}; (j.services || []).forEach((s: Svc) => { m[s.name] = s; }); setSvcMap(m);
-    }).catch(() => {});
-  }, [key, q, svcMap]);
-  React.useEffect(() => {
-    if (!key || section !== "enquiries") return;
-    fetch(q("enquiries"), { cache: "no-store" }).then((r) => r.json()).then((j) => setEnq(j.enquiries || [])).catch(() => {});
-  }, [key, q, section]);
-  React.useEffect(() => {
-    if (!key || section !== "conversations") return;
-    fetch(q("conversations"), { cache: "no-store" }).then((r) => r.json()).then((j) => setConvs(j.conversations || [])).catch(() => {});
-  }, [key, q, section]);
-  React.useEffect(() => {
-    if (!key || section !== "rota") return;
-    fetch(q("rota"), { cache: "no-store" }).then((r) => r.json()).then((j) => setRotaData({ team: j.team || [], rota: j.rota || [] })).catch(() => {});
-  }, [key, q, section]);
+    const t = setInterval(load, 60_000);
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => { clearInterval(t); window.removeEventListener("focus", onFocus); };
+  }, [load]);
 
-  if (!key) {
-    return (
-      <div className="min-h-screen bg-ora-milk flex items-center justify-center p-6">
-        <form onSubmit={(e) => { e.preventDefault(); if (input.trim()) { try { localStorage.setItem(KEY_STORE, input.trim()); } catch {} setKey(input.trim()); } }}
-          className="w-full max-w-sm rounded-2xl bg-white/70 p-8 shadow-luxury text-center">
-          <h1 className="font-display text-2xl text-ora-deep">ORÁ · Floor</h1>
-          <p className="mt-1 mb-5 text-sm text-ora-fog">Staff dashboard — enter passcode</p>
-          <input type="password" value={input} onChange={(e) => setInput(e.target.value)} placeholder="Passcode" autoFocus
-            className="w-full rounded-xl border border-ora-taupe/40 bg-white px-4 py-3 text-center outline-none focus:border-ora-bronze" />
-          <button className="mt-4 w-full rounded-xl bg-ora-bronze py-3 font-medium text-white transition hover:opacity-90">Enter</button>
-        </form>
-      </div>
-    );
-  }
+  const ctx = React.useMemo<AdminCtx>(() => ({ call, team, services, svcByName: Object.fromEntries(services.map((s) => [s.name, s])) }), [call, team, services]);
+  const filtered = who === "all" ? appts : appts.filter((a) => a.practitioner === who);
+  const byDay = (d: string) => filtered.filter((a) => londonDate(a.startTime) === d);
+  const step = (dir: number) => setAnchor((a) => shift(a, dir * (view === "day" ? 1 : view === "week" ? 7 : 30)));
+  const openDay = (d: string) => { setAnchor(d); setView("day"); };
 
-  const filtered = practitioner === "all" ? appts : appts.filter((a) => a.practitioner === practitioner);
-  const byDay = (d: string) => filtered.filter((a) => (a.startTime || "").slice(0, 10) === d);
-  const countByName = appts.reduce<Record<string, number>>((m, a) => { m[a.practitioner] = (m[a.practitioner] || 0) + 1; return m; }, {});
-  const people = ["all", ...team.map((s) => s.name)];
-  const title = view === "day" ? prettyDate(anchor) : view === "week" ? `${prettyDate(weekDays(anchor)[0])} – ${prettyDate(weekDays(anchor)[6])}` : monthName(anchor);
-  const nav = (dir: number) => setAnchor(shift(anchor, dir * (view === "day" ? 1 : view === "week" ? 7 : 30)));
+  const heading: Record<Section, { title: string; sub: string }> = {
+    today: { title: prettyDate(todayISO()), sub: "Today at ORÁ" },
+    calendar: { title: view === "day" ? prettyDate(anchor) : view === "week" ? `${fmtDate(weekDays(anchor)[0], { day: "numeric", month: "short" })} – ${fmtDate(weekDays(anchor)[6], { day: "numeric", month: "short" })}` : fmtDate(anchor, { month: "long", year: "numeric" }), sub: "Every practitioner, every booking" },
+    rota: { title: "Weekly rota", sub: "Who works when" },
+    renters: { title: "Renters", sub: "Rooms and chairs rented at ORÁ" },
+    enquiries: { title: "Enquiries", sub: "From the website" },
+    messages: { title: "Messages", sub: "Client conversations · replies send by email" },
+  };
 
   return (
-    <div className="min-h-screen bg-ora-milk text-ora-deep">
-      <header className="sticky top-0 z-10 border-b border-ora-taupe/20 bg-ora-milk/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <h1 className="font-display text-2xl leading-none">ORÁ · Floor</h1>
-            <p className="text-sm text-ora-fog">{section === "enquiries" ? "Website enquiries" : section === "conversations" ? "Messages" : section === "rota" ? "Weekly rota — set each person's hours" : title}</p>
+    <AdminContext.Provider value={ctx}>
+      <div className="min-h-screen bg-ora-milk text-ora-deep mesh-bg md:grid md:grid-cols-[15.5rem_1fr]">
+        {/* sidebar (desktop) */}
+        <aside className="sticky top-0 hidden h-screen flex-col bg-ora-deep text-ora-cream md:flex">
+          <div className="px-6 pb-6 pt-7">
+            <p className="font-display text-[1.6rem] leading-none tracking-[0.02em]">ORÁ</p>
+            <p className="mt-1 font-sans text-[0.6875rem] uppercase tracking-[0.28em] text-ora-cream/50">Floor</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
-              <button onClick={() => setSection("calendar")} className={`px-3 py-1.5 text-sm ${section === "calendar" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Calendar</button>
-              <button onClick={() => setSection("rota")} className={`px-3 py-1.5 text-sm ${section === "rota" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Rota</button>
-              <button onClick={() => setSection("enquiries")} className={`px-3 py-1.5 text-sm ${section === "enquiries" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Enquiries</button>
-              <button onClick={() => setSection("conversations")} className={`px-3 py-1.5 text-sm ${section === "conversations" ? "bg-ora-deep text-white" : "hover:bg-ora-greige/40"}`}>Messages</button>
-            </div>
-            {section === "calendar" && <>
-              <div className="flex overflow-hidden rounded-lg border border-ora-taupe/40">
-                {(["day", "week", "month"] as View[]).map((v) => (
-                  <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm capitalize ${view === v ? "bg-ora-bronze text-white" : "hover:bg-ora-greige/40"}`}>{v}</button>
-                ))}
-              </div>
-              <button onClick={() => setWalkinOpen(true)} className="rounded-lg bg-ora-deep px-3 py-1.5 text-sm text-white hover:opacity-90">+ Walk-in</button>
-              <button onClick={() => nav(-1)} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">←</button>
-              <button onClick={() => setAnchor(todayISO())} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">Today</button>
-              <button onClick={() => nav(1)} className="rounded-lg border border-ora-taupe/40 px-3 py-1.5 text-sm hover:border-ora-bronze">→</button>
-            </>}
-            <button onClick={() => (section === "enquiries" ? fetch(q("enquiries"), { cache: "no-store" }).then((r) => r.json()).then((j) => setEnq(j.enquiries || [])) : load())} className="rounded-lg bg-ora-bronze px-3 py-1.5 text-sm text-white hover:opacity-90">{loading ? "…" : "↻"}</button>
-          </div>
-        </div>
-        {section === "calendar" && view === "day" && team.length > 0 && (
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-5 pb-3">
-            <span className="text-[11px] uppercase tracking-wide text-ora-fog">Today</span>
-            {team.map((s) => { const n = countByName[s.name] || 0; return (
-              <span key={s.userId} title={`${n} appt(s)`} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs ${n > 0 ? "bg-white/70" : "bg-ora-greige/40 text-ora-fog"}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${n > 0 ? "bg-green-500" : "bg-ora-fog/40"}`} />{s.name.split(" ")[0]}{n ? ` · ${n}` : ""}
-              </span>); })}
-          </div>
-        )}
-        {section === "calendar" && (
-          <div className="mx-auto flex max-w-6xl flex-wrap gap-2 px-5 pb-3">
-            {people.map((p) => (
-              <button key={p} onClick={() => setPractitioner(p)} className={`rounded-full px-3 py-1 text-xs transition ${practitioner === p ? "bg-ora-bronze text-white" : "bg-white/70 text-ora-fog hover:text-ora-deep"}`}>
-                {p === "all" ? "Everyone" : p.split(" ")[0]}
+          <nav aria-label="Dashboard" className="flex-1 space-y-1 px-3">
+            {NAV.map(({ id, label, Icon }) => (
+              <button key={id} onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined}
+                className={cn("focus-ring flex h-11 w-full items-center gap-3 rounded-xl px-3.5 font-sans text-[0.9rem] transition-colors",
+                  section === id ? "bg-ora-cream/10 text-ora-cream" : "text-ora-cream/60 hover:bg-ora-cream/5 hover:text-ora-cream")}>
+                <Icon size={17} className={section === id ? "text-ora-bronze" : ""} />{label}
+                {section === id && <span aria-hidden className="ml-auto h-1.5 w-1.5 rounded-full bg-ora-bronze" />}
               </button>
             ))}
+          </nav>
+          <div className="space-y-4 border-t border-ora-cream/10 px-6 py-6">
+            <div>
+              <p className="font-display text-[2.4rem] leading-none tabular-nums">{time(now)}</p>
+              <p className="mt-1.5 font-sans text-[0.78rem] text-ora-cream/55">{fmtDate(todayISO(), { weekday: "long", day: "numeric", month: "long" })}</p>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <button onClick={load} className="focus-ring inline-flex items-center gap-2 rounded-lg font-sans text-[0.75rem] text-ora-cream/55 hover:text-ora-cream">
+                <RefreshCw size={13} className={loading ? "animate-spin" : ""} />{synced ? `Updated ${time(synced)}` : "Syncing…"}
+              </button>
+              <button onClick={onLock} className="focus-ring inline-flex items-center gap-1.5 rounded-lg font-sans text-[0.75rem] text-ora-cream/55 hover:text-ora-cream"><Lock size={13} />Lock</button>
+            </div>
           </div>
-        )}
-      </header>
+        </aside>
 
-      <main className="mx-auto max-w-6xl px-5 py-6">
-        {error && <div className="mb-4 rounded-xl bg-red-600/10 px-4 py-3 text-sm text-red-700">{error}</div>}
+        {/* mobile top bar */}
+        <div className="sticky top-0 z-30 flex items-center justify-between bg-ora-deep px-5 py-3 text-ora-cream md:hidden">
+          <p className="font-display text-[1.25rem]">ORÁ <span className="font-sans text-[0.625rem] uppercase tracking-[0.28em] text-ora-cream/50">Floor</span></p>
+          <div className="flex items-center gap-4">
+            <span className="font-display text-[1.2rem] tabular-nums">{time(now)}</span>
+            <button onClick={onLock} aria-label="Lock dashboard" className="focus-ring rounded text-ora-cream/60"><Lock size={16} /></button>
+          </div>
+        </div>
 
-        {section === "enquiries" && (
-          <ul className="space-y-2">
-            {enq.length === 0 && <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">No website enquiries.</div>}
-            {enq.map((e) => (
-              <li key={e.id} className="flex items-center gap-4 rounded-xl bg-white/70 px-4 py-3 shadow-sm">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{e.name}</div>
-                  <div className="truncate text-sm text-ora-fog">{[e.email, e.phone].filter(Boolean).join(" · ") || "no contact details"}</div>
+        <main className="min-w-0 px-5 pb-28 pt-6 md:px-9 md:pb-10 md:pt-8">
+          <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <p className="font-sans text-[0.6875rem] uppercase tracking-[0.22em] text-ora-bronze">{heading[section].sub}</p>
+              <h1 className="mt-1.5 font-display text-[clamp(1.6rem,2.4vw,2.2rem)] leading-tight text-ora-deep">{heading[section].title}</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {section === "calendar" && (<>
+                <Segmented label="Calendar view" value={view} onChange={setView} options={[{ value: "day", label: "Day" }, { value: "week", label: "Week" }, { value: "month", label: "Month" }]} />
+                <div className="inline-flex items-center gap-1">
+                  <Btn size="md" aria-label="Previous" onClick={() => step(-1)} className="w-11 px-0"><ChevronLeft size={18} /></Btn>
+                  <Btn size="md" onClick={() => setAnchor(todayISO())}>Today</Btn>
+                  <Btn size="md" aria-label="Next" onClick={() => step(1)} className="w-11 px-0"><ChevronRight size={18} /></Btn>
                 </div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-1">{e.tags.slice(0, 3).map((t) => <span key={t} className="rounded-full bg-ora-greige/50 px-2 py-0.5 text-[10px] text-ora-fog">{t}</span>)}</div>
-                <div className="shrink-0 text-xs text-ora-fog">{e.since ? at(e.since.slice(0, 10)).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }) : ""}</div>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {section === "rota" && (
-          rotaData ? <RotaGrid data={rotaData} apiKey={key} /> : <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">Loading rota…</div>
-        )}
-
-        {section === "conversations" && (
-          <ul className="space-y-2">
-            {convs.length === 0 && <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">No messages.</div>}
-            {convs.map((c) => (
-              <li key={c.id}>
-                <button onClick={() => setActiveThread(c)} className="flex w-full items-center gap-4 rounded-xl bg-white/70 px-4 py-3 text-left shadow-sm hover:shadow-md">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2"><span className="truncate font-medium">{c.name}</span>{c.unread > 0 && <span className="rounded-full bg-ora-bronze px-1.5 text-[10px] text-white">{c.unread}</span>}</div>
-                    <div className="truncate text-sm text-ora-fog">{c.snippet || "—"}</div>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-ora-greige/50 px-2 py-0.5 text-[10px] text-ora-fog">{c.lastType}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {section === "calendar" && view === "day" && (
-          <ul className="space-y-2">
-            {byDay(anchor).length === 0 && <div className="rounded-2xl bg-white/60 px-6 py-16 text-center text-ora-fog">{loading ? "Loading…" : "No appointments."}</div>}
-            {byDay(anchor).map((a) => <ApptRow key={a.id} a={a} onClick={() => setDetail(a)} />)}
-          </ul>
-        )}
-
-        {section === "calendar" && view === "week" && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-7">
-            {weekDays(anchor).map((d, i) => (
-              <div key={d} className="rounded-xl bg-white/50 p-2">
-                <div className={`mb-2 text-center text-xs ${d === todayISO() ? "font-semibold text-ora-bronze" : "text-ora-fog"}`}>{DOW[i]} {dayNum(d)}</div>
-                <div className="space-y-1.5">
-                  {byDay(d).map((a) => (
-                    <button key={a.id} onClick={() => setDetail(a)} className="block w-full rounded-lg bg-white/80 p-2 text-left text-xs hover:shadow-sm">
-                      <div className="font-mono text-[11px] text-ora-fog">{time(a.startTime)}</div>
-                      <div className="truncate font-medium">{a.client}</div>
-                      <div className="truncate text-[11px] text-ora-fog">{a.practitioner.split(" ")[0]}</div>
-                    </button>
-                  ))}
-                  {byDay(d).length === 0 && <div className="py-4 text-center text-[11px] text-ora-fog/60">—</div>}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {section === "calendar" && view === "month" && (
-          <div>
-            <div className="mb-1 grid grid-cols-7 text-center text-[11px] uppercase tracking-wide text-ora-fog">{DOW.map((d) => <div key={d}>{d}</div>)}</div>
-            <div className="grid grid-cols-7 gap-1">
-              {monthGrid(anchor).map((d) => {
-                const list = byDay(d); const inMonth = at(d).getUTCMonth() === at(anchor).getUTCMonth();
-                return (
-                  <button key={d} onClick={() => { setAnchor(d); setView("day"); }}
-                    className={`min-h-[84px] rounded-lg p-1.5 text-left align-top transition hover:shadow-sm ${inMonth ? "bg-white/60" : "bg-white/25 text-ora-fog/50"} ${d === todayISO() ? "ring-1 ring-ora-bronze" : ""}`}>
-                    <div className="text-xs">{dayNum(d)}</div>
-                    <div className="mt-1 space-y-0.5">
-                      {list.slice(0, 3).map((a) => <div key={a.id} className="truncate rounded bg-ora-bronze/15 px-1 text-[10px] text-ora-deep">{time(a.startTime)} {a.client}</div>)}
-                      {list.length > 3 && <div className="text-[10px] text-ora-fog">+{list.length - 3} more</div>}
-                    </div>
-                  </button>
-                );
-              })}
+                <Select aria-label="Practitioner" value={who} onChange={(e) => setWho(e.target.value)} className="w-auto min-w-[9.5rem]">
+                  <option value="all">Everyone</option>
+                  {team.map((s) => <option key={s.userId} value={s.name}>{s.name}</option>)}
+                </Select>
+              </>)}
+              {(section === "today" || section === "calendar") && <Btn variant="dark" onClick={() => setWalkin(true)}><Plus size={16} />Walk-in</Btn>}
             </div>
-          </div>
-        )}
-        {section === "calendar" && <p className="mt-6 text-center text-xs text-ora-fog">{filtered.length} appointment{filtered.length === 1 ? "" : "s"} in view · auto-refreshes every minute</p>}
-      </main>
+          </header>
 
-      {walkinOpen && <WalkinModal apiKey={key} onClose={() => setWalkinOpen(false)} onBooked={() => { setWalkinOpen(false); load(); }} />}
-      {detail && <ApptDetail a={detail} svc={svcMap[detail.service]} apiKey={key} onClose={() => setDetail(null)} />}
-      {activeThread && <ConversationThread conv={activeThread} apiKey={key} onClose={() => setActiveThread(null)} />}
-    </div>
-  );
-}
+          {error && (section === "today" || section === "calendar") && <div className="mb-4"><ErrorNote>{error}</ErrorNote></div>}
 
-function ApptRow({ a, onClick }: { a: Appt; onClick: () => void }) {
-  return (
-    <li>
-      <button onClick={onClick} className="flex w-full items-center gap-4 rounded-xl bg-white/70 px-4 py-3 text-left shadow-sm hover:shadow-md">
-        <div className="w-16 shrink-0 font-mono text-sm">{time(a.startTime)}</div>
-        <div className="min-w-0 flex-1">
-          <div className="truncate font-medium">{a.client}</div>
-          <div className="truncate text-sm text-ora-fog">{a.service}</div>
-        </div>
-        <div className="shrink-0 rounded-full bg-ora-greige/60 px-3 py-1 text-xs">{a.practitioner.split(" ")[0]}</div>
-        <div className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] capitalize ${STATUS_STYLE[a.status] || "bg-ora-greige/40 text-ora-fog"}`}>{a.status}</div>
-      </button>
-    </li>
-  );
-}
+          {section === "today" && <TodayOverview appts={appts.filter((a) => londonDate(a.startTime) === todayISO())} blocks={blocks} rota={rota} now={now} onOpen={setDetail} onWalkin={() => setWalkin(true)} />}
+          {section === "calendar" && view === "day" && (
+            <DayTimeline date={anchor} appts={byDay(anchor)} blocks={blocks.filter((b) => londonDate(b.startTime) === anchor)} columns={who === "all" ? team.map((t) => t.name) : [who]} team={team} rota={rota} now={now} onOpen={setDetail} />
+          )}
+          {section === "calendar" && view === "week" && <WeekView anchor={anchor} byDay={byDay} onOpen={setDetail} onDay={openDay} />}
+          {section === "calendar" && view === "month" && <MonthView anchor={anchor} byDay={byDay} onDay={openDay} />}
+          {section === "rota" && (rotaReady
+            ? <RotaGrid team={team} rows={rota} onSaved={(r) => setRota((rs) => [...rs.filter((x) => !(x.practitioner_user_id === r.practitioner_user_id && x.weekday === r.weekday)), r])} />
+            : <p className="font-sans text-[0.875rem] text-ora-fog">Loading rota…</p>)}
+          {section === "renters" && <RentersView />}
+          {section === "enquiries" && <EnquiriesView />}
+          {section === "messages" && <MessagesView />}
+        </main>
 
-/* ── Appointment detail + live timer + client history ────── */
-function ApptDetail({ a, svc, apiKey, onClose }: { a: Appt; svc?: Svc; apiKey: string; onClose: () => void }) {
-  const [now, setNow] = React.useState(Date.now());
-  const [history, setHistory] = React.useState<{ contact: any; appointments: any[] } | null>(null);
-  const [loadingHist, setLoadingHist] = React.useState(false);
-  React.useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  const loadHistory = async () => {
-    if (!a.contactId) return;
-    setLoadingHist(true);
-    try {
-      const r = await fetch(`/api/admin/client?contactId=${encodeURIComponent(a.contactId)}&key=${encodeURIComponent(apiKey)}`, { cache: "no-store" });
-      setHistory(await r.json());
-    } catch { /* ignore */ } finally { setLoadingHist(false); }
-  };
-  const startMs = Date.parse(a.startTime), endMs = Date.parse(a.endTime);
-  const durMin = svc?.duration ?? (endMs && startMs ? Math.round((endMs - startMs) / 60000) : null);
-  let timer = "";
-  if (!Number.isNaN(startMs) && !Number.isNaN(endMs)) {
-    if (now < startMs) { const m = Math.round((startMs - now) / 60000); timer = `Starts in ${m < 60 ? m + "m" : Math.floor(m / 60) + "h " + (m % 60) + "m"}`; }
-    else if (now <= endMs) { const m = Math.ceil((endMs - now) / 60000); timer = `${m < 60 ? m + "m" : Math.floor(m / 60) + "h " + (m % 60) + "m"} left`; }
-    else timer = "Finished";
-  }
-  const inProgress = now >= startMs && now <= endMs;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ora-deep/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-ora-milk p-6 shadow-luxury" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <h2 className="font-display text-2xl text-ora-deep">{a.client}</h2>
-            <p className="text-ora-fog">{a.service}</p>
-          </div>
-          <button onClick={onClose} className="text-ora-fog hover:text-ora-deep">✕</button>
-        </div>
-        {timer && <div className={`mb-4 rounded-xl px-4 py-3 text-center font-medium ${inProgress ? "bg-green-600/15 text-green-700" : "bg-ora-greige/50 text-ora-deep"}`}>{timer}</div>}
-        <dl className="space-y-2 text-sm">
-          <Row k="Practitioner" v={a.practitioner} />
-          <Row k="Time" v={`${time(a.startTime)} – ${time(a.endTime)}`} />
-          <Row k="Duration" v={durMin != null ? `${durMin} min` : "—"} />
-          <Row k="Charge the client" v={money(svc?.price)} />
-          <Row k="Status" v={a.status} />
-          <Row k="Source" v={a.source || "—"} />
-        </dl>
-
-        {a.contactId && !history && (
-          <button onClick={loadHistory} disabled={loadingHist} className="mt-4 w-full rounded-xl border border-ora-taupe/40 py-2.5 text-sm hover:border-ora-bronze disabled:opacity-50">
-            {loadingHist ? "Loading…" : "View client history"}
-          </button>
-        )}
-        {history && (
-          <div className="mt-4 border-t border-ora-taupe/20 pt-4">
-            <div className="mb-2 text-sm">
-              <div className="font-medium">{history.contact?.name}</div>
-              <div className="text-ora-fog">{[history.contact?.email, history.contact?.phone].filter(Boolean).join(" · ") || "no contact details"}</div>
-            </div>
-            <p className="mb-1 text-xs uppercase tracking-wide text-ora-fog">Visit history ({history.appointments.length})</p>
-            <ul className="max-h-48 space-y-1 overflow-y-auto">
-              {history.appointments.map((h) => (
-                <li key={h.id} className="flex items-center justify-between gap-3 rounded-lg bg-white/60 px-3 py-1.5 text-xs">
-                  <span className="text-ora-fog">{at((h.startTime || "").slice(0, 10)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit", timeZone: "UTC" })}</span>
-                  <span className="min-w-0 flex-1 truncate">{h.service}</span>
-                  <span className="shrink-0 text-ora-fog">{(h.practitioner || "").split(" ")[0]}</span>
-                </li>
-              ))}
-              {history.appointments.length === 0 && <li className="py-2 text-center text-xs text-ora-fog">No visits on record.</li>}
-            </ul>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-function Row({ k, v }: { k: string; v: string }) {
-  return <div className="flex justify-between gap-4 border-b border-ora-taupe/15 pb-2"><dt className="text-ora-fog">{k}</dt><dd className="text-right font-medium capitalize">{v}</dd></div>;
-}
-
-/* ── Rota (editable weekly hours) ────────────────────────── */
-function RotaGrid({ data, apiKey }: { data: { team: Staff[]; rota: any[] }; apiKey: string }) {
-  const cols = [1, 2, 3, 4, 5, 6, 0];
-  const labels: Record<number, string> = { 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat", 0: "Sun" };
-  const [map, setMap] = React.useState<Record<string, { start: number | null; end: number | null }>>(() => {
-    const m: Record<string, { start: number | null; end: number | null }> = {};
-    data.rota.forEach((r) => { m[`${r.practitioner_user_id}-${r.weekday}`] = { start: r.start_min, end: r.end_min }; });
-    return m;
-  });
-  const minToTime = (m: number | null) => (m == null ? "" : `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
-  const timeToMin = (t: string) => { if (!t) return null; const [h, mm] = t.split(":").map(Number); return h * 60 + mm; };
-  const save = async (uid: string, name: string, wd: number, start: number | null, end: number | null) => {
-    setMap((prev) => ({ ...prev, [`${uid}-${wd}`]: { start, end } }));
-    try {
-      await fetch(`/api/admin/rota-set?key=${encodeURIComponent(apiKey)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ practitioner_user_id: uid, practitioner_name: name, weekday: wd, start_min: start, end_min: end }) });
-    } catch { /* ignore */ }
-  };
-  return (
-    <div className="overflow-x-auto rounded-2xl bg-white/40 p-3">
-      <table className="w-full min-w-[760px] border-separate border-spacing-1">
-        <thead><tr><th className="px-2 text-left text-xs text-ora-fog">Practitioner</th>{cols.map((c) => <th key={c} className="text-xs text-ora-fog">{labels[c]}</th>)}</tr></thead>
-        <tbody>
-          {data.team.map((p) => (
-            <tr key={p.userId}>
-              <td className="whitespace-nowrap px-2 text-sm font-medium">{p.name}</td>
-              {cols.map((wd) => {
-                const cell = map[`${p.userId}-${wd}`] || { start: null, end: null };
-                const on = cell.start != null;
-                return (
-                  <td key={wd} className="rounded-lg bg-white/70 p-1 align-top">
-                    <div className="flex flex-col items-stretch gap-0.5">
-                      <input type="time" value={minToTime(cell.start)} onChange={(e) => { const s = timeToMin(e.target.value); save(p.userId, p.name, wd, s, s == null ? null : (cell.end ?? 1170)); }}
-                        className="w-full rounded border border-ora-taupe/30 bg-white px-1 py-0.5 text-[11px]" />
-                      <input type="time" value={minToTime(cell.end)} onChange={(e) => save(p.userId, p.name, wd, cell.start, timeToMin(e.target.value))} disabled={!on}
-                        className="w-full rounded border border-ora-taupe/30 bg-white px-1 py-0.5 text-[11px] disabled:opacity-40" />
-                      {on
-                        ? <button onClick={() => save(p.userId, p.name, wd, null, null)} className="text-[10px] text-ora-fog hover:text-red-700">clear</button>
-                        : <span className="text-center text-[10px] text-ora-fog/50">off</span>}
-                    </div>
-                  </td>
-                );
-              })}
-            </tr>
+        {/* mobile bottom nav */}
+        <nav aria-label="Dashboard" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-ora-cream/10 bg-ora-deep pb-[env(safe-area-inset-bottom)] md:hidden">
+          {NAV.map(({ id, label, Icon }) => (
+            <button key={id} onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined}
+              className={cn("focus-ring flex h-16 flex-col items-center justify-center gap-1 font-sans text-[0.625rem]", section === id ? "text-ora-bronze" : "text-ora-cream/55")}>
+              <Icon size={19} />{label}
+            </button>
           ))}
-        </tbody>
-      </table>
-      <p className="mt-3 text-center text-xs text-ora-fog">Set a start time to put someone in; blank = off. Saves automatically to the ORÁ database.</p>
-    </div>
+        </nav>
+      </div>
+
+      <ApptDrawer a={detail} onClose={() => setDetail(null)} onChanged={(u) => { setDetail(u); setAppts((xs) => xs.map((x) => (x.id === u.id ? u : x))); setTimeout(load, 1500); }} />
+      <WalkinDrawer open={walkin} onClose={() => setWalkin(false)} onBooked={() => { setWalkin(false); load(); }} />
+    </AdminContext.Provider>
   );
 }
 
-/* ── Conversation thread + reply ─────────────────────────── */
-function ConversationThread({ conv, apiKey, onClose }: { conv: any; apiKey: string; onClose: () => void }) {
-  const [msgs, setMsgs] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [text, setText] = React.useState("");
-  const [sending, setSending] = React.useState(false);
-  const [note, setNote] = React.useState<string | null>(null);
-  const call = (a: string, init?: RequestInit) => fetch(`/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(apiKey)}`, { cache: "no-store", ...init });
-  const loadMsgs = React.useCallback(() => { setLoading(true); call(`thread?id=${encodeURIComponent(conv.id)}`).then((r) => r.json()).then((j) => setMsgs(j.messages || [])).catch(() => {}).finally(() => setLoading(false)); }, [conv.id]);
-  React.useEffect(() => { loadMsgs(); }, [loadMsgs]);
-  async function send() {
-    if (!text.trim() || !conv.contactId) { setNote(conv.contactId ? "Type a message." : "No contact on this thread — can't reply."); return; }
-    setSending(true); setNote(null);
-    try {
-      const r = await call("reply", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contactId: conv.contactId, message: text.trim() }) });
-      const j = await r.json(); if (!r.ok) throw new Error(j?.error || "Send failed");
-      setText(""); setNote("Sent ✓"); setTimeout(loadMsgs, 1200);
-    } catch (e) { setNote(e instanceof Error ? e.message : "Send failed"); } finally { setSending(false); }
-  }
+function Login({ error, onSubmit }: { error: string | null; onSubmit: (passcode: string) => Promise<void> }) {
+  const [v, setV] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ora-deep/40 p-4" onClick={onClose}>
-      <div className="flex h-[80vh] w-full max-w-lg flex-col rounded-2xl bg-ora-milk p-5 shadow-luxury" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-xl text-ora-deep">{conv.name}</h2>
-          <button onClick={onClose} className="text-ora-fog hover:text-ora-deep">✕</button>
-        </div>
-        <div className="flex-1 space-y-2 overflow-y-auto rounded-xl bg-white/40 p-3">
-          {loading && <p className="py-8 text-center text-sm text-ora-fog">Loading…</p>}
-          {!loading && msgs.length === 0 && <p className="py-8 text-center text-sm text-ora-fog">No messages.</p>}
-          {msgs.map((m) => (
-            <div key={m.id} className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${m.direction === "outbound" ? "ml-auto bg-ora-bronze/15" : "bg-white"}`}>
-              <div className="mb-0.5 text-[10px] uppercase tracking-wide text-ora-fog">{m.type} · {m.direction}</div>
-              <div className="whitespace-pre-wrap break-words" dangerouslySetInnerHTML={{ __html: (m.body || "").slice(0, 4000) }} />
-            </div>
-          ))}
-        </div>
-        <div className="mt-3">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder={conv.contactId ? "Reply by email…" : "No contact on this thread"} disabled={!conv.contactId}
-            className="w-full resize-none rounded-xl border border-ora-taupe/40 bg-white px-3 py-2 text-sm outline-none focus:border-ora-bronze disabled:opacity-50" />
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-xs text-ora-fog">{note}</span>
-            <button onClick={send} disabled={sending || !conv.contactId} className="rounded-xl bg-ora-bronze px-4 py-2 text-sm text-white hover:opacity-90 disabled:opacity-50">{sending ? "Sending…" : "Send reply"}</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ── Walk-in ─────────────────────────────────────────────── */
-function WalkinModal({ apiKey, onClose, onBooked }: { apiKey: string; onClose: () => void; onBooked: () => void }) {
-  const [services, setServices] = React.useState<Svc[]>([]);
-  const [serviceId, setServiceId] = React.useState("");
-  const [times, setTimes] = React.useState<string[]>([]);
-  const [startTime, setStartTime] = React.useState("");
-  const [name, setName] = React.useState(""); const [email, setEmail] = React.useState(""); const [phone, setPhone] = React.useState("");
-  const [busy, setBusy] = React.useState(false); const [error, setError] = React.useState<string | null>(null);
-  const [done, setDone] = React.useState<{ practitioner: string | null; startTime: string; price: number; service: string } | null>(null);
-  const call = (a: string, init?: RequestInit) => fetch(`/api/admin/${a}${a.includes("?") ? "&" : "?"}key=${encodeURIComponent(apiKey)}`, { cache: "no-store", ...init });
-  React.useEffect(() => { call("services").then((r) => r.json()).then((j) => setServices(j.services || [])).catch(() => {}); }, []);
-  React.useEffect(() => { if (!serviceId) { setTimes([]); return; } call(`slots?serviceId=${encodeURIComponent(serviceId)}`).then((r) => r.json()).then((j) => { setTimes(j.slots || []); setStartTime(""); }).catch(() => setTimes([])); }, [serviceId]);
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!serviceId || !name.trim()) { setError("Pick a service and enter a name."); return; }
-    setBusy(true); setError(null);
-    try {
-      const r = await call("walkin", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ serviceId, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: startTime || undefined }) });
-      const j = await r.json(); if (!r.ok) throw new Error(j?.error || "Could not book.");
-      setDone({ practitioner: j.practitioner, startTime: j.startTime, price: j.price, service: j.service });
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); }
-  }
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ora-deep/40 p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-2xl bg-ora-milk p-6 shadow-luxury" onClick={(e) => e.stopPropagation()}>
-        {done ? (
-          <div className="text-center">
-            <h2 className="font-display text-2xl text-ora-deep">Booked ✓</h2>
-            <p className="mt-3"><b>{done.service}</b></p>
-            <p className="text-ora-fog">{time(done.startTime)} · with <b className="text-ora-deep">{done.practitioner || "next available"}</b></p>
-            <p className="mt-3 text-2xl font-display text-ora-bronze">{money(done.price)}</p>
-            <p className="text-xs text-ora-fog">to charge the client</p>
-            <button onClick={onBooked} className="mt-5 w-full rounded-xl bg-ora-bronze py-3 text-white hover:opacity-90">Done</button>
-          </div>
-        ) : (
-          <form onSubmit={submit}>
-            <div className="mb-4 flex items-center justify-between"><h2 className="font-display text-2xl text-ora-deep">New walk-in</h2><button type="button" onClick={onClose} className="text-ora-fog hover:text-ora-deep">✕</button></div>
-            <label className="mb-1 block text-xs text-ora-fog">Service</label>
-            <select value={serviceId} onChange={(e) => setServiceId(e.target.value)} className="mb-3 w-full rounded-xl border border-ora-taupe/40 bg-white px-3 py-2.5 outline-none focus:border-ora-bronze">
-              <option value="">Choose a treatment…</option>
-              {services.map((s) => <option key={s.id} value={s.id}>{s.name}{s.price ? ` — £${s.price}` : ""}</option>)}
-            </select>
-            {serviceId && (<>
-              <label className="mb-1 block text-xs text-ora-fog">Time {times.length ? "" : "(none left today — uses next available)"}</label>
-              <select value={startTime} onChange={(e) => setStartTime(e.target.value)} className="mb-3 w-full rounded-xl border border-ora-taupe/40 bg-white px-3 py-2.5 outline-none focus:border-ora-bronze">
-                <option value="">Next available</option>{times.map((t) => <option key={t} value={t}>{time(t)}</option>)}
-              </select></>)}
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Client name" className="mb-3 w-full rounded-xl border border-ora-taupe/40 bg-white px-3 py-2.5 outline-none focus:border-ora-bronze" />
-            <div className="mb-3 grid grid-cols-2 gap-3">
-              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" className="w-full rounded-xl border border-ora-taupe/40 bg-white px-3 py-2.5 outline-none focus:border-ora-bronze" />
-              <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" className="w-full rounded-xl border border-ora-taupe/40 bg-white px-3 py-2.5 outline-none focus:border-ora-bronze" />
-            </div>
-            {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
-            <button disabled={busy} className="w-full rounded-xl bg-ora-deep py-3 font-medium text-white transition hover:opacity-90 disabled:opacity-50">{busy ? "Booking…" : "Book walk-in"}</button>
-            <p className="mt-2 text-center text-xs text-ora-fog">Auto-assigns to a free practitioner · alerts them · adds to the pipeline</p>
-          </form>
-        )}
-      </div>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-ora-deep p-6 mesh-bg-dark">
+      <form onSubmit={async (e) => { e.preventDefault(); if (!v.trim() || busy) return; setBusy(true); await onSubmit(v.trim()); setBusy(false); setV(""); }} className="relative w-full max-w-sm text-center">
+        <p className="font-display text-[3rem] leading-none tracking-[0.02em] text-ora-cream">ORÁ</p>
+        <p className="mt-2 font-sans text-[0.6875rem] uppercase tracking-[0.32em] text-ora-cream/50">Floor</p>
+        <span aria-hidden className="mx-auto mt-8 block h-px w-12 bg-ora-bronze" />
+        <label htmlFor="pass" className="mt-8 block font-sans text-[0.875rem] text-ora-cream/70">Enter the staff passcode</label>
+        <input id="pass" type="password" inputMode="numeric" autoFocus autoComplete="current-password" value={v} onChange={(e) => setV(e.target.value)}
+          className="focus-ring mt-3 h-12 w-full rounded-xl border border-ora-cream/15 bg-ora-cream/[0.06] px-4 text-center font-sans text-[1rem] tracking-[0.2em] text-ora-cream outline-none transition focus:border-ora-bronze" />
+        {error && <p role="alert" className="mt-3 font-sans text-[0.8125rem] text-ora-bronze">{error}</p>}
+        <button className="focus-ring mt-4 h-12 w-full rounded-xl bg-ora-bronze font-sans text-[0.9375rem] font-medium text-white transition hover:bg-ora-bronze/90 disabled:opacity-60" disabled={busy}>{busy ? "Checking…" : "Open the floor"}</button>
+        <p className="mt-6 font-sans text-[0.75rem] text-ora-cream/40">Stays signed in on this device for 90 days, or until you press Lock.</p>
+      </form>
     </div>
   );
 }

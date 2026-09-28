@@ -103,10 +103,17 @@
   --ora-taupe: 25 25% 52%;
   --ora-chocolate: 22 35% 22%;
   --ora-cream: 36 30% 96%;
+  /* status tones (dashboard): sage = in the chair, clay = no-show */
+  --ora-sage: 150 16% 38%;
+  --ora-clay: 10 42% 46%;
 
   /* ── Bronze accent + deep tones (raw values; also exposed via Tailwind) ── */
   --ora-bronze: #b98867;
   --ora-bronze-rgb: 185 136 103;
+  /* chart bars: same hue, deeper step — passes 3:1 against the cream surface (validated) */
+  --ora-bronze-deep-rgb: 168 112 63;
+  /* "client has arrived" solid brown — white text on it = 5.2:1 (readable) */
+  --ora-arrived-rgb: 150 97 58;
   --ora-bronze-muted: rgba(185, 136, 103, 0.28);
   --ora-bronze-glow: rgba(185, 136, 103, 0.45);
   --ora-deep: #1a1008;

@@ -1,8 +1,8 @@
 /**
  * /services — Treatments and prices (v2, restraint pass).
  * 40vh hero → centred 5-tile category selector → ONE price list open at a time,
- * expanded in place below the tiles (default Aesthetics; `#nails` opens Nails)
- * → one small consultation link line. Prices come from shared/catalogue.json.
+ * expanded in place below the tiles (default Nails; `#hair` opens Hair)
+ * → one small "Get in touch" line. Prices come from shared/catalogue.json.
  */
 import * as React from "react";
 import { Link } from "wouter";
@@ -12,12 +12,11 @@ import { Layout } from "@/components/layout/layout";
 import { Section, Container } from "@/components/ui/section";
 import { useSEO, servicesJsonLd, breadcrumbJsonLd, SITE_URL } from "@/hooks/use-seo";
 import { useMotionSafe, easeLuxury } from "@/lib/motion";
-import { categories, liveCategories, allServices, findService, type CategoryId } from "@/lib/catalogue";
+import { categories, liveCategories, allServices, type CategoryId } from "@/lib/catalogue";
 import { CategorySelector, type CategoryTile } from "@/components/services/category-selector";
 import { PriceList } from "@/components/services/price-list";
 
 import heroBannerImage from "@assets/ora-hero-zebra-crossing.jpg";
-import aestheticsImage from "@assets/service-aesthetics-skincare.jpg";
 import nailsImage from "@assets/service-nails-gold.jpg";
 import ivImage from "@assets/service-iv-drips.jpg";
 import hairImage from "@assets/service-hair-blowout.jpg";
@@ -27,7 +26,6 @@ import beautyImage from "@assets/service-beauty-brows.jpg";
 
 /* Approved image per category (brief v2 map). Prices never live here. */
 const TILE_ART: Record<string, { image: string; alt: string }> = {
-  aesthetics: { image: aestheticsImage, alt: "Aesthetic skincare treatment at ORÁ Suites" },
   nails: { image: nailsImage, alt: "Gel manicure with a gold accent at ORÁ Suites" },
   "iv-therapy": { image: ivImage, alt: "IV therapy drip bags prepared at ORÁ Suites" },
   hair: { image: hairImage, alt: "Hair blow-dry" },
@@ -35,9 +33,7 @@ const TILE_ART: Record<string, { image: string; alt: string }> = {
   laser: { image: laserImage, alt: "LED and laser treatment" },
   beauty: { image: beautyImage, alt: "Eyebrow and eyelash treatment at ORÁ Suites" },
 };
-const TILE_ORDER = ["aesthetics", "nails", "iv-therapy", "hair", "beauty", "makeup", "laser"];
-
-const CONSULTATION_ID = "aesthetics/consultation";
+const TILE_ORDER = ["nails", "hair", "makeup", "beauty", "iv-therapy", "laser"];
 
 function categoryFromHash(): CategoryId | undefined {
   if (typeof window === "undefined") return undefined;
@@ -48,8 +44,7 @@ function categoryFromHash(): CategoryId | undefined {
 export default function ServicesPage() {
   const m = useMotionSafe();
   const live = React.useMemo(liveCategories, []);
-  const consultation = React.useMemo(() => findService(CONSULTATION_ID) ?? findService("Consultation"), []);
-  const [active, setActive] = React.useState<CategoryId>(() => categoryFromHash() ?? live[0]?.id ?? "aesthetics");
+  const [active, setActive] = React.useState<CategoryId>(() => categoryFromHash() ?? live[0]?.id ?? "nails");
 
   React.useEffect(() => {
     const onHash = () => {
@@ -68,7 +63,7 @@ export default function ServicesPage() {
   useSEO({
     title: "Treatments & Prices | ORÁ Suites Manchester",
     description:
-      "Full treatment menu and prices at ORÁ Suites, 49 Deansgate, Manchester: nurse-led anti-wrinkle, fillers, skin boosters and facials, IV therapy drips, plus BIAB, gel extensions, manicures and pedicures. Hair, makeup and laser coming soon.",
+      "Full treatment menu and prices at ORÁ Suites, 49 Deansgate, Manchester: luxury nails — BIAB, gel extensions, manicures and pedicures — hair, makeup, and IV wellness drips. Beauty and laser coming soon.",
     path: "/services",
     jsonLd: [
       breadcrumbJsonLd([{ name: "Services", path: "/services" }]),
@@ -95,7 +90,7 @@ export default function ServicesPage() {
           alt="The ORÁ Suites entrance on Deansgate, Manchester"
           width={1920}
           height={1080}
-          fetchPriority="high"
+          {...{ fetchpriority: "high" }}
           decoding="async"
           className="absolute inset-0 h-full w-full object-cover"
         />
@@ -140,15 +135,11 @@ export default function ServicesPage() {
         <p className="mt-12 text-center font-sans text-[0.9375rem] text-ora-fog">
           Not sure where to start?{" "}
           <Link
-            href={
-              consultation && consultation.bookable
-                ? `/book?service=${encodeURIComponent(consultation.id)}`
-                : `/contact?service=${encodeURIComponent(consultation?.categoryTitle ?? "Aesthetics")}&treatment=${encodeURIComponent(consultation?.name ?? "Consultation")}`
-            }
+            href="/contact"
             className="focus-ring inline-flex items-center gap-1 text-ora-bronze underline-offset-4 hover:underline"
             data-testid="link-services-consultation"
           >
-            Book a free consultation <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            Get in touch <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         </p>
       </Section>

@@ -289,7 +289,7 @@ export default function RoomRentalsPage() {
           alt="The hallway at ORÁ Suites, Deansgate — private treatment rooms either side"
           width={1206}
           height={1609}
-          fetchPriority="high"
+          {...{ fetchpriority: "high" }}
           decoding="async"
           initial={m.reduced ? false : { scale: 1.06, opacity: 0.6 }}
           animate={{ scale: 1, opacity: 1 }}

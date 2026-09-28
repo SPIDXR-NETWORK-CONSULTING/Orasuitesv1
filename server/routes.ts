@@ -124,8 +124,8 @@ export async function registerRoutes(
     }
 
     // ── Category gate ───────────────────────────────────────────────────────
-    // Nails and IV therapy are open online; aesthetics and hair are enquiry-only
-    // for now. Checked here, not just in the UI, so a stale tab or a replayed
+    // Only categories marked live + bookable (and not hidden) in
+    // shared/catalogue.json can be booked online. Checked here, not just in the UI, so a stale tab or a replayed
     // request cannot book a category the clinic has not opened. Fails CLOSED.
     if (!isBookableService(serviceId ?? calendarId ?? serviceName)) {
       return res.status(400).json({
@@ -310,6 +310,18 @@ export async function registerRoutes(
       }
     }
   });
+
+  // ── Local dev only: run the REAL Vercel dashboard function so /admin works on
+  // localhost with live data (production serves api/admin/[action].ts on Vercel).
+  // Note: it talks to the real GHL + ORÁ database — a walk-in made locally is real.
+  if (process.env.NODE_ENV !== "production") {
+    try { process.loadEnvFile(".env"); } catch { /* no .env — admin calls will 401/503 */ }
+    const { default: adminHandler } = await import("../api/admin/[action].js");
+    app.all("/api/admin/:action", (req, res) => {
+      const vreq = { method: req.method, headers: req.headers, body: req.body, query: { ...req.query, action: req.params.action } };
+      adminHandler(vreq as any, res as any);
+    });
+  }
 
   return httpServer;
 }

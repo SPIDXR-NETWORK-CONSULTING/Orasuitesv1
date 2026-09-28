@@ -5,28 +5,28 @@ import { Section, SectionHeader } from "@/components/ui/section";
 import { ComingSoon, ComingSoonBadge } from "@/components/ui/glass";
 import { useMotionSafe, viewportOnce } from "@/lib/motion";
 import { liveCategories, comingSoonCategories, fromPrice, formatPrice, type Category, type CategoryId } from "@/lib/catalogue";
-import aestheticsImage from "@assets/service-injectables.jpg";
 import nailsImage from "@assets/service-nails-ora.jpg";
 import ivImage from "@assets/service-iv-drips.jpg";
 import hairImage from "@assets/service-hair-homepage.jpg";
 import makeupImage from "@assets/service-wellness-facial.jpg";
+import beautyImage from "@assets/service-beauty-brows.jpg";
 import laserImage from "@assets/service-led-laser.jpg";
 
 /* Approved image map (one image per category — never repeated on the page) */
 const IMAGES: Record<string, { src: string; alt: string }> = {
-  aesthetics: { src: aestheticsImage, alt: "Nurse-led aesthetic treatment in a warm-lit room at ORÁ Suites" },
   nails: { src: nailsImage, alt: "Freshly finished luxury manicure at ORÁ Nails" },
   "iv-therapy": { src: ivImage, alt: "IV therapy drip bags prepared at ORÁ Suites" },
   hair: { src: hairImage, alt: "Soft blow-dried hair" },
   makeup: { src: makeupImage, alt: "Facial treatment before a makeup appointment" },
+  beauty: { src: beautyImage, alt: "Brow and lash detail at ORÁ Suites" },
   laser: { src: laserImage, alt: "LED and laser skin treatment" },
 };
 
-const LIVE_TITLE: Record<string, string> = { aesthetics: "Aesthetics", nails: "Nails", "iv-therapy": "IV Therapy" };
+const LIVE_TITLE: Record<string, string> = { nails: "Nails", "iv-therapy": "IV Therapy" };
 
 function LiveCard({ cat }: { cat: Category }) {
   const m = useMotionSafe();
-  const img = IMAGES[cat.id as CategoryId] ?? IMAGES.aesthetics;
+  const img = IMAGES[cat.id as CategoryId] ?? IMAGES.nails;
   const price = fromPrice(cat.id);
   return (
     <motion.article variants={m.fadeUp} whileHover={m.hoverLift} data-testid={`card-service-${cat.id}`}>
@@ -51,7 +51,7 @@ function LiveCard({ cat }: { cat: Category }) {
               <p className="mt-1 font-sans text-[0.875rem] text-ora-fog">from {formatPrice(price)}</p>
             )}
           </div>
-          <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ora-taupe/40 text-ora-taupe transition-[transform,border-color,color] duration-450 ease-luxury group-hover:translate-x-0.5 group-hover:border-ora-bronze group-hover:text-ora-bronze">
+          <span className="hidden h-9 w-9 shrink-0 sm:inline-flex items-center justify-center rounded-full border border-ora-taupe/40 text-ora-taupe transition-[transform,border-color,color] duration-450 ease-luxury group-hover:translate-x-0.5 group-hover:border-ora-bronze group-hover:text-ora-bronze">
             <ArrowRight size={16} />
           </span>
         </div>
@@ -79,7 +79,7 @@ function SoonBox({ cat }: { cat: Category }) {
   );
 }
 
-/** Services overview (v2) — heading only; 3 live cards + 3 small faded coming-soon boxes. */
+/** Services overview — heading only; live cards (4-up desktop, 2-up mobile) + small faded coming-soon boxes. */
 export function ServicesOverviewSection() {
   const m = useMotionSafe();
   const live = liveCategories();
@@ -94,7 +94,7 @@ export function ServicesOverviewSection() {
         initial="hidden"
         whileInView="show"
         viewport={viewportOnce}
-        className="mx-auto grid max-w-3xl gap-3 sm:grid-cols-3 sm:gap-4"
+        className="mx-auto grid max-w-4xl grid-cols-2 gap-3 lg:grid-cols-4 sm:gap-4"
       >
         {live.map((cat) => (
           <LiveCard key={cat.id} cat={cat} />
@@ -107,7 +107,7 @@ export function ServicesOverviewSection() {
           initial="hidden"
           whileInView="show"
           viewport={viewportOnce}
-          className="mx-auto mt-4 grid max-w-3xl grid-cols-3 gap-3 sm:gap-4"
+          className="mx-auto mt-4 grid max-w-md grid-cols-2 gap-3 sm:gap-4"
         >
           {soon.map((cat) => (
             <SoonBox key={cat.id} cat={cat} />

@@ -8,7 +8,7 @@ import { Section } from "@/components/ui/section";
 import { GlassCard, DisplayHeading } from "@/components/ui/glass";
 import { Reveal } from "@/lib/motion";
 import { categories } from "@/lib/catalogue";
-import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd } from "@/hooks/use-seo";
+import { useSEO, defaultBusinessJsonLd, breadcrumbJsonLd, BUSINESS } from "@/hooks/use-seo";
 import {
   FloatingInput,
   FloatingSelect,
@@ -166,7 +166,7 @@ export default function ContactPage() {
   useSEO({
     title: "Contact ORÁ Suites | 49 Deansgate, Manchester",
     description:
-      "Get in touch with ORÁ Suites at 49 Deansgate, Manchester M3 2AY. Ask about aesthetics, nails or room rentals — we reply within one working day.",
+      "Get in touch with ORÁ Suites at 49 Deansgate, Manchester M3 2AY. Ask about nails, hair, makeup, beauty or room rentals — we reply within one working day.",
     jsonLd: [defaultBusinessJsonLd(), breadcrumbJsonLd([{ name: "Contact", path: "/contact" }])],
   });
 
@@ -213,8 +213,11 @@ export default function ContactPage() {
                 <li className="flex gap-3">
                   <Clock className="mt-0.5 h-4 w-4 shrink-0 text-ora-bronze" aria-hidden />
                   <div data-testid="text-hours">
-                    <p className="text-foreground">Every day, 10am – 5pm</p>
-                    <p className="mt-0.5 text-[0.875rem]">Including weekends</p>
+                    {BUSINESS.hoursLabel.split(" · ").map((s) => (
+                      <p key={s} className="text-foreground">
+                        {s}
+                      </p>
+                    ))}
                   </div>
                 </li>
                 <li className="flex gap-3">
