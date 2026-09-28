@@ -17,6 +17,7 @@ import PrivacyPage from "@/pages/privacy";
 import TermsPage from "@/pages/terms";
 // staff dashboard — its own chunk, so public visitors never download it
 const AdminPage = lazy(() => import("@/pages/admin"));
+const BundlePage = lazy(() => import("@/pages/bundle"));
 
 /**
  * Scroll handling on route change: runs AFTER the exit transition (so the old
@@ -94,6 +95,7 @@ function Router() {
           <Route path="/book" component={BookPage} />
           <Route path="/privacy" component={PrivacyPage} />
           <Route path="/terms" component={TermsPage} />
+          <Route path="/bundle/:token">{() => <Suspense fallback={<div className="min-h-screen bg-ora-milk" />}><BundlePage /></Suspense>}</Route>
           <Route path="/admin">{() => <Suspense fallback={<div className="min-h-screen bg-ora-deep" />}><AdminPage /></Suspense>}</Route>
           <Route component={NotFound} />
         </Switch>

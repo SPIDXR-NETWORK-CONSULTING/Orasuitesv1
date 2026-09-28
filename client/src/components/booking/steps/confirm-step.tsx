@@ -12,7 +12,8 @@
  */
 import * as React from "react";
 import { AlertCircle, Clock, Pencil } from "lucide-react";
-import { formatDuration, formatPrice, depositFor, type ResolvedService } from "@/lib/catalogue";
+import { formatDuration, formatPrice, depositFor, bundleFor, type ResolvedService } from "@/lib/catalogue";
+import { BundlePicker } from "../bundle-picker";
 import { Button } from "@/components/ui/button";
 import { DepositPanel } from "../deposit-panel";
 import { useStripeDeposit } from "../use-stripe-deposit";
@@ -26,13 +27,17 @@ interface Props {
   onEdit: (step: number) => void;
   /** paymentIntentId is undefined for free consultations and preview mode. */
   onConfirm: (paymentIntentId?: string) => void;
+  /** pick "just this one" (undefined) or a bundle size */
+  onBundle: (bundle: number | undefined) => void;
   loading: boolean;
   error?: string | null;
 }
 
-export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }: Props) {
+export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, loading, error }: Props) {
   const s = state.service;
   const free = s.price === 0;
+  const offer = bundleFor(s);
+  const bundlePrice = offer?.sizes.find((b) => b.count === state.bundle)?.price;
 
   const deposit = useStripeDeposit({
     serviceId: s.id,
@@ -90,9 +95,11 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, loading, error }
         </ReviewRow>
       </dl>
 
+      {offer && <BundlePicker offer={offer} single={s.price} value={state.bundle} onChange={onBundle} className="mt-6" />}
+
       <DepositPanel
         mode={deposit.enabled ? "live" : "preview"}
-        price={s.price}
+        price={deposit.enabled ? s.price : bundlePrice ?? s.price}
         className="mt-6"
         loading={deposit.enabled && deposit.status === "loading"}
         error={payError ?? deposit.error}

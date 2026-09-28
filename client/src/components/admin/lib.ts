@@ -7,7 +7,7 @@ import * as React from "react";
 export const KEY_STORE = "ora-admin-key";
 
 /* ── types (mirror api/admin/[action].ts) ───────────────── */
-export interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; source?: string; contactId?: string | null; }
+export interface Appt { id: string; startTime: string; endTime: string; client: string; service: string; practitioner: string; status: string; source?: string; contactId?: string | null; calendarId?: string | null; }
 export interface Staff { userId: string; name: string; }
 /** Blocked time: from the practitioner's own Google calendar ("Busy"), team meetings, etc. */
 export interface Block { id: string; startTime: string; endTime: string; practitioner: string; title: string; }

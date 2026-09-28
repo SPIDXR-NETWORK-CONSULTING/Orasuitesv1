@@ -4,6 +4,7 @@ import { Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { type Appt, type Svc, useAdmin, useNow, phase, time, money, durLabel, prettyDate, londonDate, fmtDate, svcLabel } from "./lib";
 import { Btn, Drawer, ErrorNote, Field, Input, StatusPill } from "./ui";
+import { ApptBundle, useApptBundle } from "./bundles";
 
 /* ── Appointment ─────────────────────────────────────────── */
 export function ApptDrawer({ a, onClose, onChanged }: { a: Appt | null; onClose: () => void; onChanged: (a: Appt) => void }) {
@@ -62,6 +63,7 @@ function ApptBody({ a, onChanged }: { a: Appt; onChanged: (a: Appt) => void }) {
   const mins = Math.round((Date.parse(a.endTime) - Date.parse(a.startTime)) / 60000);
   const [hist, setHist] = React.useState<{ contact: any; appointments: any[] } | null>(null);
   const [histState, setHistState] = React.useState<"idle" | "loading" | "error">("idle");
+  const bundle = useApptBundle(a);
 
   const loadHistory = async () => {
     if (!a.contactId) return;
@@ -91,10 +93,13 @@ function ApptBody({ a, onChanged }: { a: Appt; onChanged: (a: Appt) => void }) {
 
       <StatusActions a={a} onChanged={onChanged} />
 
+      <ApptBundle a={a} s={bundle} />
+
       <div className="rounded-2xl bg-ora-deep px-5 py-4 text-ora-cream">
         <p className="font-sans text-[0.6875rem] uppercase tracking-[0.16em] text-ora-cream/60">Charge the client</p>
-        <p className="mt-1 font-display text-[2rem] leading-none tabular-nums">{money(svc?.price)}</p>
-        {!svc && <p className="mt-1.5 font-sans text-[0.75rem] text-ora-cream/60">No listed price for this service — confirm at the desk.</p>}
+        <p className="mt-1 font-display text-[2rem] leading-none tabular-nums">{bundle.charge ? (bundle.charge.amount ? money(bundle.charge.amount) : "£0") : money(svc?.price)}</p>
+        {bundle.charge && <p className="mt-1.5 font-sans text-[0.75rem] text-ora-cream/60">{bundle.charge.note}</p>}
+        {!svc && !bundle.charge && <p className="mt-1.5 font-sans text-[0.75rem] text-ora-cream/60">No listed price for this service — confirm at the desk.</p>}
       </div>
 
       <dl className="divide-y divide-ora-taupe/15 font-sans text-[0.875rem]">

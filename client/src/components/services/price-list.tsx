@@ -5,7 +5,8 @@
  * prefilled with the treatment, so a closed category still converts.
  * A service `note` sits under the name; `ingredients` (IV drips) hide behind a small
  * "What's in it" disclosure so the price rhythm stays calm. Category `addOns` render as
- * one compact row and a category `disclaimer` as small print below.
+ * one compact row, a category `bundle` (multi-visit pack) as one small card, and a
+ * category `disclaimer` as small print below.
  * Prices/durations come from shared/catalogue.json.
  */
 import * as React from "react";
@@ -43,6 +44,28 @@ export function PriceList({ category }: { category: Category }) {
               </li>
             ))}
           </ul>
+        </div>
+      ) : null}
+
+      {category.bundle ? (
+        <div className="mt-4 rounded-2xl border border-glass-border-warm bg-ora-cream/45 px-4 py-4 text-center" data-testid="bundle-offer">
+          <p className="font-sans text-[0.71875rem] uppercase tracking-[0.22em] text-ora-bronze">{category.bundle.name}</p>
+          <ul className="mt-2 flex flex-wrap justify-center gap-x-6 gap-y-1 font-sans text-[0.9375rem] text-foreground">
+            {category.bundle.sizes.map((b) => (
+              <li key={b.count}>
+                {b.count} blow-dries{" "}
+                {b.was ? <s className="text-ora-fog">{formatPrice(b.was)}</s> : null} <span className="font-medium">{formatPrice(b.price)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mx-auto mt-1.5 max-w-xl font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+            {[category.bundle.eligibleLabel, category.bundle.terms].filter(Boolean).join(". ")}
+          </p>
+          {isBookable(category.id) && (
+            <Link href={`/book?category=${category.id}`} className="mt-2 inline-flex items-center gap-1.5 font-sans text-[0.8125rem] text-ora-bronze underline-offset-4 hover:underline">
+              Book a blow-dry and choose a bundle <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          )}
         </div>
       ) : null}
 

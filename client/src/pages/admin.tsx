@@ -12,7 +12,7 @@
  * the passcode is sent as a header and kept on this device until "Lock" is pressed.
  */
 import * as React from "react";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, DoorOpen, Inbox, Lock, MessageCircle, Plus, RefreshCw, Sunrise } from "lucide-react";
+import { CalendarDays, ChevronLeft, Layers, ChevronRight, Clock3, DoorOpen, Inbox, Lock, MessageCircle, Plus, RefreshCw, Sunrise } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSEO } from "@/hooks/use-seo";
 import {
@@ -25,13 +25,15 @@ import { TodayOverview } from "@/components/admin/today";
 import { ApptDrawer, WalkinDrawer } from "@/components/admin/drawers";
 import { RotaGrid } from "@/components/admin/rota";
 import { RentersView } from "@/components/admin/renters";
+import { BundlesView } from "@/components/admin/bundles";
 import { EnquiriesView, MessagesView } from "@/components/admin/inbox";
 
-type Section = "today" | "calendar" | "rota" | "renters" | "enquiries" | "messages";
+type Section = "today" | "calendar" | "bundles" | "rota" | "renters" | "enquiries" | "messages";
 type View = "day" | "week" | "month";
 const NAV: { id: Section; label: string; Icon: typeof Sunrise }[] = [
   { id: "today", label: "Today", Icon: Sunrise },
   { id: "calendar", label: "Calendar", Icon: CalendarDays },
+  { id: "bundles", label: "Bundles", Icon: Layers },
   { id: "rota", label: "Rota", Icon: Clock3 },
   { id: "renters", label: "Renters", Icon: DoorOpen },
   { id: "enquiries", label: "Enquiries", Icon: Inbox },
@@ -151,6 +153,7 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
   const heading: Record<Section, { title: string; sub: string }> = {
     today: { title: prettyDate(todayISO()), sub: "Today at ORÁ" },
     calendar: { title: view === "day" ? prettyDate(anchor) : view === "week" ? `${fmtDate(weekDays(anchor)[0], { day: "numeric", month: "short" })} – ${fmtDate(weekDays(anchor)[6], { day: "numeric", month: "short" })}` : fmtDate(anchor, { month: "long", year: "numeric" }), sub: "Every practitioner, every booking" },
+    bundles: { title: "Blow-dry bundles", sub: "Who has blow-dries left" },
     rota: { title: "Weekly rota", sub: "Who works when" },
     renters: { title: "Renters", sub: "Rooms and chairs rented at ORÁ" },
     enquiries: { title: "Enquiries", sub: "From the website" },
@@ -233,13 +236,14 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
           {section === "rota" && (rotaReady
             ? <RotaGrid team={team} rows={rota} onSaved={(r) => setRota((rs) => [...rs.filter((x) => !(x.practitioner_user_id === r.practitioner_user_id && x.weekday === r.weekday)), r])} />
             : <p className="font-sans text-[0.875rem] text-ora-fog">Loading rota…</p>)}
+          {section === "bundles" && <BundlesView />}
           {section === "renters" && <RentersView />}
           {section === "enquiries" && <EnquiriesView />}
           {section === "messages" && <MessagesView />}
         </main>
 
         {/* mobile bottom nav */}
-        <nav aria-label="Dashboard" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-ora-cream/10 bg-ora-deep pb-[env(safe-area-inset-bottom)] md:hidden">
+        <nav aria-label="Dashboard" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-ora-cream/10 bg-ora-deep pb-[env(safe-area-inset-bottom)] md:hidden">
           {NAV.map(({ id, label, Icon }) => (
             <button key={id} onClick={() => setSection(id)} aria-current={section === id ? "page" : undefined}
               className={cn("focus-ring flex h-16 flex-col items-center justify-center gap-1 font-sans text-[0.625rem]", section === id ? "text-ora-bronze" : "text-ora-cream/55")}>

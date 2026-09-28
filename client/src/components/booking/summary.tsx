@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronUp, Clock, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/ui/glass";
-import { depositFor, formatDuration, formatPrice, DEPOSIT_PERCENT } from "@/lib/catalogue";
+import { depositFor, formatDuration, formatPrice, bundleFor, DEPOSIT_PERCENT } from "@/lib/catalogue";
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import { formatLongDate, formatTime } from "./time";
 import type { BookingState } from "./types";
@@ -27,6 +27,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
   const isFree = s ? s.price === 0 : false;
   const deposit = s ? depositFor(s.price) : 0;
   const depositsLive = useDepositsLive();
+  const bundle = bundleFor(s)?.sizes.find((b) => b.count === state.bundle);
 
   return (
     <div>
@@ -43,7 +44,16 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
         <dl className="divide-y divide-ora-greige/70 border-t border-ora-greige/70">
           <Row
             label="Price"
-            value={<span className="font-medium">{isFree ? "Complimentary" : formatPrice(s.price)}</span>}
+            value={
+              bundle ? (
+                <span>
+                  <span className="font-medium">{formatPrice(bundle.price)}</span>
+                  <span className="block font-sans text-[0.75rem] text-ora-fog">Bundle of {bundle.count} blow-dries</span>
+                </span>
+              ) : (
+                <span className="font-medium">{isFree ? "Complimentary" : formatPrice(s.price)}</span>
+              )
+            }
           />
           <Row
             label="Duration"
@@ -118,6 +128,7 @@ export function SummarySheet({ state }: { state: BookingState }) {
   const s = state.service;
   if (!s) return null;
   const isFree = s.price === 0;
+  const bundle = bundleFor(s)?.sizes.find((b) => b.count === state.bundle);
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 lg:hidden">
@@ -151,7 +162,7 @@ export function SummarySheet({ state }: { state: BookingState }) {
             <span className="block truncate font-display text-[1.0625rem] text-foreground">{s.name}</span>
           </span>
           <span className="flex shrink-0 items-center gap-3">
-            <span className="font-display text-[1.125rem] text-foreground">{isFree ? "Free" : formatPrice(s.price)}</span>
+            <span className="font-display text-[1.125rem] text-foreground">{isFree ? "Free" : formatPrice(bundle?.price ?? s.price)}</span>
             <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.4, ease: easeLuxury }} className="text-ora-fog">
               <ChevronUp className="h-4 w-4" aria-hidden />
             </motion.span>

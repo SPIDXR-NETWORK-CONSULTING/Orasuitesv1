@@ -7,10 +7,14 @@
  * otherwise anyone could sign up with a stranger's email and read that person's
  * appointments. The verified email resolves the GHL contact by EXACT match; GHL stays
  * the source of truth. Read-only: never creates or updates a contact.
+ *
+ * Also returns `bundles`: the customer's blow-dry bundles (same confirmed email), with
+ * how many blow-dries are left. A bundle lookup failure never hides the bookings.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { findService, splitGhlTitle } from "../_lib/catalogue.js";
 import { ghlFetch } from "../_lib/ghl.js";
+import { bundlesByEmail, publicBundle } from "../_lib/bundles.js";
 
 interface GhlAppointment { id?: string; calendarId?: string; status?: string; appointmentStatus?: string; title?: string; startTime?: string; endTime?: string; deleted?: boolean; }
 
@@ -56,14 +60,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try { who = await confirmedIdentity(req); }
   catch (e) { console.error("[booking/mine] auth config:", e); return res.status(503).json({ error: "Appointments are temporarily unavailable" }); }
   if (!who) return res.status(401).json({ error: "Sign in with a confirmed email to see your appointments" });
+  const bundleLookup = bundlesByEmail(who.email).then((r) => (r.ok ? r.data.map(publicBundle) : [])).catch(() => []);
   try {
     const contactId = await contactIdByExactEmail(who.email);
-    if (!contactId) return res.status(200).json({ bookings: [] });
+    if (!contactId) return res.status(200).json({ bookings: [], bundles: await bundleLookup });
     const r = await ghlFetch<{ events?: GhlAppointment[] }>(`/contacts/${encodeURIComponent(contactId)}/appointments`, { version: "2021-07-28" });
     if (!r.ok) return res.status(502).json({ error: "We could not load your appointments" });
     const bookings = (r.body?.events ?? []).map(toAppBooking).filter((b): b is NonNullable<ReturnType<typeof toAppBooking>> => Boolean(b))
       .sort((a, b) => Date.parse(b.startTime) - Date.parse(a.startTime));
-    return res.status(200).json({ bookings });
+    return res.status(200).json({ bookings, bundles: await bundleLookup });
   } catch (e) {
     console.error("[booking/mine] unexpected:", e);
     return res.status(502).json({ error: "We could not load your appointments" });
