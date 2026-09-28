@@ -17,7 +17,7 @@
       "daniela": {
         "ghlUserId": "aoRb2In0y1fjT0IH9nGd",
         "name": "Daniela Mehmeti",
-        "inactive": true
+        "email": "danieladaniela@orasuites.com"
       },
       "soheila": {
         "ghlUserId": "LZ9YI9CGmUBaliQ6nmfb",
@@ -500,9 +500,8 @@
       "id": "iv-therapy",
       "title": "IV Therapy",
       "live": true,
-      "bookable": false,
+      "bookable": true,
       "team": [
-        "meg",
         "daniela"
       ],
       "ghlGroupId": "k8qN07oPGPDMtR7DDdyO",

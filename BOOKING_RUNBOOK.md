@@ -1,4 +1,4 @@
-> **Current state (28 Sep 2026):** online booking is **open** for nails, hair (Thu–Sun) and makeup (Thu–Sun). IV therapy is on the menu but enquiry-only online (reception can still book it as a walk-in). Aesthetics is hidden (it's 25 Clinic's). **Deposits are paused** (Vercel env `DEPOSITS_ENABLED=false`): nothing is charged online, customers pay in full at the clinic, and the site says so. Everything below about holding/taking a 20% deposit applies only once deposits are switched back on. Reception runs the day from ORÁ Floor (`/admin`), see `../ORA_Floor_Clinic_Desktop_Setup.md`.
+> **Current state (28 Sep 2026):** online booking is **open** for nails, hair (Thu–Sun), makeup (Thu–Sun) and IV therapy (Daniela only, her hours set in the dashboard Rota). Aesthetics is hidden (it's 25 Clinic's). **Deposits are paused** (Vercel env `DEPOSITS_ENABLED=false`): nothing is charged online, customers pay in full at the clinic, and the site says so. Everything below about holding/taking a 20% deposit applies only once deposits are switched back on. Reception runs the day from ORÁ Floor (`/admin`), see `../ORA_Floor_Clinic_Desktop_Setup.md`.
 
 # ORÁ Suites — Booking Operations Runbook
 _Last verified end-to-end on production: 20 Aug 2026._
@@ -78,7 +78,7 @@ python3 script/onboard-practitioner.py --name "Jane Doe" --email jane@orasuites.
 npm run deploy
 ```
 This adds them to every service calendar in that category (round-robin) and to `shared/catalogue.json`.
-Categories: `nails`, `hair`, `makeup` (bookable online), `iv-therapy` (live, enquiry-only online), `beauty` and `laser` (not live), `aesthetics` (kept but `hidden`). See `shared/catalogue.json`.
+Categories: `nails`, `hair`, `makeup`, `iv-therapy` (bookable online), `beauty` and `laser` (not live), `aesthetics` (kept but `hidden`). See `shared/catalogue.json`.
 
 **Removing someone:** `python3 script/onboard-practitioner.py --remove --email jane@orasuites.com --apply` then `npm run deploy`. Past appointments are untouched.
 
