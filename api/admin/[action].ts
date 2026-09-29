@@ -270,7 +270,29 @@ async function setStatus(req: VercelRequest, res: VercelResponse) {
   const r = await ghlFetch<any>(`/calendars/events/appointments/${id}`, { method: "PUT", version: "2021-04-15", body: JSON.stringify({ appointmentStatus: status }) }).catch(() => ({ ok: false } as any));
   if (!r.ok) return res.status(502).json({ error: "GHL didn't accept the change — try again." });
   if (status === "cancelled" || status === "noshow") await deleteEvent(id).catch(() => null);
-  res.json({ ok: true, id, status });
+  // Arrived = the visit happened → if this client joined the ORÁ app with a friend's code,
+  // the friend gets their second 100 points (the DB function awards it once, ever).
+  const referralAwarded = status === "showed" ? await awardReferralFirstVisit(id) : false;
+  res.json({ ok: true, id, status, referralAwarded });
+}
+
+/** Never throws and never blocks reception: a failure here only means no referral bonus. */
+async function awardReferralFirstVisit(appointmentId: string): Promise<boolean> {
+  const secret = process.env.ORA_REFERRAL_SECRET;
+  if (!secret || !DB_URL) return false;
+  try {
+    const a = await ghlFetch<any>(`/calendars/events/appointments/${appointmentId}`, { version: "2021-04-15" });
+    const contactId = a.body?.appointment?.contactId || a.body?.contactId;
+    if (!contactId) return false;
+    const c = await ghlFetch<any>(`/contacts/${encodeURIComponent(contactId)}`, { version: "2021-07-28" });
+    const email = c.body?.contact?.email;
+    if (!email) return false;
+    const r = await dbFetch("rpc/award_referral_first_visit", { method: "POST", body: JSON.stringify({ p_secret: secret, p_email: email }) });
+    return r.ok ? (await r.json()) === true : (console.error("[referral] award failed:", r.status, await r.text()), false);
+  } catch (e) {
+    console.error("[referral] award threw:", e);
+    return false;
+  }
 }
 
 /** One client: contact details + their full visit history. */
