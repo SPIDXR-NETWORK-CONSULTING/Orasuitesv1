@@ -9,6 +9,7 @@
  *                land in the pipeline. Admin can book ANY live service.
  *   · rota / rota-set → weekly hours; each save syncs to GHL availability.
  *   · renters / renter-set → room & chair renters (ORÁ Supabase, locked table).
+ *   · block / unblock → (POST) block time for a practitioner (GHL + their Google Calendar).
  *   · move     → (POST) move a booking to another time and/or practitioner (drag & drop).
  *   · bundles / bundle-sell / bundle-act → blow-dry bundles: list, sell at the desk,
  *                mark paid, count a visit, undo, cancel (ORÁ Supabase, locked tables).
@@ -24,7 +25,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ghlFetch } from "../_lib/ghl.js";
-import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEvent } from "../_lib/google-calendar.js";
+import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEvent, createBlockEvent, deleteBlockEvent } from "../_lib/google-calendar.js";
 import { allServices, findService, splitGhlTitle, teamUserIds } from "../_lib/catalogue.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
@@ -90,6 +91,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "walkin": return walkin(req, res);
     case "status": return setStatus(req, res);
     case "move": return moveAppt(req, res);
+    case "block": return blockTime(req, res);
+    case "unblock": return unblockTime(req, res);
     case "client": return client(req, res);
     case "enquiries": return enquiries(req, res);
     case "conversations": return conversations(req, res);
@@ -360,6 +363,37 @@ async function moveAppt(req: VercelRequest, res: VercelResponse) {
   else await Promise.all([sendRescheduledPractitionerAlert(notice as any).catch(() => false), sendAdminRescheduleAlert(notice as any).catch(() => false)]);
 
   res.json({ ok: true, id, startTime: startIso, endTime: endIso, practitioner: TEAM_BY_USER_ID.get(userNow) || null, clientEmailed: newStart !== oldStart && Boolean(appt.contactId) });
+}
+
+/** Block time (lunch, training, day off): not bookable online, shown on the dashboard and
+ *  in the practitioner's own Google Calendar. */
+async function blockTime(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const uid = String(b.userId || "");
+  if (!TEAM_BY_USER_ID.has(uid)) return res.status(400).json({ error: "Pick a practitioner." });
+  const s = Date.parse(String(b.startTime || "")), e = Date.parse(String(b.endTime || ""));
+  if (!(e > s)) return res.status(400).json({ error: "The end must be after the start." });
+  if (e < Date.now()) return res.status(400).json({ error: "That time has already passed." });
+  if (e - s > 14 * 86_400_000) return res.status(400).json({ error: "Block at most two weeks at a time." });
+  const reason = (typeof b.reason === "string" && b.reason.trim() ? b.reason.trim() : "Blocked").slice(0, 60);
+  const title = reason === "Blocked" ? "Blocked" : `Blocked: ${reason}`;
+  const r = await ghlFetch<any>(`/calendars/events/block-slots`, { method: "POST", version: "2021-04-15", body: JSON.stringify({ locationId: LOC, assignedUserId: uid, title, startTime: new Date(s).toISOString(), endTime: new Date(e).toISOString() }) }).catch(() => ({ ok: false } as any));
+  const id = r.body?.id || r.body?.event?.id;
+  if (!r.ok || !id) return res.status(502).json({ error: "GHL didn't accept the blocked time. Nothing was saved." });
+  const google = await createBlockEvent({ blockId: id, title, startTime: new Date(s).toISOString(), endTime: new Date(e).toISOString(), practitioner: TEAM_BY_USER_ID.get(uid) || null, practitionerEmail: TEAM_EMAIL_BY_USER_ID.get(uid) || null });
+  res.json({ ok: true, block: { id, startTime: new Date(s).toISOString(), endTime: new Date(e).toISOString(), practitioner: TEAM_BY_USER_ID.get(uid), title }, google });
+}
+
+async function unblockTime(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const id = String(b.id || "");
+  if (!/^[A-Za-z0-9]{8,40}$/.test(id)) return res.status(400).json({ error: "Bad block id" });
+  const r = await ghlFetch<any>(`/calendars/events/${encodeURIComponent(id)}`, { method: "DELETE", version: "2021-04-15" }).catch(() => ({ ok: false } as any));
+  if (!r.ok) return res.status(502).json({ error: "GHL didn't remove it. Try again." });
+  await deleteBlockEvent(id);
+  res.json({ ok: true });
 }
 
 /** Never throws and never blocks reception: a failure here only means no referral bonus. */
