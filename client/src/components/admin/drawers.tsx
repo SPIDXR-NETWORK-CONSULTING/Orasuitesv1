@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { type Appt, type Svc, useAdmin, useNow, phase, time, money, durLabel, prettyDate, londonDate, fmtDate, svcLabel, todayISO, shift } from "./lib";
 import { Btn, Drawer, ErrorNote, Field, Input, StatusPill } from "./ui";
 import { ApptBundle, useApptBundle } from "./bundles";
+import { MoveForm } from "./move";
 
 /* ── Appointment ─────────────────────────────────────────── */
 export function ApptDrawer({ a, onClose, onChanged }: { a: Appt | null; onClose: () => void; onChanged: (a: Appt) => void }) {
@@ -108,6 +109,8 @@ function ApptBody({ a, onChanged }: { a: Appt; onChanged: (a: Appt) => void }) {
         ))}
         <div className="flex items-center justify-between gap-4 py-2.5"><dt className="text-ora-fog">Status</dt><dd><StatusPill status={a.status} /></dd></div>
       </dl>
+
+      {(p.kind === "upcoming" || p.kind === "now") && <MoveForm a={a} onMoved={onChanged} />}
 
       {a.contactId && !hist && (
         <Btn onClick={loadHistory} disabled={histState === "loading"} className="w-full">{histState === "loading" ? "Loading…" : "View client history"}</Btn>

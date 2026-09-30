@@ -3,7 +3,7 @@
 Ensure every ORÁ booking calendar has contact-facing notifications:
   confirmation  → contact: email + SMS (immediately on booking)
   reminder      → contact: SMS + email, 1 hour before start
-  booked        → assigned practitioner: in-app + email
+  booked        → assigned practitioner: in-app only (email OFF — our own alert covers it)
 Idempotent by (channel, notificationType, receiverType). Updates timing/copy if present.
 
   python3 script/ghl-sync-notifications.py             # dry-run
@@ -82,7 +82,10 @@ def desired():
          "beforeTime": [{"timeOffset": 1, "unit": "hours"}], **REMIND_SMS},
         {"receiverType": "contact", "channel": "email", "notificationType": "reminder", "isActive": True,
          "beforeTime": [{"timeOffset": 1, "unit": "hours"}], **REMIND_EMAIL},
-        {"receiverType": "assignedUser", "channel": "email", "notificationType": "booked", "isActive": True,
+        # Practitioner EMAIL is OFF on purpose (30 Sep 2026): GHL sends it to the GHL login address
+        # (old @orasuites.com mailboxes that no longer exist → "Mail Delivery Subsystem" bounces),
+        # and api/_lib/booking-notify.ts already emails each practitioner at their real address.
+        {"receiverType": "assignedUser", "channel": "email", "notificationType": "booked", "isActive": False,
          "selectedUsers": ["assigned_user"], **STAFF_EMAIL},
         {"receiverType": "assignedUser", "channel": "inApp", "notificationType": "booked", "isActive": True,
          "selectedUsers": ["assigned_user"]},

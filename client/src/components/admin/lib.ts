@@ -32,6 +32,12 @@ export const time = (t: string | number | Date) => { const d = new Date(t); retu
 export const londonDate = (t: string | number | Date = Date.now()) => LON_DATE.format(new Date(t));
 export const todayISO = () => londonDate();
 /** minutes since London midnight */
+/** London wall-clock (YYYY-MM-DD + minutes after midnight) → ISO instant. Handles BST/GMT. */
+export function londonIso(date: string, minutes: number): string {
+  const noon = new Date(`${date}T12:00:00Z`);
+  const offsetH = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hourCycle: "h23" }).format(noon)) - 12;
+  return new Date(Date.parse(`${date}T00:00:00Z`) + (minutes - offsetH * 60) * 60_000).toISOString();
+}
 export function londonMinutes(t: string | number | Date): number {
   const parts = LON_TIME.formatToParts(new Date(t));
   return Number(parts.find((p) => p.type === "hour")?.value) * 60 + Number(parts.find((p) => p.type === "minute")?.value);
