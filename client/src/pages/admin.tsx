@@ -12,7 +12,7 @@
  * the passcode is sent as a header and kept on this device until "Lock" is pressed.
  */
 import * as React from "react";
-import { CalendarDays, ChevronLeft, Layers, ChevronRight, Clock3, DoorOpen, Inbox, Lock, MessageCircle, Plus, RefreshCw, Sunrise } from "lucide-react";
+import { CalendarDays, ChevronLeft, Layers, Search, ChevronRight, Clock3, DoorOpen, Inbox, Lock, MessageCircle, Plus, RefreshCw, Sunrise } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSEO } from "@/hooks/use-seo";
 import {
@@ -27,6 +27,8 @@ import { RotaGrid } from "@/components/admin/rota";
 import { RentersView } from "@/components/admin/renters";
 import { BundlesView } from "@/components/admin/bundles";
 import { MoveDialog, type MoveRequest } from "@/components/admin/move";
+import { BlockDrawer } from "@/components/admin/blocks";
+import { ClientDrawer } from "@/components/admin/clients";
 import { EnquiriesView, MessagesView } from "@/components/admin/inbox";
 
 type Section = "today" | "calendar" | "bundles" | "rota" | "renters" | "enquiries" | "messages";
@@ -108,6 +110,9 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
   const [detail, setDetail] = React.useState<Appt | null>(null);
   const [moveReq, setMoveReq] = React.useState<MoveRequest | null>(null);
   const [walkin, setWalkin] = React.useState(false);
+  const [blocking, setBlocking] = React.useState(false);
+  const [finding, setFinding] = React.useState(false);
+  const [openBlock, setOpenBlock] = React.useState<Block | null>(null);
 
   // reference data, once
   React.useEffect(() => {
@@ -223,6 +228,8 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
                   {team.map((s) => <option key={s.userId} value={s.name}>{s.name}</option>)}
                 </Select>
               </>)}
+              <Btn onClick={() => setFinding(true)} aria-label="Find client"><Search size={16} /><span className="hidden sm:inline">Find client</span></Btn>
+              {section === "calendar" && <Btn onClick={() => setBlocking(true)}>Block time</Btn>}
               {(section === "today" || section === "calendar") && <Btn variant="dark" onClick={() => setWalkin(true)}><Plus size={16} />Walk-in</Btn>}
             </div>
           </header>
@@ -232,7 +239,7 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
           {section === "today" && <TodayOverview appts={appts.filter((a) => londonDate(a.startTime) === todayISO())} blocks={blocks} rota={rota} now={now} onOpen={setDetail} onWalkin={() => setWalkin(true)} />}
           {section === "calendar" && view === "day" && (
             <DayTimeline date={anchor} appts={byDay(anchor)} blocks={blocks.filter((b) => londonDate(b.startTime) === anchor)} columns={who === "all" ? team.map((t) => t.name) : [who]} team={team} rota={rota} now={now} onOpen={setDetail}
-              onMove={(a, toName, startIso) => setMoveReq({ a, toName, startIso })} />
+              onMove={(a, toName, startIso) => setMoveReq({ a, toName, startIso })} onBlock={setOpenBlock} />
           )}
           {section === "calendar" && view === "week" && <WeekView anchor={anchor} byDay={byDay} onOpen={setDetail} onDay={openDay} />}
           {section === "calendar" && view === "month" && <MonthView anchor={anchor} byDay={byDay} onDay={openDay} />}
@@ -258,6 +265,8 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
 
       <MoveDialog req={moveReq} onClose={() => setMoveReq(null)} onMoved={(u) => { setAppts((xs) => xs.map((x) => (x.id === u.id ? u : x))); setTimeout(load, 1500); }} />
       <ApptDrawer a={detail} onClose={() => setDetail(null)} onChanged={(u) => { setDetail(u); setAppts((xs) => xs.map((x) => (x.id === u.id ? u : x))); setTimeout(load, 1500); }} />
+      <ClientDrawer open={finding} onClose={() => setFinding(false)} />
+      <BlockDrawer open={blocking} day={anchor} block={openBlock} onClose={() => { setBlocking(false); setOpenBlock(null); }} onSaved={() => { setBlocking(false); setOpenBlock(null); load(); }} />
       <WalkinDrawer open={walkin} onClose={() => setWalkin(false)} onBooked={() => { setWalkin(false); load(); }} />
     </AdminContext.Provider>
   );

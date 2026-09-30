@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { type Appt, type Block, type RotaRow, useAdmin, phase, time, firstName, durLabel, money, weekday, todayISO, svcLabel } from "./lib";
 import { Card, Empty, Stat, StatusPill } from "./ui";
 import { WeekSales } from "./week-sales";
+import { BusyTimes } from "./busy-times";
 
 export function TodayOverview({ appts, blocks = [], rota, now, onOpen, onWalkin }: { appts: Appt[]; blocks?: Block[]; rota: RotaRow[]; now: number; onOpen: (a: Appt) => void; onWalkin: () => void }) {
   const { team, svcByName } = useAdmin();
@@ -48,6 +49,7 @@ export function TodayOverview({ appts, blocks = [], rota, now, onOpen, onWalkin 
 
         <section aria-labelledby="team-h" className="min-w-0 space-y-6">
           <WeekSales />
+          <BusyTimes />
           <div>
           <h2 id="team-h" className="mb-3 font-display text-[1.25rem] text-ora-deep">Team today</h2>
           <Card className="divide-y divide-ora-taupe/10">

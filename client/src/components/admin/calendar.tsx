@@ -37,9 +37,10 @@ function layout(list: Appt[]) {
   return out;
 }
 
-export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now, onOpen, onMove }: {
+export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now, onOpen, onMove, onBlock }: {
   date: string; appts: Appt[]; blocks?: Block[]; columns: string[]; team: Staff[]; rota: RotaRow[]; now: number; onOpen: (a: Appt) => void;
   onMove?: (a: Appt, toName: string, startIso: string) => void;
+  onBlock?: (b: Block) => void;
 }) {
   const scroller = React.useRef<HTMLDivElement>(null);
   const gridRef = React.useRef<HTMLDivElement>(null);
@@ -151,12 +152,12 @@ export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now
                 const bottom = Math.min((to - from) * PX, (londonMinutes(b.endTime) - from) * PX);
                 if (bottom <= top) return null;
                 return (
-                  <div key={b.id} role="note" aria-label={`${b.title}, ${time(b.startTime)} to ${time(b.endTime)}, not bookable`}
-                    className="absolute inset-x-1 overflow-hidden rounded-xl border border-dashed border-ora-taupe/35 bg-ora-greige/50 px-2.5 py-1.5"
+                  <button type="button" key={b.id} onClick={() => onBlock?.(b)} aria-label={`${b.title}, ${time(b.startTime)} to ${time(b.endTime)}, not bookable`}
+                    className="focus-ring absolute inset-x-1 overflow-hidden rounded-xl border border-dashed border-ora-taupe/35 bg-ora-greige/50 px-2.5 py-1.5 text-left transition hover:border-ora-bronze/50"
                     style={{ top: top + 1.5, height: bottom - top - 3, backgroundImage: HATCH }}>
                     <span className="block font-sans text-[0.6875rem] tabular-nums text-ora-fog">{time(b.startTime)} – {time(b.endTime)}</span>
                     <span className="block truncate font-sans text-[0.78rem] font-medium text-ora-fog">{b.title}</span>
-                  </div>
+                  </button>
                 );
               })}
 

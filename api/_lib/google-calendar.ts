@@ -445,6 +445,51 @@ export async function upsertEvent(appt: MirrorAppointment, known?: ExistingEvent
   }
 }
 
+/* ── Reception-made blocked time (lunch, training, day off) ──
+   Put on the practitioner's own Google Calendar as an invite from the ORÁ calendar.
+   Tagged `oraBlock=<GHL block id>` and deliberately NOT `oraManaged`, so the booking
+   reconciler (which deletes managed events with no GHL appointment) never touches it,
+   and listBusy() skips it as our own invite (no loop back into GHL). Never throws. */
+export async function createBlockEvent(b: { blockId: string; title: string; startTime: string; endTime: string; practitionerEmail?: string | null; practitioner?: string | null }): Promise<boolean> {
+  const cfg = config();
+  if (!cfg) return false;
+  try {
+    const res = await calFetch<{ id?: string }>(`/calendars/${encodeURIComponent(cfg.calendarId)}/events?sendUpdates=all`, {
+      method: "POST",
+      body: JSON.stringify({
+        summary: `${b.title}${b.practitioner ? ` — ${b.practitioner}` : ""}`,
+        description: "Blocked at ORÁ reception. Not bookable.",
+        start: { dateTime: b.startTime, timeZone: "Europe/London" },
+        end: { dateTime: b.endTime, timeZone: "Europe/London" },
+        transparency: "opaque",
+        ...(b.practitionerEmail ? { attendees: [{ email: b.practitionerEmail, responseStatus: "accepted", displayName: b.practitioner ?? undefined }] } : {}),
+        extendedProperties: { private: { oraBlock: b.blockId } },
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.error("[google-calendar] block create error:", String(err).slice(0, 160));
+    return false;
+  }
+}
+
+export async function deleteBlockEvent(blockId: string): Promise<boolean> {
+  const cfg = config();
+  if (!cfg) return false;
+  try {
+    const found = await calFetch<{ items?: { id: string }[] }>(`/calendars/${encodeURIComponent(cfg.calendarId)}/events?${new URLSearchParams({ privateExtendedProperty: `oraBlock=${blockId}`, showDeleted: "false" })}`);
+    let ok = true;
+    for (const it of found.body?.items ?? []) {
+      const r = await calFetch(`/calendars/${encodeURIComponent(cfg.calendarId)}/events/${encodeURIComponent(it.id)}?sendUpdates=all`, { method: "DELETE" });
+      ok = ok && (r.ok || r.status === 410);
+    }
+    return ok;
+  } catch (err) {
+    console.error("[google-calendar] block delete error:", String(err).slice(0, 160));
+    return false;
+  }
+}
+
 /** Remove the mirrored event for a GHL appointment id. Never throws. */
 export async function deleteEvent(ghlAppointmentId: string): Promise<UpsertResult> {
   const cfg = config();

@@ -2,10 +2,11 @@
 import * as React from "react";
 import { Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Appt, type Svc, useAdmin, useNow, phase, time, money, durLabel, prettyDate, londonDate, fmtDate, svcLabel, todayISO, shift } from "./lib";
+import { type Appt, type Svc, useAdmin, useNow, phase, time, money, durLabel, prettyDate, londonDate, fmtDate, svcLabel, todayISO, shift, firstName } from "./lib";
 import { Btn, Drawer, ErrorNote, Field, Input, StatusPill } from "./ui";
 import { ApptBundle, useApptBundle } from "./bundles";
 import { MoveForm } from "./move";
+import { ClientPanel } from "./clients";
 
 /* ── Appointment ─────────────────────────────────────────── */
 export function ApptDrawer({ a, onClose, onChanged }: { a: Appt | null; onClose: () => void; onChanged: (a: Appt) => void }) {
@@ -62,15 +63,8 @@ function ApptBody({ a, onChanged }: { a: Appt; onChanged: (a: Appt) => void }) {
   const svc: Svc | undefined = svcByName[a.service];
   const p = phase(a, now);
   const mins = Math.round((Date.parse(a.endTime) - Date.parse(a.startTime)) / 60000);
-  const [hist, setHist] = React.useState<{ contact: any; appointments: any[] } | null>(null);
-  const [histState, setHistState] = React.useState<"idle" | "loading" | "error">("idle");
   const bundle = useApptBundle(a);
 
-  const loadHistory = async () => {
-    if (!a.contactId) return;
-    setHistState("loading");
-    try { setHist(await call(`client?contactId=${encodeURIComponent(a.contactId)}`)); setHistState("idle"); } catch { setHistState("error"); }
-  };
 
   const R = 46, C = 2 * Math.PI * R;
   const ring = p.kind === "now" ? p.progress : p.kind === "done" ? 1 : 0;
@@ -112,27 +106,7 @@ function ApptBody({ a, onChanged }: { a: Appt; onChanged: (a: Appt) => void }) {
 
       {(p.kind === "upcoming" || p.kind === "now") && <MoveForm a={a} onMoved={onChanged} />}
 
-      {a.contactId && !hist && (
-        <Btn onClick={loadHistory} disabled={histState === "loading"} className="w-full">{histState === "loading" ? "Loading…" : "View client history"}</Btn>
-      )}
-      {histState === "error" && <ErrorNote>Couldn't load the client's history. Try again.</ErrorNote>}
-      {hist && (
-        <section>
-          <p className="font-sans text-[0.9375rem] font-medium text-ora-deep">{hist.contact?.name}</p>
-          <p className="font-sans text-[0.8125rem] text-ora-fog">{[hist.contact?.email, hist.contact?.phone].filter(Boolean).join(" · ") || "No contact details"}</p>
-          <p className="mb-2 mt-4 font-sans text-[0.6875rem] uppercase tracking-[0.16em] text-ora-fog">Visits ({hist.appointments.length})</p>
-          <ul className="space-y-1.5">
-            {hist.appointments.map((h) => (
-              <li key={h.id} className="flex items-center gap-3 rounded-xl bg-white/70 px-3 py-2 font-sans text-[0.8125rem]">
-                <span className="w-20 shrink-0 tabular-nums text-ora-fog">{h.startTime ? fmtDate(londonDate(h.startTime), { day: "numeric", month: "short", year: "2-digit" }) : "—"}</span>
-                <span className="min-w-0 flex-1 truncate text-ora-deep">{h.service}</span>
-                <span className="shrink-0 text-ora-fog">{(h.practitioner || "").split(" ")[0]}</span>
-              </li>
-            ))}
-            {hist.appointments.length === 0 && <li className="py-3 text-center font-sans text-[0.8125rem] text-ora-fog">First visit.</li>}
-          </ul>
-        </section>
-      )}
+      {a.contactId ? <ClientPanel contactId={a.contactId} /> : <p className="font-sans text-[0.8125rem] text-ora-fog">No client record on this booking.</p>}
     </div>
   );
 }
@@ -149,7 +123,8 @@ export function WalkinDrawer({ open, onClose, onBooked }: { open: boolean; onClo
 }
 
 function WalkinBody({ onBooked }: { onBooked: () => void }) {
-  const { call, services } = useAdmin();
+  const { call, services, team } = useAdmin();
+  const [who, setWho] = React.useState<string>(""); // "" = anyone
   const [q, setQ] = React.useState("");
   const [svc, setSvc] = React.useState<Svc | null>(null);
   const [slots, setSlots] = React.useState<string[] | null>(null);
@@ -163,8 +138,9 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
   React.useEffect(() => {
     if (!svc) return;
     setSlots(null); setStart("");
-    call<{ slots: string[] }>(`slots?serviceId=${encodeURIComponent(svc.id)}&date=${day}`).then((j) => setSlots((j.slots || []).filter((s) => Date.parse(s) >= Date.now() - 5 * 60_000))).catch(() => setSlots([]));
-  }, [svc, day, call]);
+    call<{ slots: string[] }>(`slots?serviceId=${encodeURIComponent(svc.id)}&date=${day}${who ? `&userId=${who}` : ""}`).then((j) => setSlots((j.slots || []).filter((s) => Date.parse(s) >= Date.now() - 5 * 60_000))).catch(() => setSlots([]));
+  }, [svc, day, who, call]);
+  const doers = team.filter((t) => svc?.team?.includes(t.userId));
 
   const groups = React.useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -178,7 +154,7 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
     if (!svc || !name.trim()) { setError("Pick a treatment and enter the client's name."); return; }
     setBusy(true); setError(null);
     try {
-      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day }) });
+      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day, userId: who || undefined }) });
       setDone({ practitioner: j.practitioner, startTime: j.startTime, price: j.price, service: j.service });
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't book."); } finally { setBusy(false); }
   }
@@ -232,8 +208,18 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
               <p className="truncate font-sans text-[0.9375rem] font-medium text-ora-deep">{svc.name}</p>
               <p className="font-sans text-[0.8125rem] tabular-nums text-ora-fog">{durLabel(svc.duration)} · {money(svc.price)}</p>
             </div>
-            <Btn type="button" size="sm" variant="ghost" onClick={() => setSvc(null)}>Change</Btn>
+            <Btn type="button" size="sm" variant="ghost" onClick={() => { setSvc(null); setWho(""); }}>Change</Btn>
           </div>
+
+          {doers.length > 1 && (
+            <div>
+              <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Practitioner</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Practitioner">
+                <TimeChip on={who === ""} onClick={() => setWho("")}>Anyone free</TimeChip>
+                {doers.map((t) => <TimeChip key={t.userId} on={who === t.userId} onClick={() => setWho(t.userId)}>{firstName(t.name)}</TimeChip>)}
+              </div>
+            </div>
+          )}
 
           <div>
             <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Day</p>
@@ -267,7 +253,7 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
           {error && <ErrorNote>{error}</ErrorNote>}
           <div>
             <Btn variant="dark" disabled={busy} className="w-full">{busy ? "Booking…" : "Book walk-in"}</Btn>
-            <p className="mt-2 text-center font-sans text-[0.75rem] text-ora-fog">Assigns a free practitioner, alerts them and adds the client to GHL.</p>
+            <p className="mt-2 text-center font-sans text-[0.75rem] text-ora-fog">{who ? `Books ${firstName(team.find((t) => t.userId === who)?.name || "")}` : "Assigns a free practitioner"}, alerts them and adds the client to GHL.</p>
           </div>
         </>
       )}
