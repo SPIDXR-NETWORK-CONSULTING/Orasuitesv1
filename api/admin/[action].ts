@@ -213,15 +213,17 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   const email = typeof body.email === "string" && body.email.includes("@") ? body.email.trim() : "";
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
 
-  // Time: use the given slot, else the next free slot today.
+  // Time: use the given slot, else the next free slot on the chosen day (default today).
   let start: string | undefined = typeof body.startTime === "string" ? body.startTime : undefined;
+  if (start && (Number.isNaN(Date.parse(start)) || Date.parse(start) < Date.now() - 15 * 60_000)) return res.status(400).json({ error: "That time has already passed." });
   if (!start) {
-    const { start: ds, end } = dayRange(todayStr());
+    const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) && body.date >= todayStr() ? body.date : todayStr();
+    const { start: ds, end } = dayRange(day);
     const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${ds}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
-    const list: string[] = ((r.body || {})[todayStr()] || {}).slots || [];
+    const list: string[] = ((r.body || {})[day] || {}).slots || [];
     const now = Date.now();
-    start = list.find((s) => Date.parse(s) >= now) || list[0];
-    if (!start) return res.status(409).json({ error: "No availability today for this service." });
+    start = list.find((s) => Date.parse(s) >= now);
+    if (!start) return res.status(409).json({ error: day === todayStr() ? "No availability left today for this service." : "No availability that day for this service." });
   }
   const end = new Date(Date.parse(start) + service.duration * 60_000).toISOString();
 
@@ -247,10 +249,13 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   const assignedUserId = appt.body?.assignedUserId || appt.body?.event?.assignedUserId || null;
   const practitioner = assignedUserId ? TEAM_BY_USER_ID.get(assignedUserId) || null : null;
 
-  // Fire-and-forget: alert practitioner + admin (+ client if email), pipeline, mirror.
-  notifyBooking({ contactId, appointmentId, clientName: name, clientEmail: email, clientPhone: phone, serviceName: service.name, startTime: start, practitioner, practitionerEmail: assignedUserId ? TEAM_EMAIL_BY_USER_ID.get(assignedUserId) || null : null, durationMins: service.duration, price: service.price, depositPence: null } as any).catch(() => {});
-  createBookingOpportunity({ contactId, clientName: name, serviceName: service.name, price: service.price, startTime: start } as any).catch(() => null);
-  mirrorAppointmentSafe({ ghlId: appointmentId, ghlCalendarId: service.ghlCalendarId, assignedUserId, serviceName: service.name, clientName: name, clientEmail: email, clientPhone: phone, practitioner, notes: "Walk-in", startTime: start, endTime: end, status: "confirmed" } as any).catch(() => {});
+  // Alert practitioner + admin (+ client if email), pipeline, mirror — AWAITED: on Vercel,
+  // work left running after the response is sent can be cut off. Each one swallows its own error.
+  await Promise.all([
+  notifyBooking({ contactId, appointmentId, clientName: name, clientEmail: email, clientPhone: phone, serviceName: service.name, startTime: start, practitioner, practitionerEmail: assignedUserId ? TEAM_EMAIL_BY_USER_ID.get(assignedUserId) || null : null, durationMins: service.duration, price: service.price, depositPence: null } as any).catch(() => {}),
+  createBookingOpportunity({ contactId, clientName: name, serviceName: service.name, price: service.price, startTime: start } as any).catch(() => null),
+  mirrorAppointmentSafe({ ghlId: appointmentId, ghlCalendarId: service.ghlCalendarId, assignedUserId, serviceName: service.name, clientName: name, clientEmail: email, clientPhone: phone, practitioner, notes: "Walk-in", startTime: start, endTime: end, status: "confirmed" } as any).catch(() => {}),
+  ]);
 
   res.json({ appointmentId, practitioner, startTime: start, endTime: end, price: service.price, service: service.name });
 }

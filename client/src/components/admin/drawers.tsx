@@ -2,7 +2,7 @@
 import * as React from "react";
 import { Check, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { type Appt, type Svc, useAdmin, useNow, phase, time, money, durLabel, prettyDate, londonDate, fmtDate, svcLabel } from "./lib";
+import { type Appt, type Svc, useAdmin, useNow, phase, time, money, durLabel, prettyDate, londonDate, fmtDate, svcLabel, todayISO, shift } from "./lib";
 import { Btn, Drawer, ErrorNote, Field, Input, StatusPill } from "./ui";
 import { ApptBundle, useApptBundle } from "./bundles";
 
@@ -139,7 +139,7 @@ const CAT_LABEL: Record<string, string> = { nails: "Nails", hair: "Hair", makeup
 
 export function WalkinDrawer({ open, onClose, onBooked }: { open: boolean; onClose: () => void; onBooked: () => void }) {
   return (
-    <Drawer open={open} onClose={onClose} title="New walk-in" subtitle="Pick a treatment — we'll find who's free.">
+    <Drawer open={open} onClose={onClose} title="New walk-in" subtitle="Today or another day. Pick a treatment and we'll find who's free.">
       {open && <WalkinBody onBooked={onBooked} />}
     </Drawer>
   );
@@ -151,6 +151,8 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
   const [svc, setSvc] = React.useState<Svc | null>(null);
   const [slots, setSlots] = React.useState<string[] | null>(null);
   const [start, setStart] = React.useState<string>("");
+  const [day, setDay] = React.useState<string>(todayISO());
+  const days = React.useMemo(() => Array.from({ length: 21 }, (_, i) => shift(todayISO(), i)), []);
   const [name, setName] = React.useState(""); const [email, setEmail] = React.useState(""); const [phone, setPhone] = React.useState("");
   const [busy, setBusy] = React.useState(false); const [error, setError] = React.useState<string | null>(null);
   const [done, setDone] = React.useState<{ practitioner: string | null; startTime: string; price: number; service: string } | null>(null);
@@ -158,8 +160,8 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
   React.useEffect(() => {
     if (!svc) return;
     setSlots(null); setStart("");
-    call<{ slots: string[] }>(`slots?serviceId=${encodeURIComponent(svc.id)}`).then((j) => setSlots((j.slots || []).filter((s) => Date.parse(s) >= Date.now() - 5 * 60_000))).catch(() => setSlots([]));
-  }, [svc, call]);
+    call<{ slots: string[] }>(`slots?serviceId=${encodeURIComponent(svc.id)}&date=${day}`).then((j) => setSlots((j.slots || []).filter((s) => Date.parse(s) >= Date.now() - 5 * 60_000))).catch(() => setSlots([]));
+  }, [svc, day, call]);
 
   const groups = React.useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -173,7 +175,7 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
     if (!svc || !name.trim()) { setError("Pick a treatment and enter the client's name."); return; }
     setBusy(true); setError(null);
     try {
-      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined }) });
+      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day }) });
       setDone({ practitioner: j.practitioner, startTime: j.startTime, price: j.price, service: j.service });
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't book."); } finally { setBusy(false); }
   }
@@ -183,7 +185,7 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
       <span className="mb-4 inline-flex h-14 w-14 items-center justify-center rounded-full bg-ora-sage/15 text-ora-sage"><Check size={26} /></span>
       <p className="font-display text-[1.6rem] text-ora-deep">Booked</p>
       <p className="mt-2 font-sans text-[0.9375rem] text-ora-deep">{done.service}</p>
-      <p className="font-sans text-[0.875rem] text-ora-fog">{time(done.startTime)} · with <span className="font-medium text-ora-deep">{done.practitioner || "next available"}</span></p>
+      <p className="font-sans text-[0.875rem] text-ora-fog">{londonDate(done.startTime) === todayISO() ? "Today" : prettyDate(londonDate(done.startTime))}, {time(done.startTime)} · with <span className="font-medium text-ora-deep">{done.practitioner || "next available"}</span></p>
       <div className="mt-6 w-full rounded-2xl bg-ora-deep px-5 py-4 text-ora-cream">
         <p className="font-sans text-[0.6875rem] uppercase tracking-[0.16em] text-ora-cream/60">Charge the client</p>
         <p className="mt-1 font-display text-[2rem] leading-none tabular-nums">{money(done.price)}</p>
@@ -231,13 +233,24 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
           </div>
 
           <div>
+            <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Day</p>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label="Day">
+              {days.map((d, i) => (
+                <TimeChip key={d} on={day === d} onClick={() => setDay(d)}>
+                  {i === 0 ? "Today" : i === 1 ? "Tomorrow" : fmtDate(d, { weekday: "short", day: "numeric", month: "short" })}
+                </TimeChip>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Time</p>
             <div className="flex flex-wrap gap-2">
               <TimeChip on={start === ""} onClick={() => setStart("")}>Next available</TimeChip>
               {slots === null && <span className="self-center font-sans text-[0.8125rem] text-ora-fog">Checking…</span>}
               {slots?.slice(0, 16).map((s) => <TimeChip key={s} on={start === s} onClick={() => setStart(s)}>{time(s)}</TimeChip>)}
             </div>
-            {slots?.length === 0 && <p className="mt-2 font-sans text-[0.8125rem] text-ora-fog">No free times left today — “Next available” will try the soonest slot.</p>}
+            {slots?.length === 0 && <p className="mt-2 font-sans text-[0.8125rem] text-ora-fog">No free times {day === todayISO() ? "left today" : "that day"}. Try another day.</p>}
           </div>
 
           <div className="space-y-3">
@@ -262,7 +275,7 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
 function TimeChip({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button type="button" onClick={onClick} aria-pressed={on}
-      className={cn("focus-ring h-10 rounded-xl border px-3.5 font-sans text-[0.8125rem] tabular-nums transition", on ? "border-ora-deep bg-ora-deep text-ora-cream" : "border-ora-taupe/35 bg-white text-ora-deep hover:border-ora-bronze")}>
+      className={cn("focus-ring h-10 shrink-0 whitespace-nowrap rounded-xl border px-3.5 font-sans text-[0.8125rem] tabular-nums transition", on ? "border-ora-deep bg-ora-deep text-ora-cream" : "border-ora-taupe/35 bg-white text-ora-deep hover:border-ora-bronze")}>
       {children}
     </button>
   );
