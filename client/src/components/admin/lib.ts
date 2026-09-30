@@ -11,7 +11,7 @@ export interface Appt { id: string; startTime: string; endTime: string; client: 
 export interface Staff { userId: string; name: string; }
 /** Blocked time: from the practitioner's own Google calendar ("Busy"), team meetings, etc. */
 export interface Block { id: string; startTime: string; endTime: string; practitioner: string; title: string; }
-export interface Svc { id: string; name: string; price: number; duration: number; category: string; }
+export interface Svc { id: string; name: string; price: number; duration: number; category: string; /** GHL user ids who do it */ team?: string[]; }
 export interface Enquiry { id: string; name: string; email: string | null; phone: string | null; tags: string[]; since: string | null; }
 export interface Conversation { id: string; contactId: string | null; name: string; lastType: string; snippet: string; date: string | null; unread: number; }
 export interface Message { id: string; direction: string; type: string; body: string; date: string; }

@@ -25,7 +25,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { ghlFetch } from "../_lib/ghl.js";
 import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEvent } from "../_lib/google-calendar.js";
-import { allServices, findService, splitGhlTitle } from "../_lib/catalogue.js";
+import { allServices, findService, splitGhlTitle, teamUserIds } from "../_lib/catalogue.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
 import { notifyReschedule, sendRescheduledPractitionerAlert, sendAdminRescheduleAlert } from "../_lib/booking-notify-2.js";
@@ -191,7 +191,7 @@ async function staff(_req: VercelRequest, res: VercelResponse) {
 async function services(_req: VercelRequest, res: VercelResponse) {
   const list = allServices()
     .filter((s) => s.live && s.ghlCalendarId)
-    .map((s) => ({ id: s.id, name: s.name, price: s.price, duration: s.duration, category: s.categoryId }));
+    .map((s) => ({ id: s.id, name: s.name, price: s.price, duration: s.duration, category: s.categoryId, team: teamUserIds(s.categoryId) }));
   res.json({ services: list });
 }
 
@@ -201,7 +201,8 @@ async function slots(req: VercelRequest, res: VercelResponse) {
   if (!service?.ghlCalendarId) return res.status(400).json({ error: "Unknown service" });
   const dateStr = (req.query.date as string) || todayStr();
   const { start, end } = dayRange(dateStr);
-  const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${start}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+  const uid = typeof req.query.userId === "string" && TEAM_BY_USER_ID.has(req.query.userId) ? `&userId=${req.query.userId}` : "";
+  const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${start}&endDate=${end}${uid}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
   res.json({ slots: ((r.body || {})[dateStr] || {}).slots || [] });
 }
 
@@ -216,13 +217,16 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   const email = typeof body.email === "string" && body.email.includes("@") ? body.email.trim() : "";
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
 
+  // Practitioner: "anyone" (GHL round-robin) or a named person who does this treatment.
+  const wantUser = typeof body.userId === "string" && body.userId ? body.userId : "";
+  if (wantUser && !teamUserIds(service.categoryId).includes(wantUser)) return res.status(400).json({ error: `${TEAM_BY_USER_ID.get(wantUser) || "That practitioner"} doesn't do this treatment.` });
   // Time: use the given slot, else the next free slot on the chosen day (default today).
   let start: string | undefined = typeof body.startTime === "string" ? body.startTime : undefined;
   if (start && (Number.isNaN(Date.parse(start)) || Date.parse(start) < Date.now() - 15 * 60_000)) return res.status(400).json({ error: "That time has already passed." });
   if (!start) {
     const day = typeof body.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.date) && body.date >= todayStr() ? body.date : todayStr();
     const { start: ds, end } = dayRange(day);
-    const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${ds}&endDate=${end}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
+    const r = await ghlFetch<any>(`/calendars/${service.ghlCalendarId}/free-slots?startDate=${ds}&endDate=${end}${wantUser ? `&userId=${wantUser}` : ""}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
     const list: string[] = ((r.body || {})[day] || {}).slots || [];
     const now = Date.now();
     start = list.find((s) => Date.parse(s) >= now);
@@ -244,7 +248,7 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
 
   const appt = await ghlFetch<any>(`/calendars/events/appointments`, {
     method: "POST",
-    body: JSON.stringify({ calendarId: service.ghlCalendarId, locationId: LOC, contactId, startTime: start, endTime: end, title: `${service.name} — ${name}`, appointmentStatus: "confirmed", toNotify: true, timezone: "Europe/London", notes: "Walk-in (added at reception)" }),
+    body: JSON.stringify({ calendarId: service.ghlCalendarId, locationId: LOC, contactId, startTime: start, endTime: end, title: `${service.name} — ${name}`, appointmentStatus: "confirmed", toNotify: true, timezone: "Europe/London", notes: "Walk-in (added at reception)", ...(wantUser ? { assignedUserId: wantUser } : {}) }),
   }).catch(() => ({ body: null } as any));
   const appointmentId = appt.body?.id || appt.body?.event?.id;
   if (!appointmentId) return res.status(502).json({ error: "GHL rejected the appointment", detail: appt.body });

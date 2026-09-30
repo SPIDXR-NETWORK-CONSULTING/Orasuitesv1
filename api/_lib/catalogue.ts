@@ -32,6 +32,12 @@ const raw = catalogueRaw as any;
 
 export const DEPOSIT_PERCENT: number = raw?._meta?.depositPercent ?? 20;
 
+/** GHL user ids of the (active) practitioners who do a category, from catalogue `team`. */
+export function teamUserIds(categoryId: string): string[] {
+  const cat = (raw?.categories || []).find((c: any) => c.id === categoryId);
+  return (cat?.team || []).map((k: string) => raw?._meta?.team?.[k]).filter((t: any) => t?.ghlUserId && !t.inactive).map((t: any) => t.ghlUserId);
+}
+
 export function slugify(name: string): string {
   return String(name)
     .toLowerCase()
