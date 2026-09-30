@@ -26,6 +26,7 @@ import { ApptDrawer, WalkinDrawer } from "@/components/admin/drawers";
 import { RotaGrid } from "@/components/admin/rota";
 import { RentersView } from "@/components/admin/renters";
 import { BundlesView } from "@/components/admin/bundles";
+import { MoveDialog, type MoveRequest } from "@/components/admin/move";
 import { EnquiriesView, MessagesView } from "@/components/admin/inbox";
 
 type Section = "today" | "calendar" | "bundles" | "rota" | "renters" | "enquiries" | "messages";
@@ -105,6 +106,7 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
   const [error, setError] = React.useState<string | null>(null);
   const [synced, setSynced] = React.useState<number | null>(null);
   const [detail, setDetail] = React.useState<Appt | null>(null);
+  const [moveReq, setMoveReq] = React.useState<MoveRequest | null>(null);
   const [walkin, setWalkin] = React.useState(false);
 
   // reference data, once
@@ -229,7 +231,8 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
 
           {section === "today" && <TodayOverview appts={appts.filter((a) => londonDate(a.startTime) === todayISO())} blocks={blocks} rota={rota} now={now} onOpen={setDetail} onWalkin={() => setWalkin(true)} />}
           {section === "calendar" && view === "day" && (
-            <DayTimeline date={anchor} appts={byDay(anchor)} blocks={blocks.filter((b) => londonDate(b.startTime) === anchor)} columns={who === "all" ? team.map((t) => t.name) : [who]} team={team} rota={rota} now={now} onOpen={setDetail} />
+            <DayTimeline date={anchor} appts={byDay(anchor)} blocks={blocks.filter((b) => londonDate(b.startTime) === anchor)} columns={who === "all" ? team.map((t) => t.name) : [who]} team={team} rota={rota} now={now} onOpen={setDetail}
+              onMove={(a, toName, startIso) => setMoveReq({ a, toName, startIso })} />
           )}
           {section === "calendar" && view === "week" && <WeekView anchor={anchor} byDay={byDay} onOpen={setDetail} onDay={openDay} />}
           {section === "calendar" && view === "month" && <MonthView anchor={anchor} byDay={byDay} onDay={openDay} />}
@@ -253,6 +256,7 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
         </nav>
       </div>
 
+      <MoveDialog req={moveReq} onClose={() => setMoveReq(null)} onMoved={(u) => { setAppts((xs) => xs.map((x) => (x.id === u.id ? u : x))); setTimeout(load, 1500); }} />
       <ApptDrawer a={detail} onClose={() => setDetail(null)} onChanged={(u) => { setDetail(u); setAppts((xs) => xs.map((x) => (x.id === u.id ? u : x))); setTimeout(load, 1500); }} />
       <WalkinDrawer open={walkin} onClose={() => setWalkin(false)} onBooked={() => { setWalkin(false); load(); }} />
     </AdminContext.Provider>

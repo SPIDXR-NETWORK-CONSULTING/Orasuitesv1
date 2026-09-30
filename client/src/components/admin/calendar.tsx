@@ -2,13 +2,15 @@
  * ORÁ Floor — calendar views.
  *   DayTimeline : one column per practitioner, bronze "now" line, in-chair bookings fill
  *                 with bronze as the treatment progresses, off-rota time hatched.
+ *                 Drag a booking (mouse/pen) to another column and/or time → onMove,
+ *                 which confirms before anything changes. Touch uses the drawer's Move.
  *   WeekView / MonthView : compact overviews; tap a day to open it.
  */
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import {
   type Appt, type Block, type Staff, type RotaRow, time, londonMinutes, openHours, weekday, phase, firstName, durLabel,
-  weekDays, monthGrid, dayNum, sameMonth, todayISO, fmtDate, svcLabel,
+  weekDays, monthGrid, dayNum, sameMonth, todayISO, fmtDate, svcLabel, londonIso,
 } from "./lib";
 
 const PX = 1.6; // px per minute → 96px per hour
@@ -35,10 +37,15 @@ function layout(list: Appt[]) {
   return out;
 }
 
-export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now, onOpen }: {
+export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now, onOpen, onMove }: {
   date: string; appts: Appt[]; blocks?: Block[]; columns: string[]; team: Staff[]; rota: RotaRow[]; now: number; onOpen: (a: Appt) => void;
+  onMove?: (a: Appt, toName: string, startIso: string) => void;
 }) {
   const scroller = React.useRef<HTMLDivElement>(null);
+  const gridRef = React.useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = React.useState<{ a: Appt; col: string; min: number } | null>(null);
+  const dragRef = React.useRef<{ a: Appt; col: string; min: number } | null>(null);
+  const dragged = React.useRef(false);
   const { open, close } = openHours(date);
   const starts = appts.map((a) => londonMinutes(a.startTime));
   const ends = appts.map((a) => londonMinutes(a.endTime));
@@ -54,9 +61,36 @@ export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now
   // land the now-line a third of the way down on open
   React.useEffect(() => {
     const el = scroller.current;
-    if (el && showNow) el.scrollTop = Math.max(0, (nowMin - from) * PX - el.clientHeight / 3);
+    if (el) el.scrollTop = showNow ? Math.max(0, (nowMin - from) * PX - el.clientHeight / 3) : 0; // other days open at the start
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
+
+  /** Pointer drag: 6px threshold so a plain click still opens the booking. */
+  const startDrag = (e: React.PointerEvent, a: Appt) => {
+    if (!onMove || e.button !== 0 || e.pointerType === "touch") return;
+    e.preventDefault(); // no text selection / native drag (which also scrolls the calendar away); click still fires
+    const sx = e.clientX, sy = e.clientY;
+    const grab = e.clientY - (e.currentTarget as HTMLElement).getBoundingClientRect().top;
+    dragged.current = false;
+    const move = (ev: PointerEvent) => {
+      if (!dragged.current && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+      dragged.current = true;
+      const colEl = document.elementsFromPoint(ev.clientX, ev.clientY).find((el) => (el as HTMLElement).dataset?.col) as HTMLElement | undefined;
+      const g = gridRef.current!.getBoundingClientRect();
+      const raw = Math.round((from + (ev.clientY - grab - g.top) / PX) / 5) * 5;
+      const d = { a, col: colEl?.dataset.col ?? a.practitioner, min: Math.max(from, Math.min(to - 15, raw)) };
+      dragRef.current = d; setDrag(d);
+      const sc = scroller.current!.getBoundingClientRect(); // edge auto-scroll
+      if (ev.clientY > sc.bottom - 40) scroller.current!.scrollTop += 14; else if (ev.clientY < sc.top + 80) scroller.current!.scrollTop -= 14;
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+      const d = dragRef.current; dragRef.current = null; setDrag(null);
+      if (d && dragged.current && (d.col !== a.practitioner || d.min !== londonMinutes(a.startTime))) onMove(d.a, d.col, londonIso(date, d.min));
+    };
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+  };
+  const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
   const cols = columns.length ? columns : ["—"];
   const grid = { gridTemplateColumns: `3.5rem repeat(${cols.length}, minmax(${cols.length > 3 ? 150 : 220}px, 1fr))` };
@@ -77,7 +111,7 @@ export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now
         })}
       </div>
 
-      <div className="relative grid" style={{ ...grid, height: (to - from) * PX }}>
+      <div ref={gridRef} className="relative grid" style={{ ...grid, height: (to - from) * PX }}>
         {/* hour gutter — sticks left when the columns scroll sideways */}
         <div className="sticky left-0 z-[5] bg-ora-milk/90">
           {hours.map((h) => (
@@ -93,7 +127,14 @@ export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now
           const rotaSet = rota.some((r) => r.practitioner_user_id === uid);
           const off = rotaSet && (!shift || shift.start_min == null);
           return (
-            <div key={name} className="relative border-l border-ora-taupe/10" style={off ? { backgroundImage: HATCH } : undefined}>
+            <div key={name} data-col={name} className={cn("relative border-l border-ora-taupe/10", drag?.col === name && drag.col !== drag.a.practitioner && "bg-ora-bronze/[0.04]")} style={off ? { backgroundImage: HATCH } : undefined}>
+              {drag?.col === name && (
+                <div aria-hidden className="pointer-events-none absolute inset-x-1 z-20 rounded-xl border-2 border-dashed border-ora-bronze bg-ora-bronze/10 px-2.5 py-1.5"
+                  style={{ top: (drag.min - from) * PX + 1.5, height: Math.max(15, londonMinutes(drag.a.endTime) - londonMinutes(drag.a.startTime)) * PX - 3 }}>
+                  <span className="block font-sans text-[0.75rem] font-semibold tabular-nums text-ora-bronze">{hhmm(drag.min)}{drag.col !== drag.a.practitioner ? ` · ${firstName(drag.col)}` : ""}</span>
+                  <span className="block truncate font-sans text-[0.78rem] text-ora-deep">{drag.a.client}</span>
+                </div>
+              )}
               {/* hour + half-hour rules */}
               {hours.map((h) => <div key={h} className="absolute inset-x-0 border-t border-ora-taupe/10" style={{ top: (h - from) * PX }} />)}
               {hours.slice(0, -1).map((h) => <div key={`h${h}`} className="absolute inset-x-0 border-t border-dashed border-ora-taupe/[0.07]" style={{ top: (h + 30 - from) * PX }} />)}
@@ -127,7 +168,9 @@ export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now
                 const arrived = a.status === "showed" && p.kind !== "done";
                 const compact = h < 46;
                 return (
-                  <button key={a.id} onClick={() => onOpen(a)} data-testid={`block-${a.id}`}
+                  <button key={a.id} data-testid={`block-${a.id}`}
+                    onClick={() => { if (dragged.current) { dragged.current = false; return; } onOpen(a); }}
+                    onPointerDown={(e) => (p.kind === "upcoming" || p.kind === "now") && startDrag(e, a)}
                     aria-label={`${time(a.startTime)} ${a.client}${svcLabel(a.service) ? `, ${a.service}` : ""}, with ${name}`}
                     className={cn(
                       "focus-ring group absolute overflow-hidden rounded-xl border px-2.5 text-left transition-[box-shadow,transform] duration-200 hover:z-10 hover:-translate-y-px hover:shadow-luxury",
@@ -137,6 +180,8 @@ export function DayTimeline({ date, appts, blocks = [], columns, team, rota, now
                       !arrived && p.kind === "upcoming" && "border-ora-taupe/20 bg-white/95",
                       p.kind === "done" && "border-ora-taupe/10 bg-ora-greige/40",
                       p.kind === "void" && "border-dashed border-ora-fog/40 bg-transparent opacity-60",
+                      onMove && (p.kind === "upcoming" || p.kind === "now") && "cursor-grab select-none active:cursor-grabbing",
+                      drag?.a.id === a.id && "opacity-40",
                     )}
                     style={{ top: top + 1.5, height: h, left: `calc(${(lane / lanes) * 100}% + 4px)`, width: `calc(${100 / lanes}% - 8px)` }}>
                     {/* bronze progress fill for the treatment in the chair */}

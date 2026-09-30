@@ -9,6 +9,7 @@
  *                land in the pipeline. Admin can book ANY live service.
  *   · rota / rota-set → weekly hours; each save syncs to GHL availability.
  *   · renters / renter-set → room & chair renters (ORÁ Supabase, locked table).
+ *   · move     → (POST) move a booking to another time and/or practitioner (drag & drop).
  *   · bundles / bundle-sell / bundle-act → blow-dry bundles: list, sell at the desk,
  *                mark paid, count a visit, undo, cancel (ORÁ Supabase, locked tables).
  *
@@ -27,6 +28,7 @@ import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEv
 import { allServices, findService, splitGhlTitle } from "../_lib/catalogue.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
+import { notifyReschedule, sendRescheduledPractitionerAlert, sendAdminRescheduleAlert } from "../_lib/booking-notify-2.js";
 import { bundleOfferFor, bundleSize, createBundle, bundleAction, listBundles, sendBundleEmail, BUNDLE_EXPIRY_MONTHS } from "../_lib/bundles.js";
 
 const LOC = process.env.GHL_LOCATION_ID || "";
@@ -87,6 +89,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "slots": return slots(req, res);
     case "walkin": return walkin(req, res);
     case "status": return setStatus(req, res);
+    case "move": return moveAppt(req, res);
     case "client": return client(req, res);
     case "enquiries": return enquiries(req, res);
     case "conversations": return conversations(req, res);
@@ -279,6 +282,80 @@ async function setStatus(req: VercelRequest, res: VercelResponse) {
   // the friend gets their second 100 points (the DB function awards it once, ever).
   const referralAwarded = status === "showed" ? await awardReferralFirstVisit(id) : false;
   res.json({ ok: true, id, status, referralAwarded });
+}
+
+/**
+ * Move a booking (drag & drop / "Move" in the drawer): new start time and/or practitioner.
+ * Checks the practitioner does that treatment (is on its GHL calendar) and is free, then
+ * GHL → Google mirror → emails. The client is emailed only when the TIME changes.
+ */
+async function moveAppt(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const id = String(b.id || "");
+  if (!/^[A-Za-z0-9]{8,40}$/.test(id)) return res.status(400).json({ error: "Bad appointment id" });
+  const cur = await ghlFetch<any>(`/calendars/events/appointments/${id}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any));
+  const appt = cur.ok ? cur.body?.appointment || cur.body : null;
+  if (!appt?.startTime) return res.status(404).json({ error: "Couldn't find that booking." });
+  const status = String(appt.appointmentStatus || appt.appoinmentStatus || "").toLowerCase();
+  if (["cancelled", "canceled", "noshow", "invalid"].includes(status)) return res.status(409).json({ error: "That booking is cancelled or a no-show." });
+
+  const oldStart = Date.parse(appt.startTime), dur = Date.parse(appt.endTime) - oldStart;
+  const newStart = b.startTime ? Date.parse(String(b.startTime)) : oldStart;
+  if (Number.isNaN(newStart) || !(dur > 0)) return res.status(400).json({ error: "Bad time" });
+  if (newStart !== oldStart && newStart < Date.now() - 30 * 60_000) return res.status(400).json({ error: "That time has already passed." });
+  const fromUser = String(appt.assignedUserId || "");
+  const toUser = String(b.userId || fromUser);
+  if (!TEAM_BY_USER_ID.has(toUser)) return res.status(400).json({ error: "Unknown practitioner" });
+  if (newStart === oldStart && toUser === fromUser) return res.json({ ok: true, unchanged: true });
+
+  // The new practitioner must do this treatment (be on its GHL calendar)…
+  if (toUser !== fromUser) {
+    const cal = await ghlFetch<any>(`/calendars/${appt.calendarId}`, { version: "2021-04-15" }).catch(() => ({ ok: false } as any));
+    const onIt = (cal.body?.calendar?.teamMembers || []).some((m: any) => m.userId === toUser);
+    if (!onIt) return res.status(409).json({ error: `${TEAM_BY_USER_ID.get(toUser)} doesn't do this treatment, so it can't be moved to them.` });
+  }
+  // …and be free then (other bookings or blocked time), unless reception says "move anyway".
+  const newEnd = newStart + dur;
+  if (!b.force) {
+    const [ev, bl] = await Promise.all([
+      ghlFetch<any>(`/calendars/events?locationId=${LOC}&userId=${toUser}&startTime=${newStart - 86_400_000}&endTime=${newEnd + 86_400_000}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any)),
+      ghlFetch<any>(`/calendars/blocked-slots?locationId=${LOC}&userId=${toUser}&startTime=${newStart - 86_400_000}&endTime=${newEnd + 86_400_000}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any)),
+    ]);
+    const clash = [...(ev.body?.events || []), ...(bl.body?.events || [])].find((e: any) =>
+      e.id !== id && !["cancelled", "canceled", "noshow", "invalid"].includes(String(e.appointmentStatus || e.appoinmentStatus || "").toLowerCase()) &&
+      Date.parse(e.startTime) < newEnd && Date.parse(e.endTime) > newStart);
+    if (clash) return res.status(409).json({ clash: true, error: `${TEAM_BY_USER_ID.get(toUser)} is busy then (${clash.title || "booked"}, ${new Date(clash.startTime).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}).` });
+  }
+
+  const put = await ghlFetch<any>(`/calendars/events/appointments/${id}`, {
+    method: "PUT", version: "2021-04-15",
+    body: JSON.stringify({ startTime: new Date(newStart).toISOString(), endTime: new Date(newEnd).toISOString(), assignedUserId: toUser, ignoreFreeSlotValidation: true }),
+  }).catch(() => ({ ok: false } as any));
+  if (!put.ok) return res.status(502).json({ error: "GHL didn't accept the move. Nothing has changed." });
+
+  const after = (await ghlFetch<any>(`/calendars/events/appointments/${id}`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any))).body;
+  const a2 = after?.appointment || after || {};
+  const parsed = splitTitle(String(appt.title || ""));
+  const svc = appt.calendarId ? findService(appt.calendarId) : undefined;
+  const serviceName = svc?.name ?? parsed.service;
+  const startIso = a2.startTime || new Date(newStart).toISOString();
+  const endIso = a2.endTime || new Date(newEnd).toISOString();
+  const userNow = String(a2.assignedUserId || toUser);
+  await mirrorAppointmentSafe({ ghlId: id, ghlCalendarId: appt.calendarId || null, assignedUserId: userNow, serviceName, clientName: parsed.client, practitioner: TEAM_BY_USER_ID.get(userNow) || null, notes: appt.notes || null, startTime: startIso, endTime: endIso, status: "confirmed" } as any).catch(() => null);
+
+  const c = appt.contactId ? (await ghlFetch<any>(`/contacts/${appt.contactId}`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any))).body?.contact || {} : {};
+  const notice = {
+    contactId: appt.contactId || "", appointmentId: id, clientName: parsed.client, clientEmail: c.email || null, clientPhone: c.phone || null,
+    serviceName, oldStartTime: appt.startTime, newStartTime: startIso, durationMins: Math.round(dur / 60_000),
+    practitioner: TEAM_BY_USER_ID.get(userNow) || null, practitionerEmail: TEAM_EMAIL_BY_USER_ID.get(userNow) || null,
+    previousPractitioner: TEAM_BY_USER_ID.get(fromUser) || null, previousPractitionerEmail: TEAM_EMAIL_BY_USER_ID.get(fromUser) || null,
+    expectedDepositPence: null,
+  };
+  if (newStart !== oldStart) await notifyReschedule(notice as any).catch(() => null);
+  else await Promise.all([sendRescheduledPractitionerAlert(notice as any).catch(() => false), sendAdminRescheduleAlert(notice as any).catch(() => false)]);
+
+  res.json({ ok: true, id, startTime: startIso, endTime: endIso, practitioner: TEAM_BY_USER_ID.get(userNow) || null, clientEmailed: newStart !== oldStart && Boolean(appt.contactId) });
 }
 
 /** Never throws and never blocks reception: a failure here only means no referral bonus. */
