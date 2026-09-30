@@ -34,7 +34,7 @@ export function bundleState(b: Bundle): { label: string; tone: "live" | "wait" |
 const TONE = { live: "bg-ora-sage/10 text-ora-sage", wait: "bg-ora-bronze/10 text-ora-bronze", done: "bg-ora-fog/15 text-ora-fog" };
 
 /** All bundles (tiny list), painted from cache then refreshed. Shared by the drawer and the tab. */
-function useBundleList() {
+export function useBundleList() {
   const { call } = useAdmin();
   const [list, setList] = React.useState<Bundle[] | null>(() => cache.get<Bundle[]>("bundles"));
   const [error, setError] = React.useState<string | null>(null);

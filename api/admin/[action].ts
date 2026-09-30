@@ -10,6 +10,8 @@
  *   · rota / rota-set → weekly hours; each save syncs to GHL availability.
  *   · renters / renter-set → room & chair renters (ORÁ Supabase, locked table).
  *   · block / unblock → (POST) block time for a practitioner (GHL + their Google Calendar).
+ *   · clients  → search clients (GHL contacts) by name / phone / email.  client → one client
+ *                + visits + notes.  note-add → (POST) add a note (allergies, preferences…).
  *   · move     → (POST) move a booking to another time and/or practitioner (drag & drop).
  *   · bundles / bundle-sell / bundle-act → blow-dry bundles: list, sell at the desk,
  *                mark paid, count a visit, undo, cancel (ORÁ Supabase, locked tables).
@@ -27,7 +29,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { ghlFetch } from "../_lib/ghl.js";
 import { TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID, mirrorAppointmentSafe, deleteEvent, createBlockEvent, deleteBlockEvent } from "../_lib/google-calendar.js";
 import { allServices, findService, splitGhlTitle, teamUserIds } from "../_lib/catalogue.js";
-import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
+import { resolveContact, createBookingOpportunity, appendContactNote } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
 import { notifyReschedule, sendRescheduledPractitionerAlert, sendAdminRescheduleAlert } from "../_lib/booking-notify-2.js";
 import { bundleOfferFor, bundleSize, createBundle, bundleAction, listBundles, sendBundleEmail, BUNDLE_EXPIRY_MONTHS } from "../_lib/bundles.js";
@@ -94,6 +96,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "block": return blockTime(req, res);
     case "unblock": return unblockTime(req, res);
     case "client": return client(req, res);
+    case "clients": return clientSearch(req, res);
+    case "note-add": return noteAdd(req, res);
     case "enquiries": return enquiries(req, res);
     case "conversations": return conversations(req, res);
     case "thread": return thread(req, res);
@@ -419,10 +423,16 @@ async function awardReferralFirstVisit(appointmentId: string): Promise<boolean> 
 async function client(req: VercelRequest, res: VercelResponse) {
   const cid = (req.query.contactId as string) || "";
   if (!cid) return res.status(400).json({ error: "contactId required" });
-  const [cR, aR] = await Promise.all([
+  if (!/^[A-Za-z0-9]{8,40}$/.test(cid)) return res.status(400).json({ error: "Bad contactId" });
+  const [cR, aR, nR] = await Promise.all([
     ghlFetch<any>(`/contacts/${cid}`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any)),
     ghlFetch<any>(`/contacts/${cid}/appointments`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any)),
+    ghlFetch<any>(`/contacts/${cid}/notes`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any)),
   ]);
+  const notes = (nR.body?.notes || [])
+    .map((n: any) => ({ id: n.id, text: String(n.bodyText || String(n.body || "").replace(/<[^>]+>/g, " ")).trim(), date: n.dateAdded || null }))
+    .filter((n: any) => n.text)
+    .sort((a: any, b: any) => String(b.date).localeCompare(String(a.date)));
   const c = cR.body?.contact || {};
   const evs = aR.body?.events || aR.body?.appointments || [];
   const appointments = evs
@@ -431,7 +441,30 @@ async function client(req: VercelRequest, res: VercelResponse) {
   res.json({
     contact: { name: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim() || "—", email: c.email || null, phone: c.phone || null, tags: c.tags || [], since: c.dateAdded || null },
     appointments,
+    notes,
   });
+}
+
+/** Find a client in GHL by name, phone or email (min 2 characters). Staff records are hidden. */
+async function clientSearch(req: VercelRequest, res: VercelResponse) {
+  const q = String(req.query.q || "").trim().slice(0, 80);
+  if (q.length < 2) return res.json({ clients: [] });
+  const r = await ghlFetch<any>(`/contacts/?locationId=${LOC}&query=${encodeURIComponent(q)}&limit=20`, { version: "2021-07-28" }).catch(() => ({ ok: false, body: {} } as any));
+  if (!r.ok) return res.status(502).json({ error: "Couldn't search GHL just now." });
+  const clients = (r.body?.contacts || [])
+    .filter((c: any) => !(c.tags || []).includes("internal-team"))
+    .map((c: any) => ({ id: c.id, name: c.contactName || `${c.firstName || ""} ${c.lastName || ""}`.trim() || "—", email: c.email || null, phone: c.phone || null, since: c.dateAdded || null }));
+  res.json({ clients });
+}
+
+async function noteAdd(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const cid = String(b.contactId || ""), text = String(b.text || "").trim().slice(0, 2000);
+  if (!/^[A-Za-z0-9]{8,40}$/.test(cid) || !text) return res.status(400).json({ error: "Write a note first." });
+  const ok = await appendContactNote(cid, text).catch(() => false);
+  if (!ok) return res.status(502).json({ error: "GHL didn't save the note. Try again." });
+  res.json({ ok: true });
 }
 
 /** Recent website enquiries (GHL contacts tagged website-enquiry). */
