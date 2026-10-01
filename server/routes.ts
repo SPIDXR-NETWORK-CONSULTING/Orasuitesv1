@@ -111,6 +111,7 @@ export async function registerRoutes(
     async (req: any, res: any) => (await mod).default({ method: req.method, headers: req.headers, body: req.body, query: { ...req.query, ...query(req) } }, res);
   app.post("/api/ghl/booking", vercel(import("../api/ghl/booking.js")));
   app.get("/api/booking/bundle", vercel(import("../api/booking/bundle.js")));
+  app.post("/api/booking/bundle", vercel(import("../api/booking/bundle.js")));
   app.get("/api/catalogue", vercel(import("../api/catalogue.js")));
 
   // ── Local dev only: run the REAL Vercel dashboard function so /admin works on

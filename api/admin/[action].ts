@@ -32,7 +32,7 @@ import { allServices, findService, splitGhlTitle, teamUserIds } from "../_lib/ca
 import { resolveContact, createBookingOpportunity, appendContactNote } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
 import { notifyReschedule, sendRescheduledPractitionerAlert, sendAdminRescheduleAlert } from "../_lib/booking-notify-2.js";
-import { bundleOfferFor, bundleSize, createBundle, bundleAction, listBundles, sendBundleEmail, BUNDLE_EXPIRY_MONTHS } from "../_lib/bundles.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleAppt, listBundles, sendBundleEmail, BUNDLE_EXPIRY_MONTHS } from "../_lib/bundles.js";
 
 const LOC = process.env.GHL_LOCATION_ID || "";
 
@@ -288,7 +288,11 @@ async function setStatus(req: VercelRequest, res: VercelResponse) {
   if (!STATUSES_ALLOWED.includes(status)) return res.status(400).json({ error: "Unknown status" });
   const r = await ghlFetch<any>(`/calendars/events/appointments/${id}`, { method: "PUT", version: "2021-04-15", body: JSON.stringify({ appointmentStatus: status }) }).catch(() => ({ ok: false } as any));
   if (!r.ok) return res.status(502).json({ error: "GHL didn't accept the change — try again." });
-  if (status === "cancelled" || status === "noshow") await deleteEvent(id).catch(() => null);
+  if (status === "cancelled" || status === "noshow") {
+    await deleteEvent(id).catch(() => null);
+    // Either way the blow-dry goes back on their bundle (Abdul, 1 Oct 2026).
+    await bundleAppt(id, "release").catch(() => null);
+  }
   // Arrived = the visit happened → if this client joined the ORÁ app with a friend's code,
   // the friend gets their second 100 points (the DB function awards it once, ever).
   const referralAwarded = status === "showed" ? await awardReferralFirstVisit(id) : false;
@@ -353,6 +357,7 @@ async function moveAppt(req: VercelRequest, res: VercelResponse) {
   const startIso = a2.startTime || new Date(newStart).toISOString();
   const endIso = a2.endTime || new Date(newEnd).toISOString();
   const userNow = String(a2.assignedUserId || toUser);
+  if (newStart !== oldStart) await bundleAppt(id, "move", startIso).catch(() => null);
   await mirrorAppointmentSafe({ ghlId: id, ghlCalendarId: appt.calendarId || null, assignedUserId: userNow, serviceName, clientName: parsed.client, practitioner: TEAM_BY_USER_ID.get(userNow) || null, notes: appt.notes || null, startTime: startIso, endTime: endIso, status: "confirmed" } as any).catch(() => null);
 
   const c = appt.contactId ? (await ghlFetch<any>(`/contacts/${appt.contactId}`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any))).body?.contact || {} : {};

@@ -16,7 +16,7 @@ import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.j
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../_lib/stripe.js";
 import { isBookableService } from "../_lib/catalogue.js";
-import { bundleOfferFor, bundleSize, createBundle, bundleLink } from "../_lib/bundles.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleLink, activeBundleFor, type Bundle } from "../_lib/bundles.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -77,7 +77,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Blow-dry bundle (optional) ─────────────────────────────────────────
   // The browser only says "4" or "6"; the price and which treatments qualify come
-  // from shared/catalogue.json. Checked BEFORE anything is created.
+  // from shared/catalogue.json. Checked BEFORE anything is created. A bundle is paid
+  // in full by card (verifyDeposit checks that payment instead of a deposit).
   const bundleOffer = bundle != null && bundle !== "" ? bundleOfferFor(calendarId) : undefined;
   const bundlePick = bundleOffer ? bundleSize(bundleOffer, bundle) : undefined;
   if (bundle != null && bundle !== "" && !bundlePick) {
@@ -89,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // the hold is real, is for this treatment and is the right amount; if it is
   // not, nothing at all is created. Free consultations and an unconfigured
   // Stripe both pass straight through.
-  const deposit = await verifyDeposit({ serviceId, calendarId, serviceName, paymentIntentId });
+  const deposit = await verifyDeposit({ serviceId, calendarId, serviceName, paymentIntentId, bundle: bundlePick?.count });
   if (!deposit.ok) {
     return res.status(deposit.status).json({ error: deposit.error });
   }
@@ -143,7 +144,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         timezone: "Europe/London",
         // The payment marker rides along in the notes so a later cancellation
         // can find the deposit and refund it. See api/booking/cancel.ts.
-        notes: notesWithPayment(notes, paidIntentId),
+        // Never for a bundle: cancelling a visit gives the blow-dry back, not the money.
+        notes: bundlePick ? notes : notesWithPayment(notes, paidIntentId),
       }),
     });
 
@@ -172,8 +174,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //     broke automatic refunds. Stripe metadata is the durable index that
     //     api/booking/cancel.ts searches.
     if (paidIntentId) {
+      // A bundle payment is linked under a different key, so cancel / no-show code
+      // (which looks up ghlAppointmentId) never refunds or re-captures it.
       const linked = await updatePaymentIntent(paidIntentId, {
-        metadata: { ghlAppointmentId: appointmentId, ghlContactId: contactId },
+        metadata: bundlePick ? { bundleFirstAppointmentId: appointmentId, ghlContactId: contactId } : { ghlAppointmentId: appointmentId, ghlContactId: contactId },
       }).catch(() => ({ ok: false, error: "metadata update threw" }));
       if (!linked.ok) {
         console.error(
@@ -183,23 +187,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // 2d. Bundle bought online → record it now (unpaid until reception takes payment
-    //     on this first visit). A failure here must not lose the booking: admin is
-    //     told in the booking email and reception can sell it from the dashboard.
+    // 2d. Blow-dry bundles. A failure here must never lose the booking: admin sees it
+    //     in the booking email and reception can fix it from the dashboard.
+    //   · bought now → record it (paid if the card payment was taken) and count this
+    //     visit as blow-dry 1
+    //   · not buying, but they hold a paid bundle with blow-dries left → this visit
+    //     goes on it, nothing to pay
     let bundleNote = "";
     let bundleHtml: string | null = null;
+    let onBundle: Bundle | null = null;
+    const visit = { appointment_id: appointmentId, visit_at: startTime, service: serviceName || null };
     if (bundleOffer && bundlePick) {
+      const paid = Boolean(paidIntentId && depositTaken);
       const made = await createBundle({
         client_name: name, email, phone, contact_id: contactId, size: bundlePick.count, price: bundlePick.price,
-        source: "online", paid: false, first_appointment_id: appointmentId, expiry_months: bundleOffer.expiryMonths,
+        source: "online", paid, first_appointment_id: appointmentId, expiry_months: bundleOffer.expiryMonths,
+        notes: paidIntentId ? `Paid online by card (Stripe ${paidIntentId})${paid ? "" : " — NOT captured yet: capture it in Stripe, then tap Paid"}` : null,
       });
-      bundleNote = made.ok
-        ? `BLOW-DRY BUNDLE OF ${bundlePick.count}: £${bundlePick.price} to pay at the clinic on this visit (this visit is 1 of ${bundlePick.count}).`
-        : `BLOW-DRY BUNDLE OF ${bundlePick.count} requested (£${bundlePick.price}) but it could NOT be recorded (${made.error}). Sell it from the dashboard at the desk.`;
+      if (made.ok && paid) {
+        const used = await bundleAction(made.data.id, "use", visit);
+        onBundle = used.ok ? used.data : made.data;
+        if (!used.ok) console.error(`[booking] bundle ${made.data.id}: first visit not counted:`, used.error);
+      } else if (made.ok) onBundle = made.data;
       if (!made.ok) console.error(`[booking] CRITICAL: bundle not recorded for appointment ${appointmentId}:`, made.error);
-      bundleHtml = made.ok
-        ? `<b>Blow-Dry Bundle of ${bundlePick.count}:</b> £${bundlePick.price}, paid at the clinic on this visit. This is blow-dry 1 of ${bundlePick.count}. <a href="${bundleLink(made.data.token)}">See your bundle</a>`
-        : `<b>Blow-Dry Bundle of ${bundlePick.count}:</b> £${bundlePick.price}, paid at the clinic on this visit.`;
+      const how = paid ? `£${bundlePick.price} PAID ONLINE by card` : paidIntentId ? `£${bundlePick.price} card payment NOT taken (Stripe ${paidIntentId}) — capture it in Stripe` : `£${bundlePick.price} to pay at the clinic on this visit`;
+      bundleNote = made.ok
+        ? `BLOW-DRY BUNDLE OF ${bundlePick.count}: ${how}. This visit is 1 of ${bundlePick.count}.`
+        : `BLOW-DRY BUNDLE OF ${bundlePick.count} bought (${how}) but it could NOT be recorded (${made.error}). Add it from the dashboard.`;
+      bundleHtml = `<b>Blow-Dry Bundle of ${bundlePick.count}:</b> £${bundlePick.price}, ${paid ? "paid" : "paid at the clinic on this visit"}. This is blow-dry 1 of ${bundlePick.count}.` +
+        (made.ok ? ` <a href="${bundleLink(made.data.token)}">See your bundle</a>` : "");
+    } else if (bundleOfferFor(calendarId)) {
+      const holder = await activeBundleFor(email, startTime);
+      const used = holder ? await bundleAction(holder.id, "use", visit) : null;
+      if (used && !used.ok) console.error(`[booking] appointment ${appointmentId} not counted on bundle ${holder!.id}:`, used.error);
+      if (used?.ok) {
+        onBundle = used.data;
+        const n = used.data.uses.findIndex((u) => u.appointment_id === appointmentId) + 1;
+        bundleNote = `ON BLOW-DRY BUNDLE: blow-dry ${n} of ${used.data.size} — nothing to pay.`;
+        bundleHtml = `<b>Covered by your Blow-Dry Bundle:</b> blow-dry ${n} of ${used.data.size}, so there's nothing to pay. ${used.data.size - used.data.used} left after this. <a href="${bundleLink(used.data.token)}">See your bundle</a>`;
+      }
     }
     const staffNotes = [bundleNote, notes].filter(Boolean).join("\n") || null;
 
@@ -233,16 +259,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clientName: name,
       clientEmail: email,
       clientPhone: phone,
-      serviceName: `${serviceName || "Appointment"}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : ""}`,
+      serviceName: `${serviceName || "Appointment"}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : onBundle ? " · on their bundle" : ""}`,
       startTime,
       practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
       practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
       notes: staffNotes,
       extraHtml: bundleHtml,
       durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
-      price: bundlePick?.price ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
-      // Only claim a deposit was taken if it actually was.
-      depositPence: depositTaken ? deposit.depositPence : null,
+      price: bundlePick?.price ?? (onBundle ? 0 : null) ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+      // Only claim a deposit was taken if it actually was (a bundle payment isn't a deposit).
+      depositPence: depositTaken && !bundlePick ? deposit.depositPence : null,
     }).catch(() => {});
 
     // 4. Every booking becomes an opportunity so the clinic can market to its
@@ -261,6 +287,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       appointmentId,
       contactId,
       ...(paidIntentId ? { depositPence: deposit.depositPence, depositTaken } : {}),
+      ...(onBundle ? { bundle: { size: onBundle.size, used: onBundle.used, left: Math.max(0, onBundle.size - onBundle.used), paid: Boolean(onBundle.paid_at), bought: Boolean(bundlePick) } } : {}),
     });
   } catch (err) {
     console.error("Booking error:", err);

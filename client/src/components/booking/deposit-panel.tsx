@@ -7,6 +7,9 @@
  *  mode="live"     The Stripe Payment Element lives in `children` — the mount node
  *                  handed over by useStripeDeposit(). Same chrome either way.
  *
+ *  bundle          A Blow-Dry Bundle is being bought: live mode takes the FULL bundle
+ *                  price now (not a deposit).
+ *
  * The panel states the exact figures, that the deposit is HELD now and taken
  * once the booking is confirmed, and — in live mode — the 24-hour refund rule,
  * all BEFORE the customer confirms.
@@ -28,9 +31,11 @@ export interface DepositPanelProps {
   error?: string | null;
   /** live mode: the Stripe Payment Element mount node */
   children?: React.ReactNode;
+  /** buying a Blow-Dry Bundle: `price` is the bundle price, paid in full */
+  bundle?: { count: number; price: number };
 }
 
-export function DepositPanel({ mode, price, className, loading, error, children }: DepositPanelProps) {
+export function DepositPanel({ mode, price, className, loading, error, children, bundle }: DepositPanelProps) {
   const free = price === 0;
   const deposit = depositFor(price);
   const balance = price - deposit;
@@ -52,11 +57,18 @@ export function DepositPanel({ mode, price, className, loading, error, children 
 
       <div className="relative">
         <Eyebrow as="p" rule className="mb-3">
-          {free ? "Complimentary" : live ? `${DEPOSIT_PERCENT}% deposit` : "Payment"}
+          {free ? "Complimentary" : live && bundle ? `Bundle of ${bundle.count}` : live ? `${DEPOSIT_PERCENT}% deposit` : "Payment"}
         </Eyebrow>
 
         {free ? (
           <p className="max-w-md font-sans text-[0.9375rem] leading-snug text-foreground">Your consultation is complimentary — no deposit needed.</p>
+        ) : live && bundle ? (
+          <div>
+            <p className="font-display text-[1.75rem] leading-none text-foreground">{formatPrice(bundle.price)}</p>
+            <p className="mt-2 font-sans text-[0.875rem] text-ora-fog">
+              <span className="text-foreground">Paid now by card</span> · {bundle.count} blow-dries, valid 6 months · this visit is 1 of {bundle.count}
+            </p>
+          </div>
         ) : !live ? (
           <div>
             <p className="font-display text-[1.75rem] leading-none text-foreground">{formatPrice(price)}</p>
@@ -101,7 +113,13 @@ export function DepositPanel({ mode, price, className, loading, error, children 
           </div>
         )}
 
-        {live && !free && (
+        {live && bundle && (
+          <p className="mt-4 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
+            Cancel a visit and the blow-dry goes back on your bundle to book another time. Your bundle and visits show in your confirmation email.
+          </p>
+        )}
+
+        {live && !free && !bundle && (
           <p className="mt-4 font-sans text-[0.75rem] leading-relaxed text-ora-fog">
             Cancel more than <span className="text-foreground">24 hours</span> before your appointment and the{" "}
             {formatPrice(deposit)} deposit is refunded in full. Within 24 hours the deposit is retained. Rescheduling keeps

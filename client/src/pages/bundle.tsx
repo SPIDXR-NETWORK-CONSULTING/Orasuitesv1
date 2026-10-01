@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 interface PublicBundle {
   name: string; firstName: string; size: number; used: number; left: number; price: number;
   paid: boolean; expiresAt: string | null; cancelled: boolean; createdAt: string;
-  visits: { service: string | null; usedAt: string }[];
+  visits: { service: string | null; usedAt: string; visitAt?: string }[];
 }
 
 const fmt = (iso: string) =>
@@ -76,7 +76,7 @@ export default function BundlePage() {
                   {b.visits.map((v, i) => (
                     <li key={i} className="flex items-baseline justify-between gap-4 py-2.5 font-sans text-[0.875rem]">
                       <span className="text-foreground">{i + 1}. {v.service || "Blow-dry"}</span>
-                      <span className="shrink-0 text-ora-fog">{fmt(v.usedAt)}</span>
+                      <span className="shrink-0 text-ora-fog">{fmt(v.visitAt ?? v.usedAt)}{Date.parse(v.visitAt ?? v.usedAt) > Date.now() ? " · booked" : ""}</span>
                     </li>
                   ))}
                 </ol>

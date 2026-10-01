@@ -5,6 +5,7 @@ import { type Appt, type Block, type RotaRow, useAdmin, phase, time, firstName, 
 import { Card, Empty, Stat, StatusPill } from "./ui";
 import { WeekSales } from "./week-sales";
 import { BusyTimes } from "./busy-times";
+import { useBundleList } from "./bundles";
 
 export function TodayOverview({ appts, blocks = [], rota, now, onOpen, onWalkin }: { appts: Appt[]; blocks?: Block[]; rota: RotaRow[]; now: number; onOpen: (a: Appt) => void; onWalkin: () => void }) {
   const { team, svcByName } = useAdmin();
@@ -13,8 +14,16 @@ export function TodayOverview({ appts, blocks = [], rota, now, onOpen, onWalkin 
   const upcoming = live.filter((a) => phase(a, now).kind === "upcoming");
   const done = live.filter((a) => phase(a, now).kind === "done");
   const next = upcoming[0];
-  const toCharge = live.reduce((s, a) => s + (svcByName[a.service]?.price || 0), 0);
-  const unpriced = live.filter((a) => svcByName[a.service]?.price == null).length;
+  // Bundles change what's taken: a visit on a bundle is £0, except the visit a bundle is
+  // paid at the desk (the bundle price). Bought online = already paid by card.
+  const { list: bundles } = useBundleList();
+  const bundleCharge = new Map<string, number>();
+  for (const b of (bundles || []).filter((x) => !x.voided_at)) {
+    b.uses.forEach((u, i) => u.appointment_id && bundleCharge.set(u.appointment_id, i === 0 && b.source === "desk" ? b.price : 0));
+    if (!b.paid_at && b.first_appointment_id) bundleCharge.set(b.first_appointment_id, b.price);
+  }
+  const toCharge = live.reduce((s, a) => s + (bundleCharge.get(a.id) ?? svcByName[a.service]?.price ?? 0), 0);
+  const unpriced = live.filter((a) => !bundleCharge.has(a.id) && svcByName[a.service]?.price == null).length;
   const wd = weekday(todayISO());
 
   return (
@@ -23,7 +32,7 @@ export function TodayOverview({ appts, blocks = [], rota, now, onOpen, onWalkin 
         <Stat label="Appointments" value={live.length} sub={done.length ? `${done.length} finished` : "none finished yet"} />
         <Stat label="In the chair" value={inChair.length} tone="sage" sub={inChair.length ? inChair.map((a) => firstName(a.client)).join(", ") : "nobody right now"} />
         <Stat label="Next up" value={next ? time(next.startTime) : "—"} tone="bronze" sub={next ? `${next.client} · ${firstName(next.practitioner)}` : "nothing else booked"} />
-        <Stat label="To charge today" value={money(toCharge)} sub={unpriced ? `+ ${unpriced} booking${unpriced > 1 ? "s" : ""} without a listed price` : "at listed prices"} />
+        <Stat label="To charge today" value={toCharge ? money(toCharge) : "£0"} sub={unpriced ? `+ ${unpriced} booking${unpriced > 1 ? "s" : ""} without a listed price` : "at listed prices"} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">

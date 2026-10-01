@@ -8,6 +8,7 @@ import { CalendarPlus, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Eyebrow, GlassCard } from "@/components/ui/glass";
 import { formatDuration, formatPrice, bundleFor, type ResolvedService } from "@/lib/catalogue";
+import { isStripeEnabled } from "../use-stripe-deposit";
 import { useMotionSafe, easeLuxury } from "@/lib/motion";
 import { icsDataUrl } from "../ics";
 import { addMinutesIso, formatLongDate, formatTime } from "../time";
@@ -90,7 +91,7 @@ export function DoneStep({ state, appointmentId }: Props) {
       <GlassCard tone="strong" padding="md" radius="lg" staticCard className="mx-auto mt-8 max-w-md bg-ora-cream/60 text-left">
         <p className="font-display text-[1.125rem] leading-tight text-foreground">{s.name}</p>
         <p className="mt-1 font-sans text-[0.8125rem] text-ora-fog">
-          {s.categoryTitle} · {formatDuration(s.duration)} · {free ? "Complimentary" : bundle ? `Blow-Dry Bundle of ${bundle.count} · ${formatPrice(bundle.price)} at the clinic` : formatPrice(s.price)}
+          {s.categoryTitle} · {formatDuration(s.duration)} · {free ? "Complimentary" : bundle ? `Blow-Dry Bundle of ${bundle.count} · ${formatPrice(bundle.price)}${isStripeEnabled() ? " paid" : " at the clinic"}` : state.covered ? "On your Blow-Dry Bundle · nothing to pay" : formatPrice(s.price)}
         </p>
         <div className="mt-5 grid grid-cols-2 gap-4 border-t border-ora-greige/70 pt-5 font-sans text-[0.875rem]">
           <div>

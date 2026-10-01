@@ -21,6 +21,7 @@
  * releaseAfterFailedBooking() if the appointment could not be created.
  */
 import { findService, depositPence, formatPence, type CatalogueService } from "./catalogue.js";
+import { bundleOfferFor, bundleSize } from "./bundles.js";
 import {
   isStripeConfigured,
   retrievePaymentIntent,
@@ -93,6 +94,8 @@ export interface DepositCheckInput {
   calendarId?: string | null;
   serviceName?: string | null;
   paymentIntentId?: unknown;
+  /** Blow-dry bundle size being bought (4 / 6): the payment must be the full bundle price. */
+  bundle?: number;
 }
 
 /**
@@ -101,6 +104,7 @@ export interface DepositCheckInput {
  */
 export async function verifyDeposit(input: DepositCheckInput): Promise<DepositCheck> {
   const service = findService(input.serviceId) ?? findService(input.calendarId) ?? findService(input.serviceName);
+  if (input.bundle) return verifyBundlePayment(input, service);
 
   // Deposits paused (DEPOSITS_ENABLED=false) or Stripe not configured → the flow
   // is exactly what it was before deposits existed: book with no deposit taken.
@@ -221,4 +225,31 @@ export async function releaseAfterFailedBooking(
       `authorisation expires by itself after about 7 days.`,
   );
   return false;
+}
+
+/**
+ * A Blow-Dry Bundle bought online is paid IN FULL by card, even while deposits are
+ * paused. Same hold-then-capture rules as a deposit; the amount must be the catalogue
+ * bundle price and the intent must say which bundle (metadata kind=bundle, bundle=N).
+ * Stripe not set up at all → no payment (the bundle is then paid at the desk).
+ */
+async function verifyBundlePayment(input: DepositCheckInput, service: CatalogueService | undefined): Promise<DepositCheck> {
+  if (!isStripeConfigured()) return { ok: true, paymentIntentId: null, depositPence: 0, service, intentStatus: null };
+  const pick = bundleSize(bundleOfferFor(service?.ghlCalendarId ?? input.calendarId), input.bundle);
+  if (!service || !pick) return { ok: false, status: 400, error: "That bundle isn't available for this treatment." };
+  const expected = Math.round(pick.price * 100);
+  const pid = typeof input.paymentIntentId === "string" ? input.paymentIntentId.trim() : "";
+  if (!pid) return { ok: false, status: 402, error: `The ${formatPence(expected)} bundle is paid by card when you book.` };
+
+  const res = await retrievePaymentIntent(pid);
+  const intent = res.ok ? res.intent : null;
+  if (!intent || !BOOKABLE_STATUSES.includes(intent.status)) {
+    return { ok: false, status: 402, error: "Your payment hasn't completed. Nothing has been booked — please try again." };
+  }
+  const m = intent.metadata || {};
+  if (m.kind !== "bundle" || m.serviceId !== service.id || m.bundle !== String(pick.count) || intent.amount !== expected) {
+    console.error(`[deposit-guard] bundle payment ${pid} doesn't match: ${m.kind}/${m.serviceId}/${m.bundle}/${intent.amount}p vs ${service.id}/${pick.count}/${expected}p`);
+    return { ok: false, status: 402, error: "This payment doesn't match the bundle selected. Nothing has been booked." };
+  }
+  return { ok: true, paymentIntentId: pid, depositPence: expected, service, intentStatus: intent.status as VerifiedIntentStatus };
 }
