@@ -7,6 +7,7 @@ import { Btn, Drawer, ErrorNote, Field, Input, StatusPill } from "./ui";
 import { ApptBundle, useApptBundle } from "./bundles";
 import { MoveForm } from "./move";
 import { ClientPanel } from "./clients";
+import { bundleFor, findService } from "@/lib/catalogue";
 
 /* ── Appointment ─────────────────────────────────────────── */
 export function ApptDrawer({ a, onClose, onChanged }: { a: Appt | null; onClose: () => void; onChanged: (a: Appt) => void }) {
@@ -133,7 +134,10 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
   const days = React.useMemo(() => Array.from({ length: 21 }, (_, i) => shift(todayISO(), i)), []);
   const [name, setName] = React.useState(""); const [email, setEmail] = React.useState(""); const [phone, setPhone] = React.useState("");
   const [busy, setBusy] = React.useState(false); const [error, setError] = React.useState<string | null>(null);
-  const [done, setDone] = React.useState<{ practitioner: string | null; startTime: string; price: number; service: string } | null>(null);
+  const [bundle, setBundle] = React.useState(0); // 0 = just this one, else bundle size sold now
+  const offer = svc ? bundleFor(findService(svc.id)) : undefined;
+  React.useEffect(() => setBundle(0), [svc]);
+  const [done, setDone] = React.useState<{ practitioner: string | null; startTime: string; price: number; service: string; bundle?: { size: number; visit: number; left: number; bought: boolean }; warning?: string } | null>(null);
 
   React.useEffect(() => {
     if (!svc) return;
@@ -152,10 +156,11 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!svc || !name.trim()) { setError("Pick a treatment and enter the client's name."); return; }
+    if (bundle && !email.trim() && !phone.trim()) { setError("Add the client's email or phone so their bundle can be tracked."); return; }
     setBusy(true); setError(null);
     try {
-      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day, userId: who || undefined }) });
-      setDone({ practitioner: j.practitioner, startTime: j.startTime, price: j.price, service: j.service });
+      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day, userId: who || undefined, ...(bundle ? { bundle } : {}) }) });
+      setDone({ practitioner: j.practitioner, startTime: j.startTime, price: j.price, service: j.service, bundle: j.bundle, warning: j.warning });
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't book."); } finally { setBusy(false); }
   }
 
@@ -167,8 +172,14 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
       <p className="font-sans text-[0.875rem] text-ora-fog">{londonDate(done.startTime) === todayISO() ? "Today" : prettyDate(londonDate(done.startTime))}, {time(done.startTime)} · with <span className="font-medium text-ora-deep">{done.practitioner || "next available"}</span></p>
       <div className="mt-6 w-full rounded-2xl bg-ora-deep px-5 py-4 text-ora-cream">
         <p className="font-sans text-[0.6875rem] uppercase tracking-[0.16em] text-ora-cream/60">Charge the client</p>
-        <p className="mt-1 font-display text-[2rem] leading-none tabular-nums">{money(done.price)}</p>
+        <p className="mt-1 font-display text-[2rem] leading-none tabular-nums">{done.price ? money(done.price) : "£0"}</p>
+        {done.bundle && (
+          <p className="mt-1.5 font-sans text-[0.75rem] text-ora-cream/70">
+            {done.bundle.bought ? `Blow-Dry Bundle of ${done.bundle.size} · today is blow-dry 1` : `On their bundle: blow-dry ${done.bundle.visit} of ${done.bundle.size}`} · {done.bundle.left} left
+          </p>
+        )}
       </div>
+      {done.warning && <div className="mt-3 w-full text-left"><ErrorNote>{done.warning}</ErrorNote></div>}
       <Btn variant="primary" onClick={onBooked} className="mt-6 w-full">Done</Btn>
     </div>
   );
@@ -242,17 +253,30 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
             {slots?.length === 0 && <p className="mt-2 font-sans text-[0.8125rem] text-ora-fog">No free times {day === todayISO() ? "left today" : "that day"}. Try another day.</p>}
           </div>
 
+          {offer && (
+            <div>
+              <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Blow-dry bundle</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Blow-dry bundle">
+                <TimeChip on={bundle === 0} onClick={() => setBundle(0)}>Just this one</TimeChip>
+                {offer.sizes.map((z) => <TimeChip key={z.count} on={bundle === z.count} onClick={() => setBundle(z.count)}>{z.count} for {money(z.price)}</TimeChip>)}
+              </div>
+              <p className="mt-2 font-sans text-[0.75rem] text-ora-fog">
+                {bundle ? `Take ${money(offer.sizes.find((z) => z.count === bundle)!.price)} now. Today is blow-dry 1, valid ${offer.expiryMonths} months, and the client is emailed their bundle.` : "If they already have a bundle (same email), this visit goes on it automatically."}
+              </p>
+            </div>
+          )}
+
           <div className="space-y-3">
             <Field label="Client name"><Input autoFocus value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" /></Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Email (optional)"><Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" /></Field>
+              <Field label={bundle ? "Email (or phone)" : "Email (optional)"}><Input type="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="off" /></Field>
               <Field label="Phone (optional)"><Input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="off" /></Field>
             </div>
           </div>
 
           {error && <ErrorNote>{error}</ErrorNote>}
           <div>
-            <Btn variant="dark" disabled={busy} className="w-full">{busy ? "Booking…" : "Book walk-in"}</Btn>
+            <Btn variant="dark" disabled={busy} className="w-full">{busy ? "Booking…" : bundle ? `Book walk-in + bundle of ${bundle}` : "Book walk-in"}</Btn>
             <p className="mt-2 text-center font-sans text-[0.75rem] text-ora-fog">{who ? `Books ${firstName(team.find((t) => t.userId === who)?.name || "")}` : "Assigns a free practitioner"}, alerts them and adds the client to GHL.</p>
           </div>
         </>

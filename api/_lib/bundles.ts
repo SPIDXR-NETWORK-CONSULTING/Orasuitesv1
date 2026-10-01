@@ -108,6 +108,19 @@ export async function activeBundleFor(email: string, visitAt: string): Promise<B
     .sort((a, b) => Date.parse(a.expires_at!) - Date.parse(b.expires_at!))[0] ?? null;
 }
 
+/** Count this visit on the client's paid bundle, if they hold one that covers it. Never throws. */
+export async function countOnActiveBundle(email: string, appointmentId: string, visitAt: string, service: string | null): Promise<Bundle | null> {
+  if (!email) return null;
+  const holder = await activeBundleFor(email, visitAt).catch(() => null);
+  if (!holder) return null;
+  const used = await bundleAction(holder.id, "use", { appointment_id: appointmentId, visit_at: visitAt, service });
+  if (!used.ok) console.error(`[bundles] appointment ${appointmentId} not counted on bundle ${holder.id}:`, used.error);
+  return used.ok ? used.data : null;
+}
+
+/** "blow-dry 3 of 6" for this appointment. */
+export const visitNumber = (b: Bundle, appointmentId: string) => b.uses.findIndex((u) => u.appointment_id === appointmentId) + 1;
+
 export function createBundle(p: {
   client_name: string; email?: string | null; phone?: string | null; contact_id?: string | null;
   size: number; price: number; source: "online" | "desk"; paid: boolean; first_appointment_id?: string | null;
