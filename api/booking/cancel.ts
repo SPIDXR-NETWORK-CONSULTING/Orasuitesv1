@@ -178,13 +178,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
    * two is exactly the bug this replaced: a real £9 deposit whose PaymentIntent
    * predates the Stripe-metadata link was reported to the payer as "no deposit
    * on this booking". */
-  const expectedDepositPence = service ? depositPence(service.price) : 0;
   const foundPayment = Boolean(paymentIntentId) && isStripeConfigured();
+  // Deposits paused (DEPOSITS_ENABLED=false) and no payment on this booking → none was
+  // taken, so say so instead of "we'll check your deposit by hand".
+  const paused = process.env.DEPOSITS_ENABLED === "false";
+  const expectedDepositPence = paused && !foundPayment ? 0 : service ? depositPence(service.price) : 0;
   // No service resolved means we cannot prove the deposit is zero, so it is
   // "unverified", never "none".
   // On a blow-dry bundle → no money involved: cancelling gives the blow-dry back (Abdul, 1 Oct 2026).
   const onBundle = await bundleOfAppointment(appointmentId);
-  const depositState: DepositState = onBundle ? "none" : foundPayment ? "found" : service && expectedDepositPence === 0 ? "none" : "unverified";
+  const depositState: DepositState = onBundle ? "none" : foundPayment ? "found" : (service || paused) && expectedDepositPence === 0 ? "none" : "unverified";
   const depositLookupFailed = depositState === "unverified";
   // Kept for callers that already read it — true ONLY when we hold the payment.
   const hasDeposit = depositState === "found";

@@ -16,7 +16,7 @@ import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.j
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../_lib/stripe.js";
 import { isBookableService } from "../_lib/catalogue.js";
-import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleLink, activeBundleFor, type Bundle } from "../_lib/bundles.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleLink, countOnActiveBundle, visitNumber, type Bundle } from "../_lib/bundles.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
 const GHL_LOCATION_ID = process.env.GHL_LOCATION_ID!;
@@ -217,14 +217,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       bundleHtml = `<b>Blow-Dry Bundle of ${bundlePick.count}:</b> £${bundlePick.price}, ${paid ? "paid" : "paid at the clinic on this visit"}. This is blow-dry 1 of ${bundlePick.count}.` +
         (made.ok ? ` <a href="${bundleLink(made.data.token)}">See your bundle</a>` : "");
     } else if (bundleOfferFor(calendarId)) {
-      const holder = await activeBundleFor(email, startTime);
-      const used = holder ? await bundleAction(holder.id, "use", visit) : null;
-      if (used && !used.ok) console.error(`[booking] appointment ${appointmentId} not counted on bundle ${holder!.id}:`, used.error);
-      if (used?.ok) {
-        onBundle = used.data;
-        const n = used.data.uses.findIndex((u) => u.appointment_id === appointmentId) + 1;
-        bundleNote = `ON BLOW-DRY BUNDLE: blow-dry ${n} of ${used.data.size} — nothing to pay.`;
-        bundleHtml = `<b>Covered by your Blow-Dry Bundle:</b> blow-dry ${n} of ${used.data.size}, so there's nothing to pay. ${used.data.size - used.data.used} left after this. <a href="${bundleLink(used.data.token)}">See your bundle</a>`;
+      onBundle = await countOnActiveBundle(email, appointmentId, startTime, serviceName || null);
+      if (onBundle) {
+        const n = visitNumber(onBundle, appointmentId);
+        bundleNote = `ON BLOW-DRY BUNDLE: blow-dry ${n} of ${onBundle.size} — nothing to pay.`;
+        bundleHtml = `<b>Covered by your Blow-Dry Bundle:</b> blow-dry ${n} of ${onBundle.size}, so there's nothing to pay. ${onBundle.size - onBundle.used} left after this. <a href="${bundleLink(onBundle.token)}">See your bundle</a>`;
       }
     }
     const staffNotes = [bundleNote, notes].filter(Boolean).join("\n") || null;

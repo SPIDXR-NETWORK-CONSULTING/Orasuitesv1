@@ -32,7 +32,7 @@ import { allServices, findService, splitGhlTitle, teamUserIds } from "../_lib/ca
 import { resolveContact, createBookingOpportunity, appendContactNote } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
 import { notifyReschedule, sendRescheduledPractitionerAlert, sendAdminRescheduleAlert } from "../_lib/booking-notify-2.js";
-import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleAppt, listBundles, sendBundleEmail, BUNDLE_EXPIRY_MONTHS } from "../_lib/bundles.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleAppt, listBundles, sendBundleEmail, countOnActiveBundle, visitNumber, BUNDLE_EXPIRY_MONTHS, type Bundle } from "../_lib/bundles.js";
 
 const LOC = process.env.GHL_LOCATION_ID || "";
 
@@ -223,6 +223,11 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   const name = String(body.clientName || "Walk-in").trim() || "Walk-in";
   const email = typeof body.email === "string" && body.email.includes("@") ? body.email.trim() : "";
   const phone = typeof body.phone === "string" ? body.phone.trim() : "";
+  // Blow-dry bundle bought at the desk with this walk-in: paid now, this visit = blow-dry 1.
+  const bundleOffer = body.bundle ? bundleOfferFor(service.ghlCalendarId) : undefined;
+  const bundlePick = bundleOffer ? bundleSize(bundleOffer, body.bundle) : undefined;
+  if (body.bundle && !bundlePick) return res.status(400).json({ error: "Bundles only cover straight or curly blow-dries (short or long)." });
+  if (bundlePick && (name === "Walk-in" || (!email && !phone))) return res.status(400).json({ error: "A bundle needs the client's name and an email or phone, so their blow-dries can be tracked." });
 
   // Practitioner: "anyone" (GHL round-robin) or a named person who does this treatment.
   const wantUser = typeof body.userId === "string" && body.userId ? body.userId : "";
@@ -263,15 +268,36 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   const assignedUserId = appt.body?.assignedUserId || appt.body?.event?.assignedUserId || null;
   const practitioner = assignedUserId ? TEAM_BY_USER_ID.get(assignedUserId) || null : null;
 
+  // Bundles: sold now (paid at the desk), or an existing paid bundle covers it. A failure
+  // here never undoes the walk-in — reception can still do it from the appointment.
+  let onBundle: Bundle | null = null, bundleWarning: string | undefined;
+  if (bundlePick && bundleOffer) {
+    const made = await createBundle({ client_name: name, email: email || null, phone: phone || null, contact_id: contactId, size: bundlePick.count, price: bundlePick.price, source: "desk", paid: true, first_appointment_id: appointmentId, expiry_months: bundleOffer.expiryMonths });
+    if (!made.ok) bundleWarning = `Walk-in booked, but the bundle wasn't saved (${made.error}). Sell it from the appointment.`;
+    else {
+      const used = await bundleAction(made.data.id, "use", { appointment_id: appointmentId, visit_at: start, service: service.name });
+      onBundle = used.ok ? used.data : made.data;
+      if (!used.ok) bundleWarning = `Bundle saved, but this visit wasn't counted: ${used.error}`;
+      await sendBundleEmail(onBundle, "bought");
+    }
+  } else if (bundleOfferFor(service.ghlCalendarId)) {
+    onBundle = await countOnActiveBundle(email, appointmentId, start, service.name);
+  }
+  const charge = bundlePick ? bundlePick.price : onBundle ? 0 : service.price;
+
   // Alert practitioner + admin (+ client if email), pipeline, mirror — AWAITED: on Vercel,
   // work left running after the response is sent can be cut off. Each one swallows its own error.
   await Promise.all([
-  notifyBooking({ contactId, appointmentId, clientName: name, clientEmail: email, clientPhone: phone, serviceName: service.name, startTime: start, practitioner, practitionerEmail: assignedUserId ? TEAM_EMAIL_BY_USER_ID.get(assignedUserId) || null : null, durationMins: service.duration, price: service.price, depositPence: null } as any).catch(() => {}),
-  createBookingOpportunity({ contactId, clientName: name, serviceName: service.name, price: service.price, startTime: start } as any).catch(() => null),
+  notifyBooking({ contactId, appointmentId, clientName: name, clientEmail: email, clientPhone: phone, serviceName: service.name, startTime: start, practitioner, practitionerEmail: assignedUserId ? TEAM_EMAIL_BY_USER_ID.get(assignedUserId) || null : null, durationMins: service.duration, price: charge, depositPence: null } as any).catch(() => {}),
+  createBookingOpportunity({ contactId, clientName: name, serviceName: `${service.name}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : ""}`, price: charge, startTime: start } as any).catch(() => null),
   mirrorAppointmentSafe({ ghlId: appointmentId, ghlCalendarId: service.ghlCalendarId, assignedUserId, serviceName: service.name, clientName: name, clientEmail: email, clientPhone: phone, practitioner, notes: "Walk-in", startTime: start, endTime: end, status: "confirmed" } as any).catch(() => {}),
   ]);
 
-  res.json({ appointmentId, practitioner, startTime: start, endTime: end, price: service.price, service: service.name });
+  res.json({
+    appointmentId, practitioner, startTime: start, endTime: end, price: charge, service: service.name,
+    ...(onBundle ? { bundle: { size: onBundle.size, visit: visitNumber(onBundle, appointmentId), left: Math.max(0, onBundle.size - onBundle.used), bought: Boolean(bundlePick) } } : {}),
+    ...(bundleWarning ? { warning: bundleWarning } : {}),
+  });
 }
 
 /**

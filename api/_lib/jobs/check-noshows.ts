@@ -169,11 +169,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const service = findService(ev.calendarId) ?? findService(stripClientFromTitle(ev.title));
     const serviceName = service?.name ?? stripClientFromTitle(ev.title) ?? "Appointment";
-    const expectedDepositPence = service ? depositPence(service.price) : null;
     const contactId = ev.contactId || "";
 
     /* 2a ─ locate the deposit (Stripe metadata first, legacy notes second) */
     const paymentIntentId = await resolvePayment(appointmentId, ev.notes);
+    // Deposits paused and no payment found → none was taken (not "deposit missing").
+    const expectedDepositPence = process.env.DEPOSITS_ENABLED === "false" && !paymentIntentId ? 0 : service ? depositPence(service.price) : null;
 
     /* 2b ─ have we been here before? */
     if (await alreadyHandled(appointmentId, contactId, paymentIntentId)) {
