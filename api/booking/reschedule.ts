@@ -45,6 +45,7 @@ import { verifyCancelToken } from "../_lib/cancel-token.js";
 import { upsertEvent, isCancelled, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
 import { serviceMetaForCalendar } from "../_lib/booking-notify.js";
 import { notifyReschedule } from "../_lib/booking-notify-2.js";
+import { bundleAppt } from "../_lib/bundles.js";
 
 export const config = { maxDuration: 60 };
 
@@ -298,6 +299,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const confirmedStart = after.startTime || newStartTime;
   const confirmedEnd = after.endTime || newEndTime;
   const newUserId = after.assignedUserId || previousUserId;
+  // On a bundle → the visit keeps its place, at the new time.
+  await bundleAppt(appointmentId, "move", confirmedStart).catch(() => null);
 
   /* 3 ─ Move the Google mirror. SAME ghlId, so upsertEvent finds the existing
    *     event and updates it in place rather than leaving a ghost at the old

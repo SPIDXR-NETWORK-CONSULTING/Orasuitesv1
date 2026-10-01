@@ -1,6 +1,8 @@
 /**
- * ORÁ Floor — blow-dry bundles (4 or 6 blow-dries, paid in full at the desk, valid 6 months
- * from payment). Stored in the locked ORÁ database; every change goes through
+ * ORÁ Floor — blow-dry bundles (4 or 6 blow-dries, valid 6 months from payment). Bought
+ * online = paid by card when booking, and that visit is already blow-dry 1; sold at the desk
+ * = paid here. Later blow-dries booked online go on the bundle automatically; cancelled or
+ * no-show gives the blow-dry back. Stored in the locked ORÁ database; every change goes through
  * /api/admin/bundle-*. The client is emailed after a sale and after every visit.
  *
  *   useApptBundle + ApptBundle  the box on an appointment: sell / take payment / count
@@ -13,7 +15,9 @@ import { bundleFor, findService } from "@/lib/catalogue";
 import { type Appt, useAdmin, cache, money, fmtDate, londonDate } from "./lib";
 import { Btn, Card, Empty, ErrorNote, Input, Segmented, Stat } from "./ui";
 
-export interface BundleUse { id: string; appointment_id: string | null; service: string | null; used_at: string }
+export interface BundleUse { id: string; appointment_id: string | null; service: string | null; used_at: string; visit_at?: string | null }
+const visitAt = (u: BundleUse) => u.visit_at || u.used_at;
+const ahead = (u: BundleUse) => Date.parse(visitAt(u)) > Date.now();
 export interface Bundle {
   id: string; client_name: string; email: string | null; phone: string | null; contact_id: string | null;
   size: number; price: number; source: "online" | "desk"; first_appointment_id: string | null;
@@ -59,8 +63,10 @@ export function useApptBundle(a: Appt) {
   /** what reception charges today when a bundle changes it: the bundle price on the visit
    *  it was bought, nothing on later visits */
   const boughtToday = usedHere?.uses[0]?.appointment_id === a.id;
+  const paidOnline = usedHere?.source === "online" && Boolean(usedHere.paid_at);
   const charge: { amount: number; note: string } | null = usedHere
-    ? boughtToday ? { amount: usedHere.price, note: `Blow-Dry Bundle of ${usedHere.size}` } : { amount: 0, note: "Covered by their bundle" }
+    ? boughtToday && !paidOnline ? { amount: usedHere.price, note: `Blow-Dry Bundle of ${usedHere.size}` }
+      : boughtToday ? { amount: 0, note: `Blow-Dry Bundle of ${usedHere.size}, paid online` } : { amount: 0, note: "Covered by their bundle" }
     : toPay ? { amount: toPay.price, note: `Blow-Dry Bundle of ${toPay.size}, booked online` } : null;
   return { loaded: Boolean(list), error, offer, svc, usedHere, toPay, active, charge, replace, relevant: Boolean(offer || usedHere || toPay) };
 }
@@ -92,9 +98,10 @@ export function ApptBundle({ a, s }: { a: Appt; s: ReturnType<typeof useApptBund
     const b = s.usedHere;
     const n = b.uses.findIndex((u) => u.appointment_id === a.id) + 1;
     const useId = b.uses.find((u) => u.appointment_id === a.id)!.id;
+    const online = b.source === "online" && b.paid_at && n === 1;
     body = (
       <div className="flex items-center justify-between gap-3">
-        <p className="font-sans text-[0.9375rem] font-medium text-ora-deep">✓ Blow-dry {n} of {b.size} <span className="font-normal text-ora-fog">· {left(b)} left</span></p>
+        <p className="font-sans text-[0.9375rem] font-medium text-ora-deep">✓ Blow-dry {n} of {b.size} <span className="font-normal text-ora-fog">· {left(b)} left{online ? ` · ${money(b.price)} paid online` : " · nothing to pay"}</span></p>
         <button onClick={() => act("undo", () => post("bundle-act", { id: b.id, action: "unuse", useId }))} disabled={!!busy} className="focus-ring rounded-lg px-2 py-1 font-sans text-[0.8125rem] text-ora-fog underline-offset-4 hover:underline">{busy ? "…" : "Undo"}</button>
       </div>
     );
@@ -172,12 +179,13 @@ export function BundlesView() {
   const shown = (filter === "all" ? all : current).filter((b) => !q.trim() || `${b.client_name} ${b.email || ""} ${b.phone || ""}`.toLowerCase().includes(q.trim().toLowerCase()));
   const toPay = all.filter((b) => bundleState(b).tone === "wait").length;
   const leftTotal = all.filter((b) => bundleState(b).tone === "live").reduce((n, b) => n + left(b), 0);
+  const booked = all.filter((b) => !b.voided_at).reduce((n, b) => n + b.uses.filter(ahead).length, 0);
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat label="Active bundles" value={list ? all.filter((b) => bundleState(b).tone === "live").length : "—"} sub="paid, with blow-dries left" />
-        <Stat label="Blow-dries owed" value={list ? leftTotal : "—"} tone="bronze" sub="still to use across all bundles" />
+        <Stat label="Blow-dries owed" value={list ? leftTotal : "—"} tone="bronze" sub={booked ? `not booked yet · ${booked} more booked ahead` : "not booked yet, across all bundles"} />
         <Stat label="To pay" value={list ? toPay : "—"} tone={toPay ? "bronze" : "sage"} sub={toPay ? "booked online, pay on first visit" : "nothing outstanding"} />
       </div>
 
@@ -201,7 +209,7 @@ export function BundlesView() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-display text-[1.2rem] leading-tight text-ora-deep">{b.client_name}</p>
-                      <p className="mt-0.5 truncate font-sans text-[0.8125rem] text-ora-fog">Bundle of {b.size} · {money(b.price)} · {b.source === "online" ? "booked online" : "sold at the desk"}</p>
+                      <p className="mt-0.5 truncate font-sans text-[0.8125rem] text-ora-fog">Bundle of {b.size} · {money(b.price)} · {b.source === "online" ? (b.paid_at ? "paid online" : "booked online") : "sold at the desk"}</p>
                     </div>
                     <span className={cn("shrink-0 rounded-full px-2.5 py-1 font-sans text-[0.6875rem] font-medium", TONE[st.tone])}>{st.label}</span>
                   </div>
@@ -219,7 +227,7 @@ export function BundlesView() {
                         <li key={u.id} className="flex items-center gap-3 rounded-xl bg-white/70 px-3 py-2 font-sans text-[0.8125rem]">
                           <span className="w-5 shrink-0 tabular-nums text-ora-fog">{i + 1}</span>
                           <span className="min-w-0 flex-1 truncate text-ora-deep">{u.service || "Blow-dry"}</span>
-                          <span className="shrink-0 tabular-nums text-ora-fog">{shortDate(u.used_at)}</span>
+                          <span className="shrink-0 tabular-nums text-ora-fog">{shortDate(visitAt(u))}{ahead(u) ? " · booked" : ""}</span>
                           <button onClick={() => act(b, "unuse", { useId: u.id })} disabled={!!busy} className="focus-ring shrink-0 rounded px-1 text-ora-fog underline-offset-4 hover:underline">Undo</button>
                         </li>
                       ))}

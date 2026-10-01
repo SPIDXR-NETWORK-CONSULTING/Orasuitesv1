@@ -7,10 +7,13 @@
  * Records live in the ORÁ Supabase (ora_bundles / ora_bundle_uses): locked tables,
  * reachable only through the secret-gated ora_bundle_* functions.
  *
- * Money: bundles are paid in full at the clinic (reception taps "Paid"). The
- * 6-month validity starts when it's paid. Each visit is recorded by reception.
- * The client gets an email with a private link (/bundle/<token>) after buying and
- * after every visit.
+ * Money: bought online → paid in full by card when booking (Stripe, see
+ * api/booking/payment-intent.ts); sold at the desk → reception taps "Paid". The
+ * 6-month validity starts when it's paid.
+ * Visits: an online booking of a covered blow-dry by someone with a paid bundle is
+ * counted on it straight away (with the visit time). Cancelled or no-show → the
+ * blow-dry goes back on the bundle (ora_bundle_appt 'release'). Reception can also
+ * count / undo by hand. The client gets an email with a private link (/bundle/<token>).
  */
 import { randomBytes } from "node:crypto";
 import catalogueRaw from "../../shared/catalogue.json" with { type: "json" };
@@ -26,7 +29,7 @@ export interface BundleOffer {
   terms?: string;
 }
 
-export interface BundleUse { id: string; appointment_id: string | null; service: string | null; used_at: string }
+export interface BundleUse { id: string; appointment_id: string | null; service: string | null; used_at: string; visit_at: string | null }
 export interface Bundle {
   id: string; token: string; client_name: string; email: string | null; phone: string | null; contact_id: string | null;
   size: number; price: number; source: "online" | "desk"; first_appointment_id: string | null;
@@ -84,6 +87,27 @@ export const bundleByToken = (token: string) => rpc<Bundle | null>("ora_bundle_b
 export const bundleAction = (id: string, action: "paid" | "void" | "use" | "unuse", p: Record<string, unknown> = {}) =>
   rpc<Bundle>("ora_bundle_action", { p_id: id, p_action: action, p });
 
+/** By appointment, whichever bundle it's on: cancelled / no-show → 'release' (the blow-dry
+ *  goes back), rescheduled → 'move'. data is null when the appointment isn't on a bundle. */
+export const bundleAppt = (appointmentId: string, action: "release" | "move", visitAt?: string) =>
+  rpc<Bundle | null>("ora_bundle_appt", { p_appointment_id: appointmentId, p_action: action, p_visit_at: visitAt ?? null });
+
+/** The bundle this appointment is counted on, if any. Never throws. */
+export async function bundleOfAppointment(appointmentId: string): Promise<Bundle | null> {
+  const r = await listBundles().catch(() => null);
+  return (r?.ok && r.data.find((b) => b.uses.some((u) => u.appointment_id === appointmentId))) || null;
+}
+
+/** The paid bundle (with a blow-dry left, still valid on `visitAt`) this email's next blow-dry goes on. */
+export async function activeBundleFor(email: string, visitAt: string): Promise<Bundle | null> {
+  const r = await bundlesByEmail(email);
+  if (!r.ok) return null;
+  const when = Date.parse(visitAt);
+  return (r.data || [])
+    .filter((b) => b.paid_at && !b.voided_at && b.used < b.size && b.expires_at && Date.parse(b.expires_at) >= when)
+    .sort((a, b) => Date.parse(a.expires_at!) - Date.parse(b.expires_at!))[0] ?? null;
+}
+
 export function createBundle(p: {
   client_name: string; email?: string | null; phone?: string | null; contact_id?: string | null;
   size: number; price: number; source: "online" | "desk"; paid: boolean; first_appointment_id?: string | null;
@@ -109,7 +133,7 @@ export async function sendBundleEmail(b: Bundle, kind: "bought" | "used"): Promi
       `Hi ${first},`,
       ``,
       kind === "bought"
-        ? `Your Blow-Dry Bundle of ${b.size} is ready to use.${b.used ? ` Today's blow-dry is counted as ${b.used} of ${b.size}.` : ""}`
+        ? `Your Blow-Dry Bundle of ${b.size} is ready to use.${b.used ? ` Your first blow-dry is counted as ${b.used} of ${b.size}.` : ""}`
         : `Thank you for coming in. We've counted blow-dry ${b.used} of ${b.size} on your bundle.`,
       ``,
       `<b>Blow-dries left:</b> ${left} of ${b.size}`,
@@ -144,6 +168,6 @@ export function publicBundle(b: Bundle) {
     firstName: (b.client_name || "").trim().split(" ")[0],
     size: b.size, used: b.used, left: Math.max(0, b.size - b.used), price: b.price,
     paid: Boolean(b.paid_at), expiresAt: b.expires_at, cancelled: Boolean(b.voided_at), createdAt: b.created_at,
-    visits: b.uses.map((u) => ({ service: u.service, usedAt: u.used_at })),
+    visits: b.uses.map((u) => ({ service: u.service, usedAt: u.used_at, visitAt: u.visit_at ?? u.used_at })),
   };
 }

@@ -67,7 +67,7 @@ export function BookingFlow() {
   /** Select a treatment and move straight on to Time. */
   const selectService = (s: ResolvedService) => {
     // changing service invalidates the slot (calendar differs)
-    patch({ service: s, slot: undefined, bundle: undefined });
+    patch({ service: s, slot: undefined, bundle: undefined, covered: undefined });
     const qs = new URLSearchParams(search);
     qs.set("service", s.id);
     qs.delete("category");
@@ -143,6 +143,7 @@ export function BookingFlow() {
                 onEdit={(i) => go(i)}
                 onConfirm={confirm}
                 onBundle={(bundle) => patch({ bundle })}
+                onCovered={(covered) => patch({ covered })}
                 loading={booking.isPending}
                 error={booking.isError ? booking.error.message.replace(/^\d{3}:\s*/, "") : null}
               />

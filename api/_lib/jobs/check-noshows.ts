@@ -49,6 +49,7 @@ import {
   findPaymentIntentByAppointment,
 } from "../stripe.js";
 import { paymentIntentIdFromNotes } from "../deposit-guard.js";
+import { bundleAppt } from "../bundles.js";
 import { deleteEvent, teamUserIds, TEAM_BY_USER_ID } from "../google-calendar.js";
 import { sendNoShowAdminAlert, noShowDepositLine, when, type NoShowDepositOutcome, type NoShowNotice } from "../booking-notify-2.js";
 
@@ -181,6 +182,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     stats.processed++;
+    // A no-show gives the blow-dry back on their bundle (Abdul, 1 Oct 2026). Idempotent.
+    await bundleAppt(appointmentId, "release").catch(() => null);
 
     /* 2c ─ KEEP the deposit. This comes first: an uncaptured hold expires in
      *      about seven days, and every other step below is recoverable. */

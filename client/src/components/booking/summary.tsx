@@ -11,7 +11,7 @@ import { depositFor, formatDuration, formatPrice, bundleFor, DEPOSIT_PERCENT } f
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
 import { formatLongDate, formatTime } from "./time";
 import type { BookingState } from "./types";
-import { useDepositsLive } from "./use-stripe-deposit";
+import { useDepositsLive, isStripeEnabled } from "./use-stripe-deposit";
 
 function Row({ label, value, muted }: { label: string; value: React.ReactNode; muted?: boolean }) {
   return (
@@ -28,6 +28,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
   const deposit = s ? depositFor(s.price) : 0;
   const depositsLive = useDepositsLive();
   const bundle = bundleFor(s)?.sizes.find((b) => b.count === state.bundle);
+  const covered = Boolean(state.covered && !bundle);
 
   return (
     <div>
@@ -51,7 +52,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
                   <span className="block font-sans text-[0.75rem] text-ora-fog">Bundle of {bundle.count} blow-dries</span>
                 </span>
               ) : (
-                <span className="font-medium">{isFree ? "Complimentary" : formatPrice(s.price)}</span>
+                <span className="font-medium">{isFree ? "Complimentary" : covered ? "On your bundle" : formatPrice(s.price)}</span>
               )
             }
           />
@@ -80,10 +81,13 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
               )
             }
           />
-          {!isFree && !depositsLive && (
+          {!isFree && (bundle || covered) && (
+            <Row label="Payment" value={<span>{covered ? "Nothing to pay" : isStripeEnabled() ? "Paid now by card" : "Paid at the clinic"}</span>} />
+          )}
+          {!isFree && !bundle && !covered && !depositsLive && (
             <Row label="Payment" value={<span>Paid at the clinic<span className="block font-sans text-[0.75rem] text-ora-fog">nothing to pay today</span></span>} />
           )}
-          {!isFree && depositsLive && (
+          {!isFree && !bundle && !covered && depositsLive && (
             <Row
               label={`${DEPOSIT_PERCENT}% deposit`}
               value={
@@ -162,7 +166,7 @@ export function SummarySheet({ state }: { state: BookingState }) {
             <span className="block truncate font-display text-[1.0625rem] text-foreground">{s.name}</span>
           </span>
           <span className="flex shrink-0 items-center gap-3">
-            <span className="font-display text-[1.125rem] text-foreground">{isFree ? "Free" : formatPrice(bundle?.price ?? s.price)}</span>
+            <span className="font-display text-[1.125rem] text-foreground">{isFree ? "Free" : state.covered && !bundle ? "On your bundle" : formatPrice(bundle?.price ?? s.price)}</span>
             <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.4, ease: easeLuxury }} className="text-ora-fog">
               <ChevronUp className="h-4 w-4" aria-hidden />
             </motion.span>

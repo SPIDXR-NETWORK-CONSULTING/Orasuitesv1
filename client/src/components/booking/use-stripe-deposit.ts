@@ -3,6 +3,8 @@
  *
  * STATUS (Sep 2026): deposits are PAUSED in production (env DEPOSITS_ENABLED=false),
  * so the payment-intent call returns 503 and this degrades to `enabled:false` below.
+ * BLOW-DRY BUNDLES (Oct 2026): with `bundle` set, the same flow takes the FULL bundle
+ * price (£120 / £180) by card, even while deposits are paused.
  *
  * HELD, NOT TAKEN: the PaymentIntent is created with manual capture, so
  * confirming here only AUTHORISES the deposit — the intent lands on
@@ -142,10 +144,13 @@ export interface UseStripeDepositArgs {
   email?: string;
   /** only prepare the payment when the customer is actually on the confirm step */
   active: boolean;
+  /** buying a Blow-Dry Bundle of this size → the full bundle price is taken */
+  bundle?: number;
 }
 
-export function useStripeDeposit({ serviceId, price, email, active }: UseStripeDepositArgs): StripeDeposit {
-  const payable = isStripeEnabled() && price > 0 && Boolean(serviceId);
+export function useStripeDeposit({ serviceId, price, email, active, bundle }: UseStripeDepositArgs): StripeDeposit {
+  const payable = isStripeEnabled() && (price > 0 || Boolean(bundle)) && Boolean(serviceId);
+  const cacheKey = `${serviceId}:${bundle ?? 0}`;
 
   const [enabled, setEnabled] = React.useState(payable);
   const [status, setStatus] = React.useState<DepositStatus>(payable ? "loading" : "off");
@@ -164,7 +169,7 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
       return;
     }
     setEnabled(true);
-  }, [payable]);
+  }, [payable, bundle]);
 
   /* 1 — get (or reuse) a PaymentIntent + Stripe.js, then mount the element */
   React.useEffect(() => {
@@ -176,7 +181,7 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
         setStatus("loading");
         setError(null);
 
-        let record = intentCache.get(serviceId!);
+        let record = intentCache.get(cacheKey);
         if (!record) {
           const res = await fetch("/api/booking/payment-intent", {
             method: "POST",
@@ -185,6 +190,7 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
             body: JSON.stringify({
               serviceId,
               email,
+              ...(bundle ? { bundle } : {}),
               ...(typeof window !== "undefined" && new URLSearchParams(window.location.search).get("preview")
                 ? { preview: new URLSearchParams(window.location.search).get("preview")! }
                 : {}),
@@ -209,7 +215,7 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
             depositPence: json.depositPence,
             fullPricePence: json.fullPricePence,
           };
-          intentCache.set(serviceId!, record);
+          intentCache.set(cacheKey, record);
         }
 
         const stripe = await loadStripeJs();
@@ -247,7 +253,7 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
         /* element already gone */
       }
     };
-  }, [payable, active, mountNode, serviceId, email]);
+  }, [payable, active, mountNode, serviceId, email, bundle, cacheKey]);
 
   /* 2 — hold the deposit on the card (authorise; the server captures) */
   const confirm = React.useCallback(async (): Promise<string> => {
@@ -281,10 +287,10 @@ export function useStripeDeposit({ serviceId, price, email, active }: UseStripeD
     }
 
     // Spent: this intent can never be reused for another booking.
-    if (serviceId) intentCache.delete(serviceId);
+    intentCache.delete(cacheKey);
     setStatus("ready");
     return intent.id as string;
-  }, [payable, enabled, serviceId]);
+  }, [payable, enabled, cacheKey]);
 
   return { enabled, status, error, depositPence, setMountNode, confirm };
 }

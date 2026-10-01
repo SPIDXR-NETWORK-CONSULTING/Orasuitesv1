@@ -22,6 +22,8 @@ export interface BookingState {
   details: BookingDetails;
   /** Blow-dry bundle size (4 / 6) — undefined = just this one appointment */
   bundle?: number;
+  /** They already hold a paid bundle that covers this blow-dry (found on the confirm step) */
+  covered?: { size: number; left: number };
 }
 
 export const EMPTY_DETAILS: BookingDetails = { name: "", email: "", phone: "", notes: "", consent: false };

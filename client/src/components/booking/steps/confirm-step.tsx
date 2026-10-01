@@ -9,6 +9,10 @@
  *
  * When Stripe isn't configured — or the treatment is complimentary — this is
  * exactly the flow it has always been: no payment step at all.
+ *
+ * Blow-dries: buying a bundle takes the full bundle price by card. Someone who already
+ * holds a paid bundle (same email + phone) is told this visit goes on it, nothing to pay;
+ * the server counts it when the booking is made.
  */
 import * as React from "react";
 import { AlertCircle, Clock, Pencil } from "lucide-react";
@@ -29,21 +33,42 @@ interface Props {
   onConfirm: (paymentIntentId?: string) => void;
   /** pick "just this one" (undefined) or a bundle size */
   onBundle: (bundle: number | undefined) => void;
+  /** found (or not) a paid bundle that covers this visit */
+  onCovered: (covered: BookingState["covered"]) => void;
   loading: boolean;
   error?: string | null;
 }
 
-export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, loading, error }: Props) {
+export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, onCovered, loading, error }: Props) {
   const s = state.service;
   const free = s.price === 0;
   const offer = bundleFor(s);
   const bundlePrice = offer?.sizes.find((b) => b.count === state.bundle)?.price;
+  const covered = state.covered;
+
+  // Do they already hold a paid bundle that covers this blow-dry?
+  const { email, phone } = state.details;
+  React.useEffect(() => {
+    if (!offer) return;
+    let off = false;
+    fetch("/api/booking/bundle", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, phone, at: state.slot }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (off) return;
+        onCovered(j?.covered ?? undefined);
+        if (j?.covered) onBundle(undefined);
+      })
+      .catch(() => {});
+    return () => { off = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [Boolean(offer), email, phone, state.slot]);
 
   const deposit = useStripeDeposit({
     serviceId: s.id,
-    price: s.price,
+    price: covered ? 0 : s.price,
     email: state.details.email,
     active: true,
+    bundle: state.bundle,
   });
 
   const [paying, setPaying] = React.useState(false);
@@ -57,7 +82,7 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, loadin
       const paymentIntentId = await deposit.confirm();
       onConfirm(paymentIntentId);
     } catch (err) {
-      setPayError(err instanceof Error ? err.message : "We couldn't hold the deposit on your card.");
+      setPayError(err instanceof Error ? err.message : "We couldn't take the payment on your card.");
     } finally {
       setPaying(false);
     }
@@ -95,17 +120,30 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, loadin
         </ReviewRow>
       </dl>
 
-      {offer && <BundlePicker offer={offer} single={s.price} value={state.bundle} onChange={onBundle} className="mt-6" />}
+      {covered ? (
+        <section aria-label="Payment" data-testid="bundle-covered" className="mt-6 rounded-2xl border border-ora-bronze/40 bg-ora-bronze/[0.07] p-5 sm:p-6">
+          <p className="mb-2 font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-bronze">Your Blow-Dry Bundle</p>
+          <p className="font-display text-[1.375rem] leading-tight text-foreground">Nothing to pay</p>
+          <p className="mt-1.5 font-sans text-[0.875rem] text-ora-fog">
+            This blow-dry goes on your bundle: {covered.left - 1} of {covered.size} left after it. Cancel and it goes back on.
+          </p>
+        </section>
+      ) : (
+        <>
+          {offer && <BundlePicker offer={offer} single={s.price} value={state.bundle} onChange={onBundle} className="mt-6" />}
 
-      <DepositPanel
-        mode={deposit.enabled ? "live" : "preview"}
-        price={deposit.enabled ? s.price : bundlePrice ?? s.price}
-        className="mt-6"
-        loading={deposit.enabled && deposit.status === "loading"}
-        error={payError ?? deposit.error}
-      >
-        {deposit.enabled && <div ref={deposit.setMountNode} data-testid="stripe-payment-element" />}
-      </DepositPanel>
+          <DepositPanel
+            mode={deposit.enabled ? "live" : "preview"}
+            price={bundlePrice ?? s.price}
+            bundle={bundlePrice && state.bundle ? { count: state.bundle, price: bundlePrice } : undefined}
+            className="mt-6"
+            loading={deposit.enabled && deposit.status === "loading"}
+            error={payError ?? deposit.error}
+          >
+            {deposit.enabled && <div ref={deposit.setMountNode} data-testid="stripe-payment-element" />}
+          </DepositPanel>
+        </>
+      )}
 
       {/* Also shown when the payment form itself can't load — otherwise the
           Confirm button stays disabled and the customer has nowhere to go. */}
@@ -143,7 +181,11 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, loadin
         hint={
           free
             ? undefined
-            : deposit.enabled
+            : covered
+              ? "Nothing to pay: it's on your bundle"
+              : deposit.enabled && bundlePrice
+              ? `${formatPrice(bundlePrice)} paid now by card`
+              : deposit.enabled
               ? `${formatPrice(depositAmount)} held now, taken when your booking is confirmed`
               : "Nothing is charged today"
         }

@@ -1,7 +1,10 @@
 /**
  * POST /api/booking/payment-intent
  *
- * Body: { serviceId: "aesthetics/lip-flip", email?: string }
+ * Body: { serviceId: "aesthetics/lip-flip", email?: string, bundle?: 4 | 6 }
+ *
+ * bundle → a Blow-Dry Bundle paid IN FULL (£120 / £180, priced from the catalogue).
+ * Bundles are taken by card even while 20% deposits are paused.
  * Returns: { clientSecret, paymentIntentId, depositPence, fullPricePence, serviceName }
  *
  * The browser tells us WHICH treatment, never HOW MUCH. The price comes from
@@ -18,6 +21,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { findService, depositPence, DEPOSIT_PERCENT, isBookableService } from "../_lib/catalogue.js";
 import { createPaymentIntent, isStripeConfigured } from "../_lib/stripe.js";
+import { bundleOfferFor, bundleSize } from "../_lib/bundles.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Cache-Control", "no-store");
@@ -30,14 +34,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: "Online booking is temporarily closed. Please email admin@orasuites.com." });
   }
 
+  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) ?? {};
+  const wantsBundle = body.bundle != null && body.bundle !== "" && body.bundle !== 0;
+
   // Deposits can be paused without touching Stripe (keys stay for refunds).
   // Paused → behave exactly like "Stripe not configured": the booking flow skips
   // the payment step and books directly. Flip env DEPOSITS_ENABLED back to re-enable.
-  if (!isStripeConfigured() || process.env.DEPOSITS_ENABLED === "false") {
+  // Bundles are always paid by card when Stripe is set up.
+  if (!isStripeConfigured() || (process.env.DEPOSITS_ENABLED === "false" && !wantsBundle)) {
     return res.status(503).json({ error: "Card payments are paused.", stripe: false });
   }
 
-  const body = (typeof req.body === "string" ? safeJson(req.body) : req.body) ?? {};
   const serviceId = typeof body.serviceId === "string" ? body.serviceId : "";
   const email = typeof body.email === "string" && body.email.includes("@") ? body.email.trim().slice(0, 200) : undefined;
 
@@ -47,6 +54,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Never hold a card for a category that is not open online.
   if (!isBookableService(serviceId)) {
     return res.status(400).json({ error: "That treatment isn't open for online booking yet — please call the clinic or send us an enquiry." });
+  }
+
+  if (wantsBundle) {
+    const offer = bundleOfferFor(service.ghlCalendarId);
+    const pick = bundleSize(offer, body.bundle);
+    if (!offer || !pick) return res.status(400).json({ error: "That bundle isn't available for this treatment." });
+    const pence = Math.round(pick.price * 100);
+    const made = await createPaymentIntent({
+      amountPence: pence,
+      currency: "gbp",
+      description: `${offer.name} of ${pick.count} — ORÁ Suites`,
+      statementDescriptorSuffix: "ORA SUITES",
+      receiptEmail: email,
+      // kind=bundle: cancel / no-show code never refunds or touches this payment
+      // (a cancelled visit goes back on the bundle instead).
+      metadata: { kind: "bundle", serviceId: service.id, bundle: String(pick.count), fullPrice: String(pence), source: "orasuites.com/book" },
+    });
+    if (!made.ok || !made.clientSecret) return res.status(502).json({ error: "We couldn't start the payment. Please try again." });
+    return res.status(200).json({ clientSecret: made.clientSecret, paymentIntentId: made.id, depositPence: pence, fullPricePence: pence, bundle: pick.count, serviceName: service.name });
   }
 
   // Free consultations never reach Stripe.

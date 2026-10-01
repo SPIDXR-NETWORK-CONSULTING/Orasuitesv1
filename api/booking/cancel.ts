@@ -77,6 +77,9 @@ import { paymentIntentIdFromNotes } from "../_lib/deposit-guard.js";
 import { verifyCancelToken, verifyAdminSecret } from "../_lib/cancel-token.js";
 import { deleteEvent, isCancelled, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
 import { notifyCancellation, manualCheckLine, serviceMetaForCalendar } from "../_lib/booking-notify.js";
+import { bundleOfAppointment, bundleAppt } from "../_lib/bundles.js";
+
+const BUNDLE_LINE = "It's on your Blow-Dry Bundle, so the blow-dry goes back on it for you to book another time. There's nothing to refund.";
 
 const BOOKINGS_PIPELINE_ID = process.env.GHL_BOOKINGS_PIPELINE_ID || "6NsVFiUCxgAelJszMS1z";
 const CANCELLED_STAGE_ID = process.env.GHL_BOOKINGS_CANCELLED_STAGE_ID || "45d77107-9737-4898-afbf-1e4ed61ef9b9";
@@ -179,7 +182,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const foundPayment = Boolean(paymentIntentId) && isStripeConfigured();
   // No service resolved means we cannot prove the deposit is zero, so it is
   // "unverified", never "none".
-  const depositState: DepositState = foundPayment ? "found" : service && expectedDepositPence === 0 ? "none" : "unverified";
+  // On a blow-dry bundle → no money involved: cancelling gives the blow-dry back (Abdul, 1 Oct 2026).
+  const onBundle = await bundleOfAppointment(appointmentId);
+  const depositState: DepositState = onBundle ? "none" : foundPayment ? "found" : service && expectedDepositPence === 0 ? "none" : "unverified";
   const depositLookupFailed = depositState === "unverified";
   // Kept for callers that already read it — true ONLY when we hold the payment.
   const hasDeposit = depositState === "found";
@@ -214,7 +219,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "GET") {
     const refundLine =
       depositState === "none"
-        ? "There's no deposit on this booking, so there's nothing to refund."
+        ? onBundle ? BUNDLE_LINE : "There's no deposit on this booking, so there's nothing to refund."
         : depositState === "unverified"
           ? manualCheckLine(expectedDepositPence, "future")
           : willRefund
@@ -267,12 +272,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  // 1b. The blow-dry goes back on their bundle.
+  if (onBundle) await bundleAppt(appointmentId, "release").catch(() => null);
+
   // 2. Settle the deposit per the rules — refund if it was taken, release the
   //    hold if it never was. Idempotent per payment intent either way.
   let refunded = false;
   let released = false;
   let refundError: string | undefined;
-  if (paymentIntentId && isStripeConfigured()) {
+  if (paymentIntentId && isStripeConfigured() && !onBundle) {
     const settled = await settleDeposit(
       paymentIntentId,
       willRefund,
@@ -338,7 +346,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? "Your refund is being processed manually — we'll be in touch shortly."
           : depositLookupFailed
             ? manualCheckLine(expectedDepositPence)
-            : "There's no deposit on this booking, so there's nothing to refund.";
+            : onBundle ? BUNDLE_LINE : "There's no deposit on this booking, so there's nothing to refund.";
 
   return reply(200, {
     success: true,
