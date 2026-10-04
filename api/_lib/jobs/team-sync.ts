@@ -75,6 +75,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!r.ok) { complete = false; continue; }
     for (const ev of r.body?.events ?? []) {
       if (!ev?.id || !ev.startTime || !ev.endTime) continue;
+      // GHL returns the whole day, but Google is only read from `from` on. An appointment that
+      // ended before then has no Google event in our listing, so it would be RE-CREATED (and its
+      // practitioner re-invited) every 5 minutes. Fixed 4 Oct 2026 after a duplicate-invite loop.
+      if (Date.parse(ev.endTime) <= from.getTime()) continue;
       if (ev.deleted || isCancelled(ev.appointmentStatus ?? ev.appoinmentStatus)) live.delete(ev.id);
       else live.set(ev.id, ev);
     }
