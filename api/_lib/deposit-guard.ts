@@ -231,7 +231,9 @@ export async function releaseAfterFailedBooking(
  * A Blow-Dry Bundle bought online is paid IN FULL by card, even while deposits are
  * paused. Same hold-then-capture rules as a deposit; the amount must be the catalogue
  * bundle price and the intent must say which bundle (metadata kind=bundle, bundle=N).
- * Stripe not set up at all → no payment (the bundle is then paid at the desk).
+ * Stripe not set up at all, or no payment sent → no payment: the bundle is saved as "to pay
+ * at the desk" (reception taps Paid on the first visit). The ORÁ app books bundles this way
+ * until it takes cards (Abdul, 5 Oct 2026); the website always sends a card payment.
  */
 async function verifyBundlePayment(input: DepositCheckInput, service: CatalogueService | undefined): Promise<DepositCheck> {
   if (!isStripeConfigured()) return { ok: true, paymentIntentId: null, depositPence: 0, service, intentStatus: null };
@@ -239,7 +241,7 @@ async function verifyBundlePayment(input: DepositCheckInput, service: CatalogueS
   if (!service || !pick) return { ok: false, status: 400, error: "That bundle isn't available for this treatment." };
   const expected = Math.round(pick.price * 100);
   const pid = typeof input.paymentIntentId === "string" ? input.paymentIntentId.trim() : "";
-  if (!pid) return { ok: false, status: 402, error: `The ${formatPence(expected)} bundle is paid by card when you book.` };
+  if (!pid) return { ok: true, paymentIntentId: null, depositPence: 0, service, intentStatus: null };
 
   const res = await retrievePaymentIntent(pid);
   const intent = res.ok ? res.intent : null;
