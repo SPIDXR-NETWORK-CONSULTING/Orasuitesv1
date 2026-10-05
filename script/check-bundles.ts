@@ -44,7 +44,7 @@ globalThis.fetch = (async () => new Response(JSON.stringify(intent), { status: 2
 const { verifyDeposit } = await import("../api/_lib/deposit-guard.ts");
 const v = (b: number, pid?: string) => verifyDeposit({ serviceId: svc, paymentIntentId: pid, bundle: b });
 assert.equal((await v(4, "pi_x")).ok, true, "£120 for a 4-bundle passes");
-assert.equal((await v(4)).ok, false, "no payment → refused");
+assert.equal((await v(4)).ok, true, "no payment → allowed, paid at the desk (the app, until it takes cards)");
 assert.equal((await v(6, "pi_x")).ok, false, "4-bundle payment can't buy a 6-bundle");
 intent = { ...intent, amount: 2400 };
 assert.equal((await v(4, "pi_x")).ok, false, "wrong amount → refused");
