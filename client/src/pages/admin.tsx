@@ -26,6 +26,7 @@ import { ApptDrawer, WalkinDrawer } from "@/components/admin/drawers";
 import { RotaGrid } from "@/components/admin/rota";
 import { RentersView } from "@/components/admin/renters";
 import { BundlesView } from "@/components/admin/bundles";
+import { RewardsToHonour } from "@/components/admin/rewards";
 import { MoveDialog, type MoveRequest } from "@/components/admin/move";
 import { BlockDrawer } from "@/components/admin/blocks";
 import { ClientDrawer } from "@/components/admin/clients";
@@ -246,7 +247,7 @@ function Floor({ call, onLock }: { call: AdminCtx["call"]; onLock: () => void })
           {section === "rota" && (rotaReady
             ? <RotaGrid team={team} rows={rota} onSaved={(r) => setRota((rs) => [...rs.filter((x) => !(x.practitioner_user_id === r.practitioner_user_id && x.weekday === r.weekday)), r])} />
             : <p className="font-sans text-[0.875rem] text-ora-fog">Loading rota…</p>)}
-          {section === "bundles" && <BundlesView />}
+          {section === "bundles" && <div className="space-y-10"><RewardsToHonour /><BundlesView /></div>}
           {section === "renters" && <RentersView />}
           {section === "enquiries" && <EnquiriesView />}
           {section === "messages" && <MessagesView />}

@@ -7,6 +7,7 @@ import { Btn, Drawer, ErrorNote, Field, Input, StatusPill } from "./ui";
 import { ApptBundle, useApptBundle } from "./bundles";
 import { MoveForm } from "./move";
 import { ClientPanel } from "./clients";
+import { ApptReward } from "./rewards";
 import { bundleFor, findService } from "@/lib/catalogue";
 
 /* ── Appointment ─────────────────────────────────────────── */
@@ -90,6 +91,7 @@ function ApptBody({ a, onChanged }: { a: Appt; onChanged: (a: Appt) => void }) {
       <StatusActions a={a} onChanged={onChanged} />
 
       <ApptBundle a={a} s={bundle} />
+      <ApptReward a={a} />
 
       <div className="rounded-2xl bg-ora-deep px-5 py-4 text-ora-cream">
         <p className="font-sans text-[0.6875rem] uppercase tracking-[0.16em] text-ora-cream/60">Charge the client</p>

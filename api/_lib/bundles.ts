@@ -81,6 +81,15 @@ async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<Rpc<T>
   }
 }
 
+/* ── App rewards redeemed by customers (points), honoured at the desk ── */
+export interface Redemption {
+  id: string; status: "requested" | "applied" | "cancelled"; method: string; cost: number; created_at: string;
+  reward: { code: string; name: string; kind: string; cash_value_pence: number | null };
+  customer: { name: string | null; email: string | null; phone: string | null; ghl_contact_id: string | null };
+}
+export const listRedemptions = () => rpc<Redemption[]>("ora_redemptions_list", {});
+export const redemptionAct = (id: string, action: "applied" | "cancelled") => rpc<{ id: string; status: string }>("ora_redemption_act", { p_id: id, p_action: action });
+
 export const listBundles = () => rpc<Bundle[]>("ora_bundles_list", {});
 export const bundlesByEmail = (email: string) => rpc<Bundle[]>("ora_bundles_by_email", { p_email: email });
 export const bundleByToken = (token: string) => rpc<Bundle | null>("ora_bundle_by_token", { p_token: token });

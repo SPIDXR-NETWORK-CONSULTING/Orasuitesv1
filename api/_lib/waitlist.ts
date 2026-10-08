@@ -28,7 +28,7 @@
  * Nothing in here throws at the caller: every helper returns a value the caller
  * can carry on with. A notification failure must never break a booking page.
  */
-import { ghlFetch, sendAdminEmail } from "./ghl.js";
+import { ghlFetch, sendAdminEmail, replyButtonsFromRows } from "./ghl.js";
 import { findService, type CatalogueService } from "./catalogue.js";
 import { publicBaseUrl } from "./cancel-token.js";
 
@@ -78,7 +78,7 @@ export function opsEmail(eyebrow: string, heading: string, rows: [string, string
       <p style="margin:0 0 6px;color:#b98867;font-size:11px;letter-spacing:.25em;text-transform:uppercase">ORÁ Suites · ${escapeHtml(eyebrow)}</p>
       <h1 style="margin:0;color:#1a1008;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:24px;line-height:1.2">${escapeHtml(heading)}</h1>
     </td></tr>
-    <tr><td style="padding:10px 30px 26px"><table role="presentation" cellspacing="0" cellpadding="0">${trs}</table>
+    <tr><td style="padding:10px 30px 26px"><table role="presentation" cellspacing="0" cellpadding="0">${trs}</table>${replyButtonsFromRows(rows, `${eyebrow} — ${heading}`)}
       <p style="margin:20px 0 0;color:#8a7d72;font-size:12px">Sent automatically by the ORÁ waiting list.</p>
     </td></tr>
   </table></div>`;

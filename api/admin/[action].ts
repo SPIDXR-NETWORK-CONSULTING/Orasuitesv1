@@ -15,6 +15,8 @@
  *   · move     → (POST) move a booking to another time and/or practitioner (drag & drop).
  *   · bundles / bundle-sell / bundle-act → blow-dry bundles: list, sell at the desk,
  *                mark paid, count a visit, undo, cancel (ORÁ Supabase, locked tables).
+ *   · redemptions / redemption-act → rewards customers redeemed with points in the app:
+ *                list, mark used at the desk, or cancel (points go back).
  *
  * Reads/writes GHL (the current engine). On the future custom-backend migration,
  * only this file changes — the dashboard page stays the same.
@@ -32,7 +34,7 @@ import { allServices, findService, splitGhlTitle, teamUserIds } from "../_lib/ca
 import { resolveContact, createBookingOpportunity, appendContactNote } from "../_lib/ghl-contacts.js";
 import { notifyBooking } from "../_lib/booking-notify.js";
 import { notifyReschedule, sendRescheduledPractitionerAlert, sendAdminRescheduleAlert } from "../_lib/booking-notify-2.js";
-import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleAppt, listBundles, sendBundleEmail, countOnActiveBundle, visitNumber, BUNDLE_EXPIRY_MONTHS, type Bundle } from "../_lib/bundles.js";
+import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleAppt, listBundles, listRedemptions, redemptionAct, sendBundleEmail, countOnActiveBundle, visitNumber, BUNDLE_EXPIRY_MONTHS, type Bundle } from "../_lib/bundles.js";
 
 const LOC = process.env.GHL_LOCATION_ID || "";
 
@@ -109,6 +111,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "bundles": return bundles(req, res);
     case "bundle-sell": return bundleSell(req, res);
     case "bundle-act": return bundleAct(req, res);
+    case "redemptions": return redemptions(req, res);
+    case "redemption-act": return redemptionActRoute(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
   }
 }
@@ -541,8 +545,11 @@ async function reply(req: VercelRequest, res: VercelResponse) {
   const html = message.replace(/\n/g, "<br>");
   const r = await ghlFetch<any>(`/conversations/messages`, {
     method: "POST", version: "2021-04-15",
-    // always send from the clinic inbox (GHL otherwise picks its default sender)
-    body: JSON.stringify({ type: "Email", contactId, html, subject: String(body.subject || "ORÁ Suites"), emailFrom: "ORÁ Suites <admin@orasuites.com>" }),
+    // Sent from the GHL sender (bookings@bookings.orasuites.com, set in ghl.ts), never as
+    // admin@orasuites.com: GHL can't send as admin@ (orasuites.com is SPF Google-only with
+    // DMARC p=reject), so those sat "pending" and never arrived (found 8 Oct 2026, 9 lost
+    // replies). The client's reply comes back into this same thread.
+    body: JSON.stringify({ type: "Email", contactId, html, subject: String(body.subject || "ORÁ Suites") }),
   }).catch(() => ({ ok: false, body: null } as any));
   if (!r.ok) return res.status(502).json({ error: "Could not send", detail: r.body });
   res.json({ ok: true, id: r.body?.messageId || r.body?.id || null });
@@ -695,6 +702,24 @@ async function bundles(_req: VercelRequest, res: VercelResponse) {
   const r = await listBundles();
   if (!r.ok) return res.status(502).json({ error: r.error });
   res.json({ bundles: r.data });
+}
+
+/* ── App rewards (points) redeemed by customers ─────────────── */
+async function redemptions(_req: VercelRequest, res: VercelResponse) {
+  const r = await listRedemptions();
+  if (!r.ok) return res.status(503).json({ error: r.error });
+  res.json({ redemptions: r.data });
+}
+/** applied = used at the desk · cancelled = not used, points go back to the customer. */
+async function redemptionActRoute(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const id = String(b.id || ""), action = String(b.action || "");
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "Bad reward id" });
+  if (action !== "applied" && action !== "cancelled") return res.status(400).json({ error: "Unknown action" });
+  const r = await redemptionAct(id, action);
+  if (!r.ok) return res.status(400).json({ error: r.error });
+  res.json(r.data);
 }
 
 /** Sell a bundle at the desk from an appointment: paid now, and today's visit counted. */

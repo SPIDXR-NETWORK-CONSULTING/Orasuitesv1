@@ -10,7 +10,7 @@
  *
  * Every function is non-throwing: a notification failure must never fail a booking.
  */
-import { ghlFetch, sendAdminEmail, ADMIN_EMAIL } from "./ghl.js";
+import { ghlFetch, sendAdminEmail, ADMIN_EMAIL, replyButtonsFromRows } from "./ghl.js";
 import { appendContactNote } from "./ghl-contacts.js";
 import { cancelLinkFor } from "./cancel-token.js";
 import { rescheduleLine } from "./booking-notify-2.js";
@@ -246,7 +246,7 @@ function opsEmail(eyebrow: string, heading: string, rows: [string, string][], bl
       <h1 style="margin:0;color:#1a1008;font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:24px;line-height:1.2">${escapeHtml(heading)}</h1>
     </td></tr>
     <tr><td style="padding:10px 30px 0"><table role="presentation" cellspacing="0" cellpadding="0">${trs}</table></td></tr>
-    <tr><td style="padding:0 30px 26px">${extra}
+    <tr><td style="padding:0 30px 26px">${extra}${replyButtonsFromRows(rows, `${eyebrow} — ${heading}`)}
       <p style="margin:20px 0 0;color:#8a7d72;font-size:12px">Manage this in GHL → Calendars, or Opportunities → Online Bookings. Sent automatically by the ORÁ booking system.</p>
     </td></tr>
   </table></div>`;
