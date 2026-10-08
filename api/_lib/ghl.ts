@@ -135,6 +135,37 @@ function escapeHtml(s: string): string {
 }
 
 /** Warm, minimal HTML for the admin notification. */
+/**
+ * "Reply to <client>" buttons for emails that land in the admin inbox.
+ * Those emails come FROM the GHL sender, so hitting Reply in Gmail would go back to
+ * GHL, not to the client (Abdul, 8 Oct 2026). These open a new email/call/text to the
+ * client instead. No email on file -> says so and offers the phone.
+ */
+export function replyButtons(p: { name?: string | null; email?: string | null; phone?: string | null; subject?: string }): string {
+  const first = (p.name || "the client").trim().split(/\s+/)[0];
+  const email = p.email && p.email.includes("@") ? p.email.trim() : "";
+  const digits = (p.phone || "").replace(/[^\d+]/g, "");
+  const wa = digits.replace(/^\+/, "").replace(/^0/, "44");
+  const btn = (href: string, label: string, dark = false) =>
+    `<a href="${escapeHtml(href)}" style="display:inline-block;margin:0 8px 8px 0;padding:11px 18px;border-radius:999px;font-size:14px;text-decoration:none;${dark ? "background:#1a1008;color:#fffdf9" : "border:1px solid #b98867;color:#1a1008"}">${escapeHtml(label)}</a>`;
+  const parts = [
+    email ? btn(`mailto:${email}?subject=${encodeURIComponent(p.subject ? `Re: ${p.subject}` : "ORÁ Suites")}`, `Email ${first}`, true) : "",
+    digits ? btn(`tel:${digits}`, `Call ${first}`) : "",
+    wa.length >= 10 ? btn(`https://wa.me/${wa}`, "WhatsApp") : "",
+  ].join("");
+  const note = email
+    ? `Use these buttons, or the Messages tab in ORÁ Floor. Don't press Reply on this email: it won't reach ${escapeHtml(first)}.`
+    : `No email address was given${digits ? ", so call or text instead" : ""}. Don't press Reply on this email: it won't reach ${escapeHtml(first)}.`;
+  return `<div style="margin:22px 0 0">${parts}<p style="margin:4px 0 0;color:#8a7d72;font-size:12px">${note}</p></div>`;
+}
+
+/** Pull Client / Email / Phone out of an ops email's rows for replyButtons(). */
+export function replyButtonsFromRows(rows: [string, string][], subject: string): string {
+  const get = (k: string) => { const v = rows.find(([key]) => key === k)?.[1]; return v && v !== "—" ? v : null; };
+  if (!get("Client") && !get("Email") && !get("Phone")) return "";
+  return replyButtons({ name: get("Client"), email: get("Email"), phone: get("Phone"), subject });
+}
+
 export function enquiryEmailHtml(p: EnquiryPayload, meta: { receivedAt?: Date; source?: string } = {}): string {
   const rows: [string, string][] = [
     ["Name", p.name],
@@ -161,7 +192,8 @@ export function enquiryEmailHtml(p: EnquiryPayload, meta: { receivedAt?: Date; s
     <tr><td style="padding:16px 32px 28px">
       <p style="margin:0 0 6px;color:#8a7d72;font-family:Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:.14em;text-transform:uppercase">Message</p>
       <div style="padding:16px 18px;background:#f4efe8;border-radius:12px;color:#1a1008;font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6">${message}</div>
-      <p style="margin:18px 0 0;color:#8a7d72;font-family:Helvetica,Arial,sans-serif;font-size:12px">Reply directly to <a href="mailto:${escapeHtml(p.email)}" style="color:#b98867">${escapeHtml(p.email)}</a>. Sent automatically by the ORÁ website${meta.source ? ` (${escapeHtml(meta.source)})` : ""}.</p>
+      <div style="font-family:Helvetica,Arial,sans-serif">${replyButtons({ name: p.name, email: p.email, phone: p.phone, subject: enquirySubject(p) })}</div>
+      <p style="margin:14px 0 0;color:#8a7d72;font-family:Helvetica,Arial,sans-serif;font-size:12px">Sent automatically by the ORÁ website${meta.source ? ` (${escapeHtml(meta.source)})` : ""}.</p>
     </td></tr>
   </table></body></html>`;
 }
