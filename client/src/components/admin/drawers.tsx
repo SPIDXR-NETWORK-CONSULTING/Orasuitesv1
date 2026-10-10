@@ -135,6 +135,19 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
   const [day, setDay] = React.useState<string>(todayISO());
   const days = React.useMemo(() => Array.from({ length: 21 }, (_, i) => shift(todayISO(), i)), []);
   const [name, setName] = React.useState(""); const [email, setEmail] = React.useState(""); const [phone, setPhone] = React.useState("");
+  // Existing client suggestions (by phone, email or name) so a walk-in reuses their record.
+  type Match = { id: string; name: string; email: string | null; phone: string | null };
+  const [picked, setPicked] = React.useState<Match | null>(null);
+  const [matches, setMatches] = React.useState<Match[]>([]);
+  React.useEffect(() => {
+    if (picked) { setMatches([]); return; }
+    const digits = phone.replace(/\D/g, "");
+    const q = digits.length >= 6 ? digits.slice(-9) : email.includes("@") && email.length >= 5 ? email.trim() : name.trim().length >= 3 ? name.trim() : "";
+    if (!q) { setMatches([]); return; }
+    const t = setTimeout(() => { call<{ clients: Match[] }>(`clients?q=${encodeURIComponent(q)}`).then((j) => setMatches((j.clients || []).slice(0, 4))).catch(() => setMatches([])); }, 350);
+    return () => clearTimeout(t);
+  }, [name, email, phone, picked, call]);
+  const usePicked = (m: Match) => { setPicked(m); setName(m.name); setEmail(m.email || ""); setPhone(m.phone || ""); };
   const [busy, setBusy] = React.useState(false); const [error, setError] = React.useState<string | null>(null);
   const [bundle, setBundle] = React.useState(0); // 0 = just this one, else bundle size sold now
   const offer = svc ? bundleFor(findService(svc.id)) : undefined;
@@ -161,7 +174,7 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
     if (bundle && !email.trim() && !phone.trim()) { setError("Add the client's email or phone so their bundle can be tracked."); return; }
     setBusy(true); setError(null);
     try {
-      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day, userId: who || undefined, ...(bundle ? { bundle } : {}) }) });
+      const j = await call("walkin", { method: "POST", body: JSON.stringify({ serviceId: svc.id, clientName: name.trim(), email: email.trim() || undefined, phone: phone.trim() || undefined, startTime: start || undefined, date: day, userId: who || undefined, ...(bundle ? { bundle } : {}), ...(picked ? { contactId: picked.id } : {}) }) });
       setDone({ practitioner: j.practitioner, startTime: j.startTime, price: j.price, service: j.service, bundle: j.bundle, warning: j.warning });
     } catch (err) { setError(err instanceof Error ? err.message : "Couldn't book."); } finally { setBusy(false); }
   }
@@ -275,6 +288,27 @@ function WalkinBody({ onBooked }: { onBooked: () => void }) {
               <Field label="Phone (optional)"><Input type="tel" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} autoComplete="off" /></Field>
             </div>
           </div>
+
+          {picked ? (
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-ora-sage/40 bg-ora-sage/10 px-4 py-2.5 font-sans text-[0.8125rem] text-ora-deep">
+              <span>Booking on <b className="font-medium">{picked.name}</b>'s existing record: their history, notes and bundles stay together.</span>
+              <button type="button" onClick={() => setPicked(null)} className="focus-ring shrink-0 rounded px-1 text-ora-fog underline-offset-4 hover:underline">Not them</button>
+            </div>
+          ) : matches.length > 0 && (
+            <div className="rounded-2xl border border-ora-bronze/25 bg-ora-bronze/[0.05] p-3" data-testid="walkin-matches">
+              <p className="mb-2 px-1 font-sans text-[0.6875rem] uppercase tracking-[0.16em] text-ora-bronze">Existing client?</p>
+              <ul className="space-y-1.5">
+                {matches.map((m) => (
+                  <li key={m.id}>
+                    <button type="button" onClick={() => usePicked(m)} className="focus-ring flex w-full items-center justify-between gap-3 rounded-xl bg-white/80 px-3 py-2 text-left transition hover:bg-white">
+                      <span className="min-w-0"><span className="block truncate font-sans text-[0.875rem] font-medium text-ora-deep">{m.name}</span><span className="block truncate font-sans text-[0.75rem] text-ora-fog">{[m.phone, m.email].filter(Boolean).join(" · ") || "No contact details"}</span></span>
+                      <span className="shrink-0 font-sans text-[0.8125rem] text-ora-bronze">Use</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {error && <ErrorNote>{error}</ErrorNote>}
           <div>

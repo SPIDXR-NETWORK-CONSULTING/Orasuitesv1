@@ -112,7 +112,10 @@ function Thread({ conv, onBack }: { conv: Conversation; onBack: () => void }) {
           return (
             <div key={m.id} className={cn("max-w-[80%] rounded-2xl px-4 py-2.5", out ? "ml-auto rounded-br-md bg-ora-deep text-ora-cream" : "rounded-bl-md bg-white text-ora-deep")}>
               <p className="whitespace-pre-wrap break-words font-sans text-[0.875rem] leading-relaxed">{htmlToText(m.body).slice(0, 4000)}</p>
-              <p className={cn("mt-1 font-sans text-[0.6875rem]", out ? "text-ora-cream/55" : "text-ora-fog")}>{m.type.toLowerCase()} · {when(m.date)}</p>
+              <p className={cn("mt-1 font-sans text-[0.6875rem]", out ? "text-ora-cream/55" : "text-ora-fog")}>
+                {m.type.toLowerCase()} · {when(m.date)}
+                {m.delivery && <span className={cn("ml-1.5", m.delivery === "failed" ? "font-semibold text-[#f2a08f]" : "")}> · {{ opened: "✓✓ Opened", delivered: "✓ Delivered", sending: "Sending…", failed: "⚠ Not delivered. Call or text them instead" }[m.delivery]}</span>}
+              </p>
             </div>
           );
         })}

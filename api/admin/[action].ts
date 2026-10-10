@@ -253,7 +253,22 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
   const [firstName, ...rest] = name.split(/\s+/);
   const lastName = rest.join(" ");
   let contactId: string | undefined;
-  if (email) {
+  // Picked from "existing client" suggestions on the walk-in form → reuse that record,
+  // so their history, notes and bundles stay together (no duplicate contacts).
+  let pickedEmail = "";
+  const pickedId = typeof body.contactId === "string" && /^[A-Za-z0-9]{8,40}$/.test(body.contactId) ? body.contactId : "";
+  if (pickedId) {
+    const c = await ghlFetch<any>(`/contacts/${pickedId}`, { version: "2021-07-28" }).catch(() => ({ ok: false } as any));
+    if (c.ok && c.body?.contact?.id) { contactId = c.body.contact.id; pickedEmail = c.body.contact.email || ""; }
+  }
+  // Phone only → reuse the client with that number if there is one.
+  if (!contactId && !email && phone.replace(/\D/g, "").length >= 9) {
+    const last9 = phone.replace(/\D/g, "").slice(-9);
+    const f = await ghlFetch<any>(`/contacts/?locationId=${LOC}&query=${encodeURIComponent(last9)}&limit=5`, { version: "2021-07-28" }).catch(() => ({ body: {} } as any));
+    contactId = (f.body?.contacts || []).find((c: any) => String(c.phone || "").replace(/\D/g, "").endsWith(last9))?.id;
+  }
+  if (contactId) { /* existing client */ }
+  else if (email) {
     const c = await resolveContact({ email, firstName, lastName, phone, tags: ["walk-in"] });
     contactId = c?.id || undefined;
   } else {
@@ -285,7 +300,7 @@ async function walkin(req: VercelRequest, res: VercelResponse) {
       await sendBundleEmail(onBundle, "bought");
     }
   } else if (bundleOfferFor(service.ghlCalendarId)) {
-    onBundle = await countOnActiveBundle(email, appointmentId, start, service.name);
+    onBundle = await countOnActiveBundle(email || pickedEmail, appointmentId, start, service.name);
   }
   const charge = bundlePick ? bundlePick.price : onBundle ? 0 : service.price;
 
@@ -529,10 +544,29 @@ async function thread(req: VercelRequest, res: VercelResponse) {
   const id = (req.query.id as string) || "";
   if (!id) return res.status(400).json({ error: "id required" });
   const r = await ghlFetch<any>(`/conversations/${id}/messages`, { version: "2021-04-15" }).catch(() => ({ body: {} } as any));
-  const msgs = ((r.body?.messages || {}).messages || []).map((m: any) => ({
+  const raw: any[] = (r.body?.messages || {}).messages || [];
+  // Delivery status of our recent emails, so a reply that never arrived is visible
+  // (8 Oct 2026: replies sat "pending" in GHL for days and nobody could tell).
+  const emailIds = raw.filter((m) => m.direction === "outbound" && /EMAIL/.test(m.messageType || "") && m.meta?.email?.messageIds?.[0]).slice(0, 12);
+  const status = new Map<string, string>();
+  await Promise.all(emailIds.map(async (m) => {
+    const e = await ghlFetch<any>(`/conversations/messages/email/${m.meta.email.messageIds[0]}`, { version: "2021-04-15" }).catch(() => null);
+    const s = e?.body?.emailMessage?.status || e?.body?.status;
+    if (s) status.set(m.id, String(s));
+  }));
+  const msgs = raw.map((m: any) => ({
     id: m.id, direction: m.direction, type: String(m.messageType || "").replace("TYPE_", ""), body: m.body || "", date: m.dateAdded,
+    ...(status.has(m.id) ? { delivery: deliveryLabel(status.get(m.id)!, m.dateAdded) } : {}),
   })).reverse();
   res.json({ messages: msgs });
+}
+
+/** GHL email status → what reception needs to know. "pending" for more than 15 min = it isn't going. */
+function deliveryLabel(s: string, sentAt: string): "opened" | "delivered" | "sending" | "failed" {
+  if (/open|click|repl/i.test(s)) return "opened";
+  if (/deliver|sent/i.test(s)) return "delivered";
+  if (/pending|queue|accept|schedul/i.test(s)) return Date.now() - Date.parse(sentAt) > 15 * 60_000 ? "failed" : "sending";
+  return "failed"; // failed, bounced, undelivered, rejected, complained…
 }
 
 /** Reply to a client by email (sends via GHL as the clinic). */

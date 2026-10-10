@@ -6,6 +6,7 @@
  */
 import * as React from "react";
 import { Search } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useAdmin, fmtDate, londonDate, time } from "./lib";
 import { Btn, Drawer, ErrorNote, Input, Textarea } from "./ui";
 import { bundleState, useBundleList } from "./bundles";
@@ -45,6 +46,9 @@ export function ClientPanel({ contactId, showContact = false }: { contactId: str
   const upcoming = live.filter((a) => Date.parse(a.startTime) > now).reverse();
   const past = live.filter((a) => Date.parse(a.startTime) <= now);
   const theirs = (bundles || []).filter((b) => b.contact_id === contactId && !b.voided_at);
+  // Reliability at a glance: past no-shows and cancellations.
+  const noShows = data.appointments.filter((a) => /noshow|no-show|no_show/i.test(a.status)).length;
+  const cancels = data.appointments.filter((a) => /cancel/i.test(a.status) && Date.parse(a.startTime) <= now + 864e5 * 365).length;
 
   return (
     <div className="space-y-5">
@@ -53,6 +57,12 @@ export function ClientPanel({ contactId, showContact = false }: { contactId: str
           <p className="font-display text-[1.2rem] text-ora-deep">{data.contact.name}</p>
           <p className="font-sans text-[0.8125rem] text-ora-fog">{[data.contact.phone, data.contact.email].filter(Boolean).join(" · ") || "No contact details"}</p>
         </div>
+      )}
+
+      {(noShows > 0 || cancels > 0) && (
+        <p className={cn("rounded-xl px-3 py-2 font-sans text-[0.8125rem]", noShows ? "bg-ora-clay/10 text-ora-clay" : "bg-ora-fog/10 text-ora-fog")} data-testid="client-reliability">
+          {[noShows ? `${noShows} no-show${noShows > 1 ? "s" : ""}` : "", cancels ? `${cancels} cancellation${cancels > 1 ? "s" : ""}` : ""].filter(Boolean).join(" · ")} in their history
+        </p>
       )}
 
       <section aria-label="Notes">

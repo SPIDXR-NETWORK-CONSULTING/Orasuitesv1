@@ -14,7 +14,7 @@ export interface Block { id: string; startTime: string; endTime: string; practit
 export interface Svc { id: string; name: string; price: number; duration: number; category: string; /** GHL user ids who do it */ team?: string[]; }
 export interface Enquiry { id: string; name: string; email: string | null; phone: string | null; tags: string[]; since: string | null; }
 export interface Conversation { id: string; contactId: string | null; name: string; lastType: string; snippet: string; date: string | null; unread: number; }
-export interface Message { id: string; direction: string; type: string; body: string; date: string; }
+export interface Message { id: string; direction: string; type: string; body: string; date: string; delivery?: "opened" | "delivered" | "sending" | "failed"; }
 export interface RotaRow { practitioner_user_id: string; weekday: number; start_min: number | null; end_min: number | null; }
 export type Plan = "half-day" | "full-day" | "monthly" | "other";
 export type RenterStatus = "active" | "paused" | "ended";
