@@ -11,11 +11,12 @@
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { mirrorAppointmentSafe, TEAM_BY_USER_ID, TEAM_EMAIL_BY_USER_ID } from "../_lib/google-calendar.js";
-import { notifyBooking, serviceMetaForCalendar, disclaimerForCalendar } from "../_lib/booking-notify.js";
+import { notifyBooking, sendPractitionerAlert, serviceMetaForCalendar, disclaimerForCalendar } from "../_lib/booking-notify.js";
+import { cancelLinkFor } from "../_lib/cancel-token.js";
 import { resolveContact, createBookingOpportunity } from "../_lib/ghl-contacts.js";
 import { verifyDeposit, notesWithPayment, releaseAfterFailedBooking, captureDeposit } from "../_lib/deposit-guard.js";
 import { updatePaymentIntent } from "../_lib/stripe.js";
-import { isBookableService } from "../_lib/catalogue.js";
+import { isBookableService, findService } from "../_lib/catalogue.js";
 import { bundleOfferFor, bundleSize, createBundle, bundleAction, bundleLink, countOnActiveBundle, visitNumber, type Bundle } from "../_lib/bundles.js";
 
 const GHL_API_KEY = process.env.GHL_API_KEY!;
@@ -47,6 +48,9 @@ async function ghlFetch(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
+/** 14:30 in clinic time. */
+const hhmm = (iso: string) => new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London", hour12: false }).format(new Date(iso));
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -60,6 +64,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { name, email, phone, notes, calendarId, serviceId, serviceName, startTime, endTime, paymentIntentId, bundle } = req.body;
+  // Further treatments in the same visit, back-to-back after the first (website "Add another
+  // treatment", 12 Oct 2026). Re-priced and re-timed from the catalogue; the browser only
+  // says which treatments and when each starts.
+  const extrasIn: any[] = Array.isArray(req.body?.extras) ? req.body.extras.slice(0, 3) : [];
 
   if (!name || !email || !phone || !calendarId || !startTime || !endTime) {
     return res.status(400).json({ error: "Missing required booking fields" });
@@ -83,6 +91,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const bundlePick = bundleOffer ? bundleSize(bundleOffer, bundle) : undefined;
   if (bundle != null && bundle !== "" && !bundlePick) {
     return res.status(400).json({ error: "That bundle isn't available for this treatment." });
+  }
+
+  type Extra = { calendarId: string; serviceId: string; serviceName: string; startTime: string; endTime: string; price: number };
+  const extras: Extra[] = [];
+  {
+    let prevEnd = Date.parse(endTime);
+    for (const x of extrasIn) {
+      const svc = findService(x?.serviceId);
+      const start = Date.parse(x?.startTime);
+      if (!svc?.ghlCalendarId || !isBookableService(svc.id) || Number.isNaN(start)) {
+        return res.status(400).json({ error: "One of the extra treatments can't be booked online. Please choose again." });
+      }
+      if (start < prevEnd || start > prevEnd + 45 * 60_000) {
+        return res.status(400).json({ error: "Your treatments need to be back-to-back. Please choose a time again." });
+      }
+      const end = start + svc.duration * 60_000;
+      extras.push({ calendarId: svc.ghlCalendarId, serviceId: svc.id, serviceName: svc.name, startTime: new Date(start).toISOString(), endTime: new Date(end).toISOString(), price: svc.price });
+      prevEnd = end;
+    }
   }
 
   // ── Deposit gate ────────────────────────────────────────────────────────
@@ -162,6 +189,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     bookedAppointmentId = appointmentId;
 
+    // 2a. The rest of the visit. All or nothing: if one treatment can't be booked (someone
+    //     just took the slot), the ones already made are cancelled and nothing is charged.
+    const extraAppts: (Extra & { id: string; assignedUserId: string | null })[] = [];
+    for (const x of extras) {
+      const r = await ghlFetch("/calendars/events/appointments", {
+        method: "POST",
+        body: JSON.stringify({ calendarId: x.calendarId, locationId: GHL_LOCATION_ID, contactId, startTime: x.startTime, endTime: x.endTime, title: `${x.serviceName} — ${name}`, appointmentStatus: "confirmed", toNotify: true, timezone: "Europe/London", notes: notes || undefined }),
+      });
+      const xid = r?.id || r?.event?.id;
+      if (!xid) {
+        console.error(`[booking] extra treatment ${x.serviceName} failed — undoing the visit:`, JSON.stringify(r).slice(0, 300));
+        for (const id of [appointmentId, ...extraAppts.map((e) => e.id)]) {
+          await ghlFetch(`/calendars/events/appointments/${id}`, { method: "PUT", body: JSON.stringify({ appointmentStatus: "cancelled" }) }).catch(() => null);
+        }
+        bookedAppointmentId = null;
+        await releaseAfterFailedBooking(paidIntentId, intentStatus, "an extra treatment in the visit could not be booked");
+        return res.status(409).json({ error: `${x.serviceName} at that time was just taken. Nothing has been booked: please choose another time.` });
+      }
+      extraAppts.push({ ...x, id: xid, assignedUserId: r?.assignedUserId || r?.event?.assignedUserId || null });
+    }
+
     // 2b. The appointment is real → TAKE the deposit that was being held.
     //     A capture failure must never undo a booking the customer already has:
     //     it is logged as CRITICAL with the pi_… id and the booking stands.
@@ -224,7 +272,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         bundleHtml = `<b>Covered by your Blow-Dry Bundle:</b> blow-dry ${n} of ${onBundle.size}, so there's nothing to pay. ${onBundle.size - onBundle.used} left after this. <a href="${bundleLink(onBundle.token)}">See your bundle</a>`;
       }
     }
-    const staffNotes = [bundleNote, notes].filter(Boolean).join("\n") || null;
+    const visitNote = extraAppts.length
+      ? `VISIT OF ${extraAppts.length + 1} TREATMENTS: ${[serviceName, ...extraAppts.map((x) => `${x.serviceName} ${hhmm(x.startTime)}`)].join(" → ")}`
+      : "";
+    const staffNotes = [visitNote, bundleNote, notes].filter(Boolean).join("\n") || null;
+    const visitHtml = extraAppts.length
+      ? `<b>Also in your visit:</b><br>` + extraAppts.map((x) => {
+          const who = (x.assignedUserId && TEAM_BY_USER_ID.get(x.assignedUserId)) || "";
+          const cancel = cancelLinkFor(x.id, contactId);
+          return `· ${x.serviceName} at ${hhmm(x.startTime)}${who ? ` with ${who.split(" ")[0]}` : ""}${cancel ? ` (<a href="${cancel}">cancel this one</a>)` : ""}`;
+        }).join("<br>")
+      : null;
 
     // 3. Mirror into the clinic-wide "ORÁ — All Appointments" Google calendar.
     //    Awaited (fire-and-forget work is killed once a serverless response is
@@ -256,14 +314,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       clientName: name,
       clientEmail: email,
       clientPhone: phone,
-      serviceName: `${serviceName || "Appointment"}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : onBundle ? " · on their bundle" : ""}`,
+      serviceName: `${serviceName || "Appointment"}${extraAppts.length ? ` + ${extraAppts.map((x) => x.serviceName).join(" + ")}` : ""}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : onBundle ? " · on their bundle" : ""}`,
       startTime,
       practitioner: (assignedUserId && TEAM_BY_USER_ID.get(assignedUserId)) || null,
       practitionerEmail: (assignedUserId && TEAM_EMAIL_BY_USER_ID.get(assignedUserId)) || null,
       notes: staffNotes,
-      extraHtml: bundleHtml,
-      durationMins: serviceMetaForCalendar(calendarId)?.duration ?? null,
-      price: bundlePick?.price ?? (onBundle ? 0 : null) ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+      extraHtml: [visitHtml, bundleHtml].filter(Boolean).join("<br>") || null,
+      durationMins: extraAppts.length
+        ? Math.round((Date.parse(extraAppts[extraAppts.length - 1].endTime) - Date.parse(startTime)) / 60_000)
+        : serviceMetaForCalendar(calendarId)?.duration ?? null,
+      price: (bundlePick?.price ?? (onBundle ? 0 : null) ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? 0) + extraAppts.reduce((n, x) => n + x.price, 0),
       // Only claim a deposit was taken if it actually was (a bundle payment isn't a deposit).
       depositPence: depositTaken && !bundlePick ? deposit.depositPence : null,
     }).catch(() => {});
@@ -271,11 +331,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 4. Every booking becomes an opportunity so the clinic can market to its
     //    customers (Online Bookings → Booked). monetaryValue stays the FULL
     //    treatment price — the deposit is a part-payment, not the deal value.
+    // 3b. The rest of the visit: Google Calendar + each practitioner told about their part.
+    for (const x of extraAppts) {
+      const who = (x.assignedUserId && TEAM_BY_USER_ID.get(x.assignedUserId)) || null;
+      await mirrorAppointmentSafe({ ghlId: x.id, ghlCalendarId: x.calendarId, assignedUserId: x.assignedUserId, serviceName: x.serviceName, clientName: name, clientEmail: email, clientPhone: phone, practitioner: who, notes: staffNotes, startTime: x.startTime, endTime: x.endTime, status: "confirmed" });
+      await sendPractitionerAlert({ contactId, appointmentId: x.id, clientName: name, clientEmail: email, clientPhone: phone, serviceName: x.serviceName, startTime: x.startTime, practitioner: who, practitionerEmail: (x.assignedUserId && TEAM_EMAIL_BY_USER_ID.get(x.assignedUserId)) || null, notes: staffNotes, durationMins: Math.round((Date.parse(x.endTime) - Date.parse(x.startTime)) / 60_000), price: x.price }).catch(() => false);
+    }
+
     await createBookingOpportunity({
       contactId,
       clientName: name,
-      serviceName: `${serviceName || "Appointment"}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : ""}`,
-      price: bundlePick?.price ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? null,
+      serviceName: `${serviceName || "Appointment"}${extraAppts.length ? ` + ${extraAppts.length} more` : ""}${bundlePick ? ` · Blow-Dry Bundle of ${bundlePick.count}` : ""}`,
+      price: (bundlePick?.price ?? deposit.service?.price ?? serviceMetaForCalendar(calendarId)?.price ?? 0) + extraAppts.reduce((n, x) => n + x.price, 0),
       startTime,
     }).catch(() => null);
 
@@ -284,6 +351,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       appointmentId,
       contactId,
       ...(paidIntentId ? { depositPence: deposit.depositPence, depositTaken } : {}),
+      ...(extraAppts.length ? { extras: extraAppts.map((x) => ({ appointmentId: x.id, serviceName: x.serviceName, startTime: x.startTime, practitioner: (x.assignedUserId && TEAM_BY_USER_ID.get(x.assignedUserId)) || null })) } : {}),
       ...(onBundle ? { bundle: { size: onBundle.size, used: onBundle.used, left: Math.max(0, onBundle.size - onBundle.used), paid: Boolean(onBundle.paid_at), bought: Boolean(bundlePick) } } : {}),
     });
   } catch (err) {

@@ -5,28 +5,33 @@
  */
 import * as React from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, RefreshCw, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { ResolvedService } from "@/lib/catalogue";
+import { formatDuration, formatPrice, type ResolvedService } from "@/lib/catalogue";
 import { useMotionSafe, spring, easeLuxury } from "@/lib/motion";
-import { useSlots } from "../api";
+import { useSlots, useVisitSlots } from "../api";
+import type { VisitPart } from "../types";
 import { upcomingDays, formatTime, dayPart, formatLongDate, type DayPart } from "../time";
 import { StepHeader, StepNav } from "../step-shell";
 import { WaitlistPanel } from "../waitlist/waitlist-panel";
 
 interface Props {
   service: ResolvedService;
+  /** more treatments in the same visit (back-to-back) */
+  extras?: ResolvedService[];
+  onAddAnother?: () => void;
+  onRemoveExtra?: (id: string) => void;
   date?: string;
   slot?: string;
-  onChange: (next: { date?: string; slot?: string }) => void;
+  onChange: (next: { date?: string; slot?: string; plan?: VisitPart[] }) => void;
   onBack: () => void;
   onNext: () => void;
 }
 
 const PARTS: DayPart[] = ["Morning", "Afternoon", "Evening"];
 
-export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: Props) {
+export function DateTimeStep({ service, extras = [], onAddAnother, onRemoveExtra, date, slot, onChange, onBack, onNext }: Props) {
   const m = useMotionSafe();
   const days = React.useMemo(() => upcomingDays(14), []);
   const stripRef = React.useRef<HTMLDivElement>(null);
@@ -40,7 +45,15 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const slots = useSlots(service.ghlCalendarId, date);
+  const single = useSlots(service.ghlCalendarId, date);
+  const visitServices = React.useMemo(() => [service, ...extras], [service, extras]);
+  const visit = useVisitSlots(extras.length ? visitServices : [], extras.length ? date : undefined);
+  /** One treatment → its free slots. Several → only start times where all of them fit back-to-back. */
+  const slots = extras.length
+    ? { data: visit.options?.map((o) => o.start), isLoading: visit.isLoading, isError: visit.isError, isFetching: visit.isFetching, refetch: visit.refetch }
+    : single;
+  const pick = (iso: string) => onChange({ date, slot: iso, plan: extras.length ? visit.options?.find((o) => o.start === iso)?.plan.slice(1) : undefined });
+  const totalMins = visitServices.reduce((n, x) => n + x.duration, 0);
 
   const grouped = React.useMemo(() => {
     const map: Record<DayPart, string[]> = { Morning: [], Afternoon: [], Evening: [] };
@@ -55,6 +68,28 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
   return (
     <div>
       <StepHeader step={1} title="When suits you?" lede="Manchester time. Mon–Sat 10am–7:30pm, Sun 10am–5pm." />
+
+      {/* The visit: one treatment, or several back-to-back */}
+      <div className="mb-6 rounded-2xl border border-glass-border-warm bg-ora-cream/50 p-4 sm:p-5" data-testid="visit-list">
+        <p className="mb-2 font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-bronze">Your visit{extras.length ? ` · ${extras.length + 1} treatments · ${formatDuration(totalMins)}` : ""}</p>
+        <ul className="space-y-1.5">
+          {visitServices.map((x, i) => (
+            <li key={x.id} className="flex items-center gap-3 font-sans text-[0.9rem] text-foreground">
+              <span className="min-w-0 flex-1 truncate">{x.name}</span>
+              <span className="shrink-0 tabular-nums text-ora-fog">{formatDuration(x.duration)} · {x.price === 0 ? "POA" : formatPrice(x.price)}</span>
+              {i > 0 && onRemoveExtra && (
+                <button type="button" aria-label={`Remove ${x.name}`} onClick={() => onRemoveExtra(x.id)} className="focus-ring inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-ora-fog hover:text-foreground"><X className="h-3.5 w-3.5" aria-hidden /></button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {onAddAnother && extras.length < 3 && (
+          <button type="button" onClick={onAddAnother} data-testid="add-another" className="focus-ring mt-3 inline-flex items-center gap-1.5 rounded-full border border-ora-bronze/50 px-3.5 py-1.5 font-sans text-[0.8125rem] text-foreground transition-colors hover:border-ora-bronze hover:bg-ora-bronze/10">
+            <Plus className="h-3.5 w-3.5 text-ora-bronze" aria-hidden /> Add another treatment
+          </button>
+        )}
+        {extras.length > 0 && <p className="mt-2 font-sans text-[0.75rem] text-ora-fog">Booked one after another. The times below are when your first treatment starts.</p>}
+      </div>
 
       {/* Date strip */}
       <div className="relative">
@@ -134,7 +169,9 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
             </Button>
           </EmptyState>
         ) : (slots.data?.length ?? 0) === 0 ? (
-          date ? <WaitlistPanel service={service} date={date} /> : null
+          date ? (extras.length
+            ? <EmptyState title="No time that day fits all your treatments" body="Try another day, or remove a treatment to see more times." />
+            : <WaitlistPanel service={service} date={date} />) : null
         ) : (
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -163,7 +200,7 @@ export function DateTimeStep({ service, date, slot, onChange, onBack, onNext }: 
                           type="button"
                           role="radio"
                           aria-checked={active}
-                          onClick={() => onChange({ date, slot: iso })}
+                          onClick={() => pick(iso)}
                           whileHover={m.reduced ? undefined : { y: -2, transition: spring.snappy }}
                           whileTap={m.reduced ? undefined : { scale: 0.97 }}
                           className={cn(

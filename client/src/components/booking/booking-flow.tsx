@@ -47,6 +47,8 @@ export function BookingFlow() {
   const [dir, setDir] = React.useState<1 | -1>(1);
   const [state, setState] = React.useState<BookingState>({ service: preselected, details: EMPTY_DETAILS });
   const [appointmentId, setAppointmentId] = React.useState<string | undefined>();
+  /** Picking a further treatment for the same visit (Service step opened from Time). */
+  const [adding, setAdding] = React.useState(false);
 
   const booking = useCreateBooking();
   const topRef = React.useRef<HTMLDivElement>(null);
@@ -66,8 +68,15 @@ export function BookingFlow() {
 
   /** Select a treatment and move straight on to Time. */
   const selectService = (s: ResolvedService) => {
+    if (adding) {
+      // another treatment for the same visit: times must be found again for the whole visit
+      setAdding(false);
+      setState((st) => (st.service?.id === s.id || st.extras?.some((x) => x.id === s.id) ? st : { ...st, extras: [...(st.extras || []), s], slot: undefined, plan: undefined }));
+      go(1);
+      return;
+    }
     // changing service invalidates the slot (calendar differs)
-    patch({ service: s, slot: undefined, bundle: undefined, covered: undefined });
+    patch({ service: s, slot: undefined, bundle: undefined, covered: undefined, extras: undefined, plan: undefined });
     const qs = new URLSearchParams(search);
     qs.set("service", s.id);
     qs.delete("category");
@@ -99,6 +108,9 @@ export function BookingFlow() {
         endTime: addMinutesIso(state.slot, s.duration),
         ...(paymentIntentId ? { paymentIntentId } : {}),
         ...(state.bundle ? { bundle: state.bundle } : {}),
+        ...(state.extras?.length && state.plan?.length === state.extras.length
+          ? { extras: state.extras.map((x, i) => ({ calendarId: x.ghlCalendarId!, serviceId: x.id, serviceName: x.name, startTime: state.plan![i].startTime, endTime: state.plan![i].endTime })) }
+          : {}),
       },
       {
         onSuccess: (res) => {
@@ -131,9 +143,13 @@ export function BookingFlow() {
             exit="exit"
             transition={{ duration: 0.4, ease: easeLuxury }}
           >
-            {step === 0 && <ServiceStep selected={state.service} initialCategory={initialCategory} onSelect={selectService} />}
+            {step === 0 && <ServiceStep selected={adding ? undefined : state.service} initialCategory={initialCategory} onSelect={selectService} title={adding ? "Add another treatment" : undefined} />}
             {step === 1 && state.service && (
-              <DateTimeStep service={state.service} date={state.date} slot={state.slot} onChange={(n) => patch(n)} onBack={() => go(0)} onNext={() => go(2)} />
+              <DateTimeStep service={state.service} extras={state.extras} date={state.date} slot={state.slot}
+                onChange={(n) => patch({ ...n, plan: n.slot ? n.plan : undefined })}
+                onAddAnother={() => { setAdding(true); go(0); }}
+                onRemoveExtra={(id) => setState((st) => ({ ...st, extras: (st.extras || []).filter((x) => x.id !== id), slot: undefined, plan: undefined }))}
+                onBack={() => { setAdding(false); go(0); }} onNext={() => go(2)} />
             )}
             {step === 2 && <DetailsStep value={state.details} onChange={(d) => patch({ details: d })} onBack={() => go(1)} onNext={() => go(3)} />}
             {step === 3 && ready && (
