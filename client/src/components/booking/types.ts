@@ -22,9 +22,15 @@ export interface BookingState {
   details: BookingDetails;
   /** Blow-dry bundle size (4 / 6) — undefined = just this one appointment */
   bundle?: number;
+  /** More treatments in the same visit, booked back-to-back after the first (any practitioner) */
+  extras?: ResolvedService[];
+  /** When each extra starts, for the chosen first time (set on the Time step) */
+  plan?: VisitPart[];
   /** They already hold a paid bundle that covers this blow-dry (found on the confirm step) */
   covered?: { size: number; left: number };
 }
+
+export interface VisitPart { serviceId: string; startTime: string; endTime: string }
 
 export const EMPTY_DETAILS: BookingDetails = { name: "", email: "", phone: "", notes: "", consent: false };
 
@@ -67,6 +73,8 @@ export interface BookingRequest {
   paymentIntentId?: string;
   /** Buy a blow-dry bundle of this size with this visit; the server prices it */
   bundle?: number;
+  /** Further treatments in the same visit, back-to-back after the first */
+  extras?: { calendarId: string; serviceId: string; serviceName: string; startTime: string; endTime: string }[];
 }
 export interface BookingResponse {
   success: boolean;
@@ -78,6 +86,8 @@ export interface BookingResponse {
   depositTaken?: boolean;
   /** true when a failed booking released the hold — the card was never charged */
   released?: boolean;
+  /** the rest of a multi-treatment visit */
+  extras?: { appointmentId: string; serviceName: string; startTime: string; practitioner: string | null }[];
   /** legacy: a failed booking refunded an already-captured deposit */
   refunded?: boolean;
   error?: string;

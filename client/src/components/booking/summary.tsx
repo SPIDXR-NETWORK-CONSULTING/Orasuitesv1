@@ -36,6 +36,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
         <div className={cn("min-w-0", compact ? "mb-2" : "mb-3")}>
           <p className="font-sans text-[0.6875rem] uppercase tracking-[0.18em] text-ora-fog">{s.categoryTitle} · {s.groupName}</p>
           <p className="mt-1 font-display text-[1.125rem] leading-tight text-foreground">{s.name}</p>
+          {(state.extras || []).map((x) => <p key={x.id} className="mt-1 font-sans text-[0.875rem] leading-snug text-foreground">+ {x.name}</p>)}
         </div>
       ) : (
         <p className="font-sans text-[0.9375rem] text-ora-fog">Choose a treatment to begin.</p>
@@ -52,7 +53,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
                   <span className="block font-sans text-[0.75rem] text-ora-fog">Bundle of {bundle.count} blow-dries</span>
                 </span>
               ) : (
-                <span className="font-medium">{isFree ? "Complimentary" : covered ? "On your bundle" : formatPrice(s.price)}</span>
+                <span className="font-medium">{state.extras?.length ? formatPrice(s.price + state.extras.reduce((n, x) => n + x.price, 0)) : isFree ? (s.priceLabel ?? "Complimentary") : covered ? "On your bundle" : formatPrice(s.price)}</span>
               )
             }
           />
@@ -61,7 +62,7 @@ function SummaryBody({ state, compact = false }: { state: BookingState; compact?
             value={
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-ora-bronze" aria-hidden />
-                {formatDuration(s.duration)}
+                {formatDuration(s.duration + (state.extras || []).reduce((n, x) => n + x.duration, 0))}
               </span>
             }
           />
@@ -163,10 +164,10 @@ export function SummarySheet({ state }: { state: BookingState }) {
         >
           <span className="min-w-0">
             <span className="block font-sans text-[0.625rem] uppercase tracking-[0.2em] text-ora-bronze">Your booking</span>
-            <span className="block truncate font-display text-[1.0625rem] text-foreground">{s.name}</span>
+            <span className="block truncate font-display text-[1.0625rem] text-foreground">{s.name}{state.extras?.length ? ` + ${state.extras.length} more` : ""}</span>
           </span>
           <span className="flex shrink-0 items-center gap-3">
-            <span className="font-display text-[1.125rem] text-foreground">{isFree ? "Free" : state.covered && !bundle ? "On your bundle" : formatPrice(bundle?.price ?? s.price)}</span>
+            <span className="font-display text-[1.125rem] text-foreground">{state.extras?.length ? formatPrice((bundle?.price ?? s.price) + state.extras.reduce((n, x) => n + x.price, 0)) : isFree ? (s.priceLabel ?? "Free") : state.covered && !bundle ? "On your bundle" : formatPrice(bundle?.price ?? s.price)}</span>
             <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.4, ease: easeLuxury }} className="text-ora-fog">
               <ChevronUp className="h-4 w-4" aria-hidden />
             </motion.span>

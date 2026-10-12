@@ -105,8 +105,14 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, onCove
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-sans text-[0.8125rem] text-ora-fog">
             <span>{s.categoryTitle} · {s.groupName}</span>
             <span className="inline-flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-ora-bronze" aria-hidden />{formatDuration(s.duration)}</span>
-            <span className="text-foreground">{free ? "Complimentary" : formatPrice(s.price)}</span>
+            <span className="text-foreground">{free ? (s.priceLabel ?? "Complimentary") : formatPrice(s.price)}</span>
           </span>
+          {(state.extras || []).map((x, i) => (
+            <span key={x.id} className="mt-2 flex flex-wrap items-baseline gap-x-3 border-t border-ora-greige/60 pt-2 font-sans text-[0.875rem] text-foreground" data-testid="confirm-extra">
+              <span className="font-display text-[1.0625rem]">+ {x.name}</span>
+              <span className="text-[0.8125rem] text-ora-fog">{state.plan?.[i] ? `from ${formatTime(state.plan[i].startTime)}` : ""} · {formatDuration(x.duration)} · {x.price === 0 ? (x.priceLabel ?? "POA") : formatPrice(x.price)}</span>
+            </span>
+          ))}
         </ReviewRow>
         <ReviewRow label="When" onEdit={() => onEdit(1)}>
           <span className="font-sans text-[0.9375rem] text-foreground">
@@ -134,7 +140,7 @@ export function ConfirmStep({ state, onBack, onEdit, onConfirm, onBundle, onCove
 
           <DepositPanel
             mode={deposit.enabled ? "live" : "preview"}
-            price={bundlePrice ?? s.price}
+            price={(bundlePrice ?? s.price) + (state.extras || []).reduce((n, x) => n + x.price, 0)}
             bundle={bundlePrice && state.bundle ? { count: state.bundle, price: bundlePrice } : undefined}
             className="mt-6"
             loading={deposit.enabled && deposit.status === "loading"}

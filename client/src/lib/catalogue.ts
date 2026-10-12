@@ -10,8 +10,10 @@ export type TeamKey = "meg" | "daniela" | "soheila" | "ruslana" | "diana" | (str
 
 export interface Service {
   name: string;
-  /** GBP, 0 = free */
+  /** GBP, 0 = free (unless priceLabel says otherwise, e.g. "POA") */
   price: number;
+  /** shown instead of the price, e.g. "POA" for Hair Up */
+  priceLabel?: string;
   /** minutes */
   duration: number;
   ghlCalendarId?: string;

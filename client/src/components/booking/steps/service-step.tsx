@@ -26,9 +26,11 @@ interface Props {
   initialCategory?: CategoryId;
   /** select + auto-advance handled by the parent */
   onSelect: (s: ResolvedService) => void;
+  /** heading override, e.g. when adding a further treatment to the visit */
+  title?: string;
 }
 
-export function ServiceStep({ selected, initialCategory, onSelect }: Props) {
+export function ServiceStep({ selected, initialCategory, onSelect, title }: Props) {
   // Only categories open for ONLINE booking. Aesthetics and hair are shown on
   // the services page with full prices, but route to an enquiry instead.
   const live = React.useMemo(bookableCategories, []);
@@ -76,7 +78,7 @@ export function ServiceStep({ selected, initialCategory, onSelect }: Props) {
 
   return (
     <div>
-      <StepHeader step={0} title="What would you like to book?" />
+      <StepHeader step={0} title={title ?? "What would you like to book?"} />
 
       {/* Tabs + (optional) search on one line */}
       <div className="mb-5 flex flex-wrap items-center justify-center gap-3 sm:justify-between">

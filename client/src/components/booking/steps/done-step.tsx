@@ -30,7 +30,7 @@ export function DoneStep({ state, appointmentId }: Props) {
     return () => window.clearTimeout(t);
   }, []);
 
-  const endIso = addMinutesIso(state.slot, s.duration);
+  const endIso = state.plan?.length ? state.plan[state.plan.length - 1].endTime : addMinutesIso(state.slot, s.duration);
   const ics = React.useMemo(
     () =>
       icsDataUrl({
@@ -90,6 +90,9 @@ export function DoneStep({ state, appointmentId }: Props) {
 
       <GlassCard tone="strong" padding="md" radius="lg" staticCard className="mx-auto mt-8 max-w-md bg-ora-cream/60 text-left">
         <p className="font-display text-[1.125rem] leading-tight text-foreground">{s.name}</p>
+        {(state.extras || []).map((x, i) => (
+          <p key={x.id} className="mt-1 font-sans text-[0.9rem] text-foreground">+ {x.name}{state.plan?.[i] ? <span className="text-ora-fog"> · {formatTime(state.plan[i].startTime)}</span> : null}</p>
+        ))}
         <p className="mt-1 font-sans text-[0.8125rem] text-ora-fog">
           {s.categoryTitle} · {formatDuration(s.duration)} · {free ? "Complimentary" : bundle ? `Blow-Dry Bundle of ${bundle.count} · ${formatPrice(bundle.price)}${isStripeEnabled() ? " paid" : " at the clinic"}` : state.covered ? "On your Blow-Dry Bundle · nothing to pay" : formatPrice(s.price)}
         </p>
