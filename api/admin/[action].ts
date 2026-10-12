@@ -111,6 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     case "bundles": return bundles(req, res);
     case "bundle-sell": return bundleSell(req, res);
     case "bundle-act": return bundleAct(req, res);
+    case "bundle-add": return bundleAdd(req, res);
     case "redemptions": return redemptions(req, res);
     case "redemption-act": return redemptionActRoute(req, res);
     default: return res.status(404).json({ error: `Unknown action` });
@@ -736,6 +737,45 @@ async function bundles(_req: VercelRequest, res: VercelResponse) {
   const r = await listBundles();
   if (!r.ok) return res.status(502).json({ error: r.error });
   res.json({ bundles: r.data });
+}
+
+/**
+ * Put a client who already has a bundle (paper card, bought before ORÁ Floor) onto the
+ * system: size, how many blow-dries they've used, and the day they paid (the 6 months
+ * run from then). Optionally emails them their bundle link.
+ */
+async function bundleAdd(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
+  const b = (typeof req.body === "string" ? safeJson(req.body) : req.body) || {};
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+  const offer = bundleOfferFor("8GjWYEE76ZxMMRkRvtYh"); // the blow-dry offer (any eligible calendar)
+  const pick = bundleSize(offer, b.size);
+  if (!offer || !pick) return res.status(400).json({ error: "Choose a bundle of 4 or 6." });
+  const used = Math.round(Number(b.used) || 0);
+  if (used < 0 || used > pick.count) return res.status(400).json({ error: `Used must be between 0 and ${pick.count}.` });
+  const name = str(b.clientName, 120).trim();
+  const email = typeof b.email === "string" && b.email.includes("@") ? b.email.trim().slice(0, 200) : "";
+  const phone = str(b.phone, 40).trim();
+  if (!name || (!email && !phone)) return res.status(400).json({ error: "Add the client's name and an email or phone." });
+  const paidOn = typeof b.paidOn === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.paidOn) ? b.paidOn : todayStr();
+  const paidAt = new Date(`${paidOn}T12:00:00Z`).toISOString();
+  if (Date.parse(paidAt) < Date.now() - offer.expiryMonths * 31 * 864e5) return res.status(400).json({ error: `A bundle paid on ${paidOn} has already run out (valid ${offer.expiryMonths} months).` });
+  // Link to their GHL record so their appointments show the bundle.
+  let contactId = typeof b.contactId === "string" && /^[A-Za-z0-9]{8,40}$/.test(b.contactId) ? b.contactId : "";
+  if (!contactId && email) {
+    const [firstName, ...rest] = name.split(/\s+/);
+    contactId = (await resolveContact({ email, firstName, lastName: rest.join(" "), phone, tags: ["bundle"] }))?.id || "";
+  }
+  const made = await createBundle({ client_name: name, email: email || null, phone: phone || null, contact_id: contactId || null, size: pick.count, price: pick.price, source: "desk", paid: true, paid_at: paidAt, expiry_months: offer.expiryMonths, notes: "Added from a paper card" });
+  if (!made.ok) return res.status(400).json({ error: made.error });
+  let bundle = made.data;
+  for (let i = 0; i < used; i++) {
+    const u = await bundleAction(bundle.id, "use", { service: "Blow-dry (before ORÁ Floor)", visit_at: paidAt });
+    if (!u.ok) return res.json({ bundle, warning: `Bundle added, but only ${i} of ${used} past blow-dries were counted: ${u.error}` });
+    bundle = u.data;
+  }
+  const emailed = b.emailClient && bundle.contact_id ? await sendBundleEmail(bundle, "bought") : false;
+  res.json({ bundle, emailed });
 }
 
 /* ── App rewards (points) redeemed by customers ─────────────── */

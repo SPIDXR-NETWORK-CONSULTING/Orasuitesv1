@@ -840,52 +840,62 @@
     {
       "id": "beauty",
       "title": "Beauty",
-      "live": false,
-      "bookable": false,
-      "team": [],
+      "live": true,
+      "bookable": true,
+      "team": [
+        "amani"
+      ],
       "groups": [
         {
           "name": "Facial Threading (Ladies)",
           "services": [
             {
-              "name": "Chin",
+              "name": "Chin Threading",
               "price": 5,
-              "duration": 10
+              "duration": 10,
+              "ghlCalendarId": "pMqXyICW0dLNDFbaSLCY"
             },
             {
-              "name": "Lower Lip",
+              "name": "Lower Lip Threading",
               "price": 5,
-              "duration": 10
+              "duration": 10,
+              "ghlCalendarId": "V4GgFfwiGGPEci710k7D"
             },
             {
-              "name": "Upper Lip",
+              "name": "Upper Lip Threading",
               "price": 5,
-              "duration": 10
+              "duration": 10,
+              "ghlCalendarId": "znMpTzDPPjcuhotYbZ4O"
             },
             {
-              "name": "Forehead",
+              "name": "Forehead Threading",
               "price": 8,
-              "duration": 10
+              "duration": 10,
+              "ghlCalendarId": "vWcZpFDSvBYWvOUJRwyj"
             },
             {
-              "name": "Lip & Chin",
+              "name": "Lip & Chin Threading",
               "price": 8,
-              "duration": 15
+              "duration": 15,
+              "ghlCalendarId": "W1ztrqdqaaZg2YXTuwB7"
             },
             {
-              "name": "Sides",
+              "name": "Sides Threading",
               "price": 8,
-              "duration": 10
+              "duration": 10,
+              "ghlCalendarId": "lp1m0vBGRrNPyGvqFHmG"
             },
             {
-              "name": "Full Face",
+              "name": "Full Face Threading",
               "price": 26,
-              "duration": 30
+              "duration": 30,
+              "ghlCalendarId": "iJYwYWEYMwsUuvTTB3oB"
             },
             {
-              "name": "Full Face including Eyebrows",
+              "name": "Full Face Threading incl. Eyebrows",
               "price": 33,
-              "duration": 35
+              "duration": 35,
+              "ghlCalendarId": "i1ZksN8DSbDvZrVQi6No"
             }
           ]
         },
@@ -895,17 +905,20 @@
             {
               "name": "Eyebrow Tint",
               "price": 10,
-              "duration": 15
+              "duration": 15,
+              "ghlCalendarId": "Kw4diN5cTQvcG0gbLQEn"
             },
             {
               "name": "Eyelash Tint",
               "price": 15,
-              "duration": 20
+              "duration": 20,
+              "ghlCalendarId": "UayM0N8AuYpbRFDbjbRO"
             },
             {
               "name": "Eyebrow & Eyelash Tint",
               "price": 23,
-              "duration": 35
+              "duration": 35,
+              "ghlCalendarId": "R8ndIBM0YGWYmoPhvtXm"
             }
           ]
         },
@@ -913,13 +926,15 @@
           "name": "Eyebrow Threading",
           "services": [
             {
-              "name": "Eyebrow",
+              "name": "Eyebrow Threading",
               "price": 8,
-              "duration": 15
+              "duration": 15,
+              "ghlCalendarId": "o5LRwmVx3uQPNNY6KMEO"
             }
           ]
         }
-      ]
+      ],
+      "ghlGroupId": "9j7Jeco9ydwg2UeJ8WWz"
     },
     {
       "id": "makeup",

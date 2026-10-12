@@ -52,12 +52,8 @@ export function ClientPanel({ contactId, showContact = false }: { contactId: str
 
   return (
     <div className="space-y-5">
-      {showContact && (
-        <div>
-          <p className="font-display text-[1.2rem] text-ora-deep">{data.contact.name}</p>
-          <p className="font-sans text-[0.8125rem] text-ora-fog">{[data.contact.phone, data.contact.email].filter(Boolean).join(" · ") || "No contact details"}</p>
-        </div>
-      )}
+      {showContact && <p className="font-display text-[1.2rem] text-ora-deep">{data.contact.name}</p>}
+      <ContactLinks phone={data.contact.phone} email={data.contact.email} />
 
       {(noShows > 0 || cancels > 0) && (
         <p className={cn("rounded-xl px-3 py-2 font-sans text-[0.8125rem]", noShows ? "bg-ora-clay/10 text-ora-clay" : "bg-ora-fog/10 text-ora-fog")} data-testid="client-reliability">
@@ -104,6 +100,21 @@ export function ClientPanel({ contactId, showContact = false }: { contactId: str
           {live.length === 0 && <li className="py-3 text-center font-sans text-[0.8125rem] text-ora-fog">First visit.</li>}
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** Phone / email / WhatsApp as one-tap links, on every appointment and client. */
+function ContactLinks({ phone, email }: { phone: string | null; email: string | null }) {
+  const digits = (phone || "").replace(/[^\d+]/g, "");
+  const wa = digits.replace(/^\+/, "").replace(/^0/, "44");
+  if (!digits && !email) return <p className="font-sans text-[0.8125rem] text-ora-fog">No phone or email on file.</p>;
+  const chip = "focus-ring inline-flex items-center rounded-full border border-ora-taupe/30 bg-white px-3.5 py-1.5 font-sans text-[0.8125rem] text-ora-deep transition hover:border-ora-bronze";
+  return (
+    <div className="flex flex-wrap gap-2" data-testid="client-contact">
+      {digits && <a className={chip} href={`tel:${digits}`}>{phone}</a>}
+      {wa.length >= 10 && <a className={chip} href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">WhatsApp</a>}
+      {email && <a className={chip} href={`mailto:${email}`}>{email}</a>}
     </div>
   );
 }
