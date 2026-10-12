@@ -12,8 +12,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { bundleFor, findService } from "@/lib/catalogue";
-import { type Appt, useAdmin, cache, money, fmtDate, londonDate } from "./lib";
-import { Btn, Card, Empty, ErrorNote, Input, Segmented, Stat } from "./ui";
+import { type Appt, useAdmin, cache, money, fmtDate, londonDate, todayISO } from "./lib";
+import { Btn, Card, Empty, ErrorNote, Field, Input, Segmented, Stat } from "./ui";
 
 export interface BundleUse { id: string; appointment_id: string | null; service: string | null; used_at: string; visit_at?: string | null }
 const visitAt = (u: BundleUse) => u.visit_at || u.used_at;
@@ -157,6 +157,99 @@ export function ApptBundle({ a, s }: { a: Appt; s: ReturnType<typeof useApptBund
   );
 }
 
+/* ── Add a client's existing bundle (paper card) ──────────── */
+type Match = { id: string; name: string; email: string | null; phone: string | null };
+function AddBundle({ onAdded, onClose }: { onAdded: (b: Bundle) => void; onClose: () => void }) {
+  const { call } = useAdmin();
+  const offer = bundleFor(findService("8GjWYEE76ZxMMRkRvtYh"));
+  const [q, setQ] = React.useState("");
+  const [matches, setMatches] = React.useState<Match[]>([]);
+  const [picked, setPicked] = React.useState<Match | null>(null);
+  const [name, setName] = React.useState(""); const [email, setEmail] = React.useState(""); const [phone, setPhone] = React.useState("");
+  const [size, setSize] = React.useState(offer?.sizes[0]?.count ?? 4);
+  const [used, setUsed] = React.useState(0);
+  const [paidOn, setPaidOn] = React.useState(todayISO());
+  const [emailClient, setEmailClient] = React.useState(true);
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    if (picked || q.trim().length < 2) { setMatches([]); return; }
+    const t = setTimeout(() => call<{ clients: Match[] }>(`clients?q=${encodeURIComponent(q.trim())}`).then((j) => setMatches((j.clients || []).slice(0, 5))).catch(() => setMatches([])), 300);
+    return () => clearTimeout(t);
+  }, [q, picked, call]);
+  React.useEffect(() => { if (used > size) setUsed(size); }, [size, used]);
+  const pick = (m: Match) => { setPicked(m); setName(m.name); setEmail(m.email || ""); setPhone(m.phone || ""); setMatches([]); };
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || (!email.trim() && !phone.trim())) { setError("Add the client's name and an email or phone."); return; }
+    setBusy(true); setError(null);
+    try {
+      const j = await call<{ bundle: Bundle; warning?: string }>("bundle-add", { method: "POST", body: JSON.stringify({ contactId: picked?.id, clientName: name.trim(), email: email.trim(), phone: phone.trim(), size, used, paidOn, emailClient }) });
+      onAdded(j.bundle);
+      if (j.warning) setError(j.warning); else onClose();
+    } catch (err) { setError(err instanceof Error ? err.message : "Couldn't add the bundle."); } finally { setBusy(false); }
+  };
+  const chip = (on: boolean) => cn("focus-ring h-10 rounded-xl border px-3.5 font-sans text-[0.8125rem] transition", on ? "border-ora-deep bg-ora-deep text-ora-cream" : "border-ora-taupe/35 bg-white text-ora-deep hover:border-ora-bronze");
+  return (
+    <Card className="p-5">
+      <form onSubmit={submit} className="space-y-4" data-testid="add-bundle">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="font-display text-[1.25rem] text-ora-deep">Add a client's bundle</p>
+            <p className="font-sans text-[0.8125rem] text-ora-fog">For clients already on a bundle (for example a paper card). Their blow-dries are tracked here from now on.</p>
+          </div>
+          <Btn type="button" size="sm" variant="ghost" onClick={onClose}>Close</Btn>
+        </div>
+        {picked ? (
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-ora-sage/40 bg-ora-sage/10 px-4 py-2.5 font-sans text-[0.8125rem] text-ora-deep">
+            <span>Adding to <b className="font-medium">{picked.name}</b>'s record</span>
+            <button type="button" onClick={() => { setPicked(null); setName(""); setEmail(""); setPhone(""); }} className="focus-ring rounded px-1 text-ora-fog underline-offset-4 hover:underline">Change</button>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <Field label="Find the client"><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, phone or email" aria-label="Find the client" /></Field>
+            {matches.length > 0 && (
+              <ul className="space-y-1.5">{matches.map((m) => (
+                <li key={m.id}><button type="button" onClick={() => pick(m)} className="focus-ring flex w-full items-center justify-between gap-3 rounded-xl bg-white/80 px-3 py-2 text-left hover:bg-white">
+                  <span className="min-w-0"><span className="block truncate font-sans text-[0.875rem] font-medium text-ora-deep">{m.name}</span><span className="block truncate font-sans text-[0.75rem] text-ora-fog">{[m.phone, m.email].filter(Boolean).join(" · ") || "No contact details"}</span></span>
+                  <span className="shrink-0 font-sans text-[0.8125rem] text-ora-bronze">Use</span>
+                </button></li>
+              ))}</ul>
+            )}
+            <p className="font-sans text-[0.75rem] text-ora-fog">Not found? Fill in their details:</p>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="Name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+              <Field label="Email"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+              <Field label="Phone"><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+            </div>
+          </div>
+        )}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Bundle</p>
+            <div className="flex gap-2">{(offer?.sizes || []).map((z) => <button key={z.count} type="button" aria-pressed={size === z.count} onClick={() => setSize(z.count)} className={chip(size === z.count)}>{z.count} for {money(z.price)}</button>)}</div>
+          </div>
+          <div>
+            <p className="mb-2 font-sans text-[0.75rem] font-medium text-ora-fog">Blow-dries already used</p>
+            <div className="flex items-center gap-2">
+              <Btn type="button" size="sm" onClick={() => setUsed((u) => Math.max(0, u - 1))} aria-label="One fewer">−</Btn>
+              <span className="w-16 text-center font-display text-[1.4rem] tabular-nums text-ora-deep" aria-live="polite">{used} / {size}</span>
+              <Btn type="button" size="sm" onClick={() => setUsed((u) => Math.min(size, u + 1))} aria-label="One more">+</Btn>
+            </div>
+          </div>
+          <Field label="Paid on (valid 6 months from this day)"><Input type="date" value={paidOn} max={todayISO()} onChange={(e) => setPaidOn(e.target.value)} required /></Field>
+        </div>
+        <label className="flex items-center gap-2 font-sans text-[0.8125rem] text-ora-deep">
+          <input type="checkbox" checked={emailClient} onChange={(e) => setEmailClient(e.target.checked)} className="h-4 w-4 accent-[#b98867]" />
+          Email them a link to their bundle (shows how many they have left)
+        </label>
+        {error && <ErrorNote>{error}</ErrorNote>}
+        <Btn variant="dark" disabled={busy} className="w-full">{busy ? "Adding…" : `Add bundle · ${size - used} left`}</Btn>
+      </form>
+    </Card>
+  );
+}
+
 /* ── Bundles tab ─────────────────────────────────────────── */
 export function BundlesView() {
   const { call } = useAdmin();
@@ -166,6 +259,7 @@ export function BundlesView() {
   const [open, setOpen] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [actError, setActError] = React.useState<string | null>(null);
+  const [adding, setAdding] = React.useState(false);
 
   const act = async (b: Bundle, action: string, extra: object = {}) => {
     setBusy(`${b.id}:${action}`); setActError(null);
@@ -188,6 +282,10 @@ export function BundlesView() {
         <Stat label="Blow-dries owed" value={list ? leftTotal : "—"} tone="bronze" sub={booked ? `not booked yet · ${booked} more booked ahead` : "not booked yet, across all bundles"} />
         <Stat label="To pay" value={list ? toPay : "—"} tone={toPay ? "bronze" : "sage"} sub={toPay ? "booked online, pay on first visit" : "nothing outstanding"} />
       </div>
+
+      {adding ? <AddBundle onAdded={replace} onClose={() => setAdding(false)} /> : (
+        <Btn variant="primary" onClick={() => setAdding(true)} data-testid="add-bundle-open">+ Add a client's bundle</Btn>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Segmented label="Show bundles" value={filter} onChange={setFilter} options={[{ value: "current", label: "Current" }, { value: "all", label: "All, incl. used" }]} />

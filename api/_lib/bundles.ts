@@ -134,6 +134,8 @@ export function createBundle(p: {
   client_name: string; email?: string | null; phone?: string | null; contact_id?: string | null;
   size: number; price: number; source: "online" | "desk"; paid: boolean; first_appointment_id?: string | null;
   expiry_months: number; notes?: string | null;
+  /** when it was paid (paper bundles added later); defaults to now */
+  paid_at?: string | null;
 }) {
   return rpc<Bundle>("ora_bundle_create", { p: { ...p, token: newBundleToken() } });
 }
